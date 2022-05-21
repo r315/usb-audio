@@ -29,8 +29,6 @@
 #include "usbcore.h"
 #include "usbuser.h"
 
-//#pragma diag_suppress 1441
-
 #define EP_MSK_CTRL 0x0001 /* Control Endpoint Logical Address Mask */
 #define EP_MSK_BULK 0xC924 /* Bulk Endpoint Logical Address Mask */
 #define EP_MSK_INT 0x4492  /* Interrupt Endpoint Logical Address Mask */
@@ -48,6 +46,9 @@ uint32_t udca[USB_EP_NUM]; /* UDCA saved values */
 
 uint32_t DDMemMap[2]; /* DMA Descriptor Memory Usage */
 
+/* DMA Descriptor Memory Layout */
+const uint32_t DDAdr[2] = {DD_NISO_ADR, DD_ISO_ADR};
+const uint32_t DDSz[2] = {16, 20};
 #endif
 
 /*
@@ -466,12 +467,23 @@ uint32_t USB_WriteEP(uint32_t EPNum, uint8_t *pData, uint32_t cnt)
     return (cnt);
 }
 
+/*
+ *  Get USB Last Frame Number
+ *    Parameters:      None
+ *    Return Value:    Frame Number
+ */
+uint32_t USB_GetFrame(void)
+{
+    uint32_t val;
+
+    WrCmd(CMD_RD_FRAME);
+    val = RdCmdDat(DAT_RD_FRAME);
+    val = val | (RdCmdDat(DAT_RD_FRAME) << 8);
+
+    return (val);
+}
+
 #if USB_DMA
-
-/* DMA Descriptor Memory Layout */
-const uint32_t DDAdr[2] = {DD_NISO_ADR, DD_ISO_ADR};
-const uint32_t DDSz[2] = {16, 20};
-
 /*
  *  Setup USB DMA Transfer for selected Endpoint
  *    Parameters:      EPNum: Endpoint Number
@@ -647,23 +659,6 @@ uint32_t USB_DMA_BufCnt(uint32_t EPNum)
 }
 
 #endif /* USB_DMA */
-
-/*
- *  Get USB Last Frame Number
- *    Parameters:      None
- *    Return Value:    Frame Number
- */
-
-uint32_t USB_GetFrame(void)
-{
-    uint32_t val;
-
-    WrCmd(CMD_RD_FRAME);
-    val = RdCmdDat(DAT_RD_FRAME);
-    val = val | (RdCmdDat(DAT_RD_FRAME) << 8);
-
-    return (val);
-}
 
 /*
  *  USB Interrupt Service Routine

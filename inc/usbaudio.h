@@ -27,14 +27,9 @@
 /* Audio Demo Variables */
 extern uint8_t  Mute;                      /* Mute State */
 extern uint32_t Volume;                    /* Volume Level */
-extern uint16_t  VolCur;                    /* Volume Current Value */
-#if USB_DMA
-extern uint32_t *InfoBuf;
-extern short *DataBuf;
-#else
-extern uint32_t InfoBuf[P_C];              /* Packet Info Buffer */
-extern short DataBuf[B_S];              /* Data Buffer */
-#endif
-extern uint16_t  DataOut;                   /* Data Out Index */
-extern uint16_t  DataIn;                    /* Data In Index */
-extern uint8_t   DataRun;                   /* Data Stream Run State */
+extern uint16_t  VolCur;                   /* Volume Current Value */
+extern uint32_t *InfoBuf;                  /* Packet Info Buffer */
+extern short *DataBuf;                     /* Data Buffer */
+extern uint16_t  DataOut;                  /* Data Out Index */
+extern uint16_t  DataIn;                   /* Data In Index */
+extern uint8_t   DataRun;                  /* Data Stream Run State */

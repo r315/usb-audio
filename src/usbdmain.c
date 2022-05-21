@@ -25,22 +25,31 @@
 
 #include "usbaudio.h"
 
+#define DBG_PIN_INIT    LPC_PINCON->PINSEL4 &= (3 << 24); LPC_GPIO2->FIODIR |= (1 << 12)
+#define DBG_PIN_LOW     LPC_GPIO2->FIOCLR = (1 << 12)
+#define DBG_PIN_HIGH    LPC_GPIO2->FIOSET = (1 << 12)
+#define DBG_PIN_TOGGLE  LPC_GPIO2->FIOPIN ^= (1 << 12)
+
 uint8_t Mute;    /* Mute State */
 uint32_t Volume; /* Volume Level */
 
+
 #if USB_DMA
-uint32_t *InfoBuf = (uint32_t *) (DMA_BUF_ADR);
-short *DataBuf    = (short *) (DMA_BUF_ADR + 4 * P_C);
+uint32_t *info_buffer = (uint32_t *) (DMA_BUF_ADR);
+uint16_t *audio_buffer = (uint16_t *) (DMA_BUF_ADR + 4 * P_C);
 #else
-uint32_t InfoBuf[P_C];
-short DataBuf[B_S]; /* Data Buffer */
+static uint32_t info_buffer[P_C];
+static uint16_t audio_buffer[B_S];  // __attribute__((section(".peripheral")));
 #endif
+
+uint32_t *InfoBuf;
+short *DataBuf;
 
 uint16_t DataOut; /* Data Out Index */
 uint16_t DataIn;  /* Data In Index */
 
 uint8_t DataRun; /* Data Stream Run State */
-uint16_t PotVal; /* Potenciometer Value */
+
 uint32_t VUM;    /* VU Meter */
 uint32_t Tick;   /* Time Tick */
 
@@ -48,9 +57,9 @@ uint32_t Tick;   /* Time Tick */
 /*
  * Get Potenciometer Value
  */
-
-void get_potval (void)
+uint16_t get_potval (void)
 {
+#if 0
    uint32_t val;
 
    LPC_ADC->CR |= 0x01000000; /* Start A/D Conversion */
@@ -59,9 +68,11 @@ void get_potval (void)
       val = LPC_ADC->GDR;             /* Read A/D Data Register */
    } while ((val & 0x80000000) == 0); /* Wait for end of A/D Conversion */
    LPC_ADC->CR &= ~0x01000000;        /* Stop A/D Conversion */
-   //PotVal = ((val >> 8) & 0xF8) +     /* Extract Potenciometer Value */
-   //         ((val >> 7) & 0x08);
-   PotVal = 128;
+   return (val >> 8) & 0xF8) +     /* Extract Potenciometer Value */
+            ((val >> 7) & 0x08);
+#else
+   return 128;
+#endif
 }
 
 
@@ -75,23 +86,31 @@ void TIMER0_IRQHandler (void)
    long val;
    uint32_t cnt;
 
+   LPC_TIM0->IR = 1; /* Clear Interrupt Flag */
+   //DBG_PIN_TOGGLE;
+   
    if (DataRun)
    {                                        /* Data Stream is running */
       val = DataBuf[DataOut];               /* Get Audio Sample */
       cnt = (DataIn - DataOut) & (B_S - 1); /* Buffer Data Count */
+
       if (cnt == (B_S - P_C * P_S))
       {             /* Too much Data in Buffer */
          DataOut++; /* Skip one Sample */
       }
+      
       if (cnt > (P_C * P_S))
       {             /* Still enough Data in Buffer */
          DataOut++; /* Update Data Out Index */
       }
+      
       DataOut &= B_S - 1; /* Adjust Buffer Out Index */
+      
       if (val < 0)
          VUM -= val; /* Accumulate Neg Value */
       else
          VUM += val; /* Accumulate Pos Value */
+      
       val *= Volume; /* Apply Volume Level */
       val >>= 16;    /* Adjust Value */
       val += 0x8000; /* Add Bias */
@@ -111,22 +130,21 @@ void TIMER0_IRQHandler (void)
 
    if ((Tick++ & 0x03FF) == 0)
    {                 /* On every 1024th Tick */
-      get_potval (); /* Get Potenciometer Value */
       if (VolCur == 0x8000)
       {              /* Check for Minimum Level */
          Volume = 0; /* No Sound */
       }
       else
       {
-         Volume = VolCur * PotVal; /* Chained Volume Level */
+         Volume = VolCur * get_potval (); /* Chained Volume Level and multiply by pot value*/
       }
+
       val = VUM >> 20; /* Scale Accumulated Value */
       VUM = 0;         /* Clear VUM */
+
       if (val > 7)
          val = 7; /* Limit Value */
    }
-
-   LPC_TIM0->IR = 1; /* Clear Interrupt Flag */
 }
 
 
@@ -136,9 +154,16 @@ void TIMER0_IRQHandler (void)
 int main (void)
 {
    volatile uint32_t pclkdiv, pclk;
+
    SystemInit ();
    /* SystemClockUpdate() updates the SystemCoreClock variable */
    SystemClockUpdate ();
+
+   DataOut = 0;
+   DataIn  = 0;
+   DataRun = 0;
+   InfoBuf = (uint32_t *)info_buffer;
+   DataBuf = (short *)audio_buffer;
 
    LPC_PINCON->PINSEL1 &= ~((0x03 << 18) | (0x03 << 20));
    /* P0.25, A0.0, function 01, P0.26 AOUT, function 10 */
@@ -174,14 +199,16 @@ int main (void)
    LPC_TIM0->MR0 = pclk / DATA_FREQ - 1; /* TC0 Match Value 0 */
    LPC_TIM0->MCR = 3;                    /* TCO Interrupt and Reset on MR0 */
    LPC_TIM0->TCR = 1;                    /* TC0 Enable */
+
    NVIC_EnableIRQ (TIMER0_IRQn);
+
+   DBG_PIN_INIT;
 
    USB_Init ();        /* USB Initialization */
    USB_Connect (TRUE); /* USB Connect */
 
    /********* The main Function is an endless loop ***********/
-   while (1)
-      ;
+   while (1);
 }
 
 /******************************************************************************

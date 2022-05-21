@@ -58,6 +58,8 @@ else
 JLINK ="C:\Tools\JLink_V500\jlink"
 endif
 
+CHECKSUM =$(LIBEMB_PATH)/tools/checksum
+
 OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))
 
@@ -67,10 +69,15 @@ vpath %.cpp $(sort $(dir $(CPP_SOURCES)))
 OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES:.s=.o)))
 vpath %.s $(sort $(dir $(ASM_SOURCES)))
 
+DEP = $(OBJECTS:.o=.d)
+
+-include $(DEP)
 ##########################################################
 # RULES
 ##########################################################
 all: $(TARGET).elf stats
+
+silent: $(TARGET).elf
 
 $(TARGET).elf:  $(OBJECTS)
 	@echo "Linking" $@
@@ -78,6 +85,11 @@ $(TARGET).elf:  $(OBJECTS)
 
 $(TARGET).hex: $(TARGET).elf
 	@$(OBJCOPY) -O ihex -j .startup -j .text -j .data -j .ram_code -j .rodata $< $@
+
+$(TARGET).bin: $(TARGET).elf
+	@echo "Generating bin file" $@
+	$(OBJCOPY) -O binary $(TARGET).elf $@
+	$(CHECKSUM) $@
 
 stats: $(TARGET).elf
 	@echo "---- Sections Summary ---"
@@ -94,15 +106,22 @@ $(TARGET).jlink: $(TARGET).hex
 	@echo "q" >> $@
 #@echo "erase" > $@
 	
-$(TARGET).cfg:
-	@echo "Creating opencod configuration file"
-	@echo "adapter driver jlink" > $(TARGET).cfg
-	@echo "transport select swd" >> $(TARGET).cfg
-	@echo "source [find target/lpc17xx.cfg]" >> $(TARGET).cfg
-	@echo "adapter speed 4000" >> $(TARGET).cfg
+$(TARGET)_jlink.cfg:
+	@echo "Creating openocd configuration file"
+	@echo "adapter driver jlink" >> $@
+	@echo "transport select swd" >> $@
+	@echo "source [find target/lpc17xx.cfg]" >> $@
+	@echo "adapter speed 4000" >> $@
 
-program: $(TARGET).jlink
-#openocd -f $(notdir $(TARGET).cfg) -c "init" -c "reset halt" -c "program $(TARGET).elf verify reset exit"
+$(TARGET)_stlink.cfg:
+	@echo source [find interface/stlink-v2.cfg] >> $@
+	@echo source [find target/lpc17xx.cfg]  >> $@
+	@echo adapter speed 4000  >> $@
+
+program-openocd: $(TARGET)_stlink.cfg $(TARGET).bin
+	openocd -f $< -c "init" -c "reset halt" -c "program $(TARGET).bin 0 verify reset exit"
+
+program-jlink: $(TARGET).jlink
 	$(VERBOSE)$(JLINK) -device $(DEVICE) -if SWD -speed auto -CommanderScript $<
 
 $(BUILD_DIR):
