@@ -60,8 +60,6 @@ extern MSC_CSW CSW;
    #include "vendor.h"
 #endif
 
-//#pragma diag_suppress 111,177,1441
-
 
 uint16_t USB_DeviceStatus;
 uint8_t USB_DeviceAddress;

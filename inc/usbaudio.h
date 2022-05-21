@@ -14,7 +14,6 @@
  * Copyright (c) 2009 Keil - An ARM Company. All rights reserved.
  *---------------------------------------------------------------------------*/
 
-
 /* Audio Definitions */
 #define DATA_FREQ 32000                 /* Audio Data Frequency */
 #define P_S       32                    /* Packet Size */
@@ -23,13 +22,7 @@
 #else
 #define P_C       1                     /* Packet Count */
 #endif
-#define B_S       (8*P_C*P_S)           /* Buffer Size */
-
-/* Push Button Definitions */
-// #define PBINT     0x00004000            /* P0.14 */
-
-/* LED Definitions */
-#define LEDMSK    0x000000FF            /* P2.0..7 */
+#define B_S       (8 * P_C * P_S)       /* Buffer Size */
 
 /* Audio Demo Variables */
 extern uint8_t  Mute;                      /* Mute State */

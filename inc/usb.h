@@ -19,6 +19,8 @@
 #ifndef __USB_H__
 #define __USB_H__
 
+#include <stdint.h>
+
 #define __packed __attribute__ ((packed))
 
 typedef union
