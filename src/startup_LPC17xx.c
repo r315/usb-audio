@@ -119,7 +119,6 @@ extern unsigned int _estartup;
 
 /* ---------------------------- System clock ------------------------------------------ */
 typedef unsigned int uint32_t;
-extern uint32_t SystemCoreClock;
 //*****************************************************************************
 // Reset_Handler is the first code executed after reset state and is responsible
 // for initialize data, clear uninitialized data and call main function
@@ -152,8 +151,6 @@ void Reset_Handler(void)
     }
     
     VTOR = (unsigned int)&_estartup; // if running on ram remap vector table
-
-    SystemCoreClock = 4000000;  // after reset system start with internal osc
 
     main();
     
