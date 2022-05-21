@@ -6,13 +6,14 @@ ENTRY(Reset_Handler)
 
 MEMORY {
 	flash (rx) : ORIGIN = 0x00000000, LENGTH = 512k
-	ram0 (rwx) : ORIGIN = 0x10000000, LENGTH = 32k
-	ram1 (rwx) : ORIGIN = 0x2007C000, LENGTH = 32k
+	sram0 (rwx) : ORIGIN = 0x10000000, LENGTH = 32k
+	sram1 (rwx) : ORIGIN = 0x2007C000, LENGTH = 16k
+	sram2 (rwx) : ORIGIN = 0x20080000, LENGTH = 16k
 }
 
-_ram0  = ORIGIN(ram0);
-_ram1  = ORIGIN(ram1);
-_stack = ORIGIN(ram0) + LENGTH(ram0);	
+_ram0  = ORIGIN(sram0);
+_ram1  = ORIGIN(sram1);
+_stack = ORIGIN(sram0) + LENGTH(sram0);	
 
 SECTIONS {
 	.text : 
@@ -43,7 +44,7 @@ SECTIONS {
 		*(.ramcode.*)
 		. = ALIGN(4);
 		_eramcode = .;
-	} > ram0 AT > flash
+	} > sram0 AT > flash
 	
 	.data : 
 	{
@@ -54,7 +55,7 @@ SECTIONS {
 		*(.data.*)				
 		. = ALIGN(4);
 		_edata = .;
-	} > ram0 AT > flash  /* instructs that the content of data section is stored no flash */
+	} > sram0 AT > flash  /* instructs that the content of data section is stored no flash */
     
 	.bss : 
 	{
@@ -68,15 +69,21 @@ SECTIONS {
 		__bss_end__ = .;
 		. = ALIGN(8);
 		_end = .;        /* used for heap management */
-	} > ram0
+	} > sram0
 
 	/*section for libc exceptions and stack trace */
 	.ARM.exidx ALIGN(4) : {		 /* understand this...., required for cpp*/
 		__exidx_start = LOADADDR(.ARM.exidx);
 		*(.ARM.exidx* .gnu.linkonce.armexidx.*)		
 		__exidx_end = .;
-	} > ram0
+	} > sram0
 	
+	.peripheral :
+	{
+		. = ALIGN(4);
+		*(.peripheral)
+		*(.peripheral.*)
+	} > sram2
 /*		
 	.stack : {
 		. = ALIGN(4);		
