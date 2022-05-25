@@ -15,7 +15,9 @@
  *---------------------------------------------------------------------------*/
 
 /* Audio Definitions */
-#define DATA_FREQ 32000                 /* Audio Data Frequency */
+#define USB_AUDIO_DATA_FREQ     32000   /* Audio Data Frequency */
+#define USB_AUDIO_RESOLUTION    16
+
 #define P_S       32                    /* Packet Size */
 #if USB_DMA
 #define P_C       4                     /* Packet Count */

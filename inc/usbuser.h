@@ -19,6 +19,7 @@
 #ifndef __USBUSER_H__
 #define __USBUSER_H__
 
+#include <stdint.h>
 
 /* USB Device Events Callback Functions */
 extern void USB_Power_Event     (uint32_t  power);

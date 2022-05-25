@@ -10,7 +10,7 @@
  *      warranties of fitness for purpose, satisfactory quality and
  *      noninfringement. Keil extends you a royalty-free right to reproduce
  *      and distribute executable files created using this software for use
- *      on NXP Semiconductors LPC family microcontroller devices only. Nothing 
+ *      on NXP Semiconductors LPC family microcontroller devices only. Nothing
  *      else gives you the right to use this software.
  *
  * Copyright (c) 2009 Keil - An ARM Company. All rights reserved.
@@ -25,10 +25,10 @@
 
 #include "usbaudio.h"
 
-      uint16_t VolCur = 0x0100;     /* Volume Current Value */
-const uint16_t VolMin = 0x0000;     /* Volume Minimum Value */
-const uint16_t VolMax = 0x0100;     /* Volume Maximum Value */
-const uint16_t VolRes = 0x0004;     /* Volume Resolution */
+uint16_t VolCur = 0x0100;       /* Volume Current Value */
+const uint16_t VolMin = 0x0000; /* Volume Minimum Value */
+const uint16_t VolMax = 0x0100; /* Volume Maximum Value */
+const uint16_t VolRes = 0x0004; /* Volume Resolution */
 
 /*
  *  Audio Device Class Interface Get Request Callback
@@ -37,50 +37,55 @@ const uint16_t VolRes = 0x0004;     /* Volume Resolution */
  *    Return Value:    TRUE - Success, FALSE - Error
  */
 
-uint32_t ADC_IF_GetRequest (void) {
+uint32_t ADC_IF_GetRequest(void)
+{
 
-/*
-  Interface = SetupPacket.wIndex.WB.L;
-  EntityID  = SetupPacket.wIndex.WB.H;
-  Request   = SetupPacket.bRequest;
-  Value     = SetupPacket.wValue.W;
-  ...
-*/
+    /*
+      Interface = SetupPacket.wIndex.WB.L;
+      EntityID  = SetupPacket.wIndex.WB.H;
+      Request   = SetupPacket.bRequest;
+      Value     = SetupPacket.wValue.W;
+      ...
+    */
 
-  if (SetupPacket.wIndex.W == 0x0200) {
-    /* Feature Unit: Interface = 0, ID = 2 */
-    if (SetupPacket.wValue.WB.L == 0) {
-      /* Master Channel */
-      switch (SetupPacket.wValue.WB.H) {
-        case AUDIO_MUTE_CONTROL:
-          switch (SetupPacket.bRequest) {
-            case AUDIO_REQUEST_GET_CUR:
-              EP0Buf[0] = Mute;
-              return (TRUE);
-          }
-          break;
-        case AUDIO_VOLUME_CONTROL:
-          switch (SetupPacket.bRequest) {
-            case AUDIO_REQUEST_GET_CUR:
-              *((uint16_t *)EP0Buf) = VolCur;
-              return (TRUE);
-            case AUDIO_REQUEST_GET_MIN:
-              *((uint16_t *)EP0Buf) = VolMin;
-              return (TRUE);
-            case AUDIO_REQUEST_GET_MAX:
-              *((uint16_t *)EP0Buf) = VolMax;
-              return (TRUE);
-            case AUDIO_REQUEST_GET_RES:
-              *((uint16_t *)EP0Buf) = VolRes;
-              return (TRUE);
-          }
-          break;
-      }
+    if (SetupPacket.wIndex.W == 0x0200)
+    {
+        /* Feature Unit: Interface = 0, ID = 2 */
+        if (SetupPacket.wValue.WB.L == 0)
+        {
+            /* Master Channel */
+            switch (SetupPacket.wValue.WB.H)
+            {
+            case AUDIO_MUTE_CONTROL:
+                switch (SetupPacket.bRequest)
+                {
+                case AUDIO_REQUEST_GET_CUR:
+                    EP0Buf[0] = Mute;
+                    return (TRUE);
+                }
+                break;
+            case AUDIO_VOLUME_CONTROL:
+                switch (SetupPacket.bRequest)
+                {
+                case AUDIO_REQUEST_GET_CUR:
+                    *((uint16_t *)EP0Buf) = VolCur;
+                    return (TRUE);
+                case AUDIO_REQUEST_GET_MIN:
+                    *((uint16_t *)EP0Buf) = VolMin;
+                    return (TRUE);
+                case AUDIO_REQUEST_GET_MAX:
+                    *((uint16_t *)EP0Buf) = VolMax;
+                    return (TRUE);
+                case AUDIO_REQUEST_GET_RES:
+                    *((uint16_t *)EP0Buf) = VolRes;
+                    return (TRUE);
+                }
+                break;
+            }
+        }
     }
-  }
-  return (FALSE);  /* Not Supported */
+    return (FALSE); /* Not Supported */
 }
-
 
 /*
  *  Audio Device Class Interface Set Request Callback
@@ -89,41 +94,46 @@ uint32_t ADC_IF_GetRequest (void) {
  *    Return Value:    TRUE - Success, FALSE - Error
  */
 
-uint32_t ADC_IF_SetRequest (void) {
+uint32_t ADC_IF_SetRequest(void)
+{
 
-/*
-  Interface = SetupPacket.wIndex.WB.L;
-  EntityID  = SetupPacket.wIndex.WB.H;
-  Request   = SetupPacket.bRequest;
-  Value     = SetupPacket.wValue.W;
-  ...
-*/
+    /*
+      Interface = SetupPacket.wIndex.WB.L;
+      EntityID  = SetupPacket.wIndex.WB.H;
+      Request   = SetupPacket.bRequest;
+      Value     = SetupPacket.wValue.W;
+      ...
+    */
 
-  if (SetupPacket.wIndex.W == 0x0200) {
-    /* Feature Unit: Interface = 0, ID = 2 */
-    if (SetupPacket.wValue.WB.L == 0) {
-      /* Master Channel */
-      switch (SetupPacket.wValue.WB.H) {
-        case AUDIO_MUTE_CONTROL:
-          switch (SetupPacket.bRequest) {
-            case AUDIO_REQUEST_SET_CUR:
-              Mute = EP0Buf[0];
-              return (TRUE);
-          }
-          break;
-        case AUDIO_VOLUME_CONTROL:
-          switch (SetupPacket.bRequest) {
-            case AUDIO_REQUEST_SET_CUR:
-              VolCur = 252; //*((uint16_t *)EP0Buf);
-              return (TRUE);
-          }
-          break;
-      }
+    if (SetupPacket.wIndex.W == 0x0200)
+    {
+        /* Feature Unit: Interface = 0, ID = 2 */
+        if (SetupPacket.wValue.WB.L == 0)
+        {
+            /* Master Channel */
+            switch (SetupPacket.wValue.WB.H)
+            {
+            case AUDIO_MUTE_CONTROL:
+                switch (SetupPacket.bRequest)
+                {
+                case AUDIO_REQUEST_SET_CUR:
+                    Mute = EP0Buf[0];
+                    return (TRUE);
+                }
+                break;
+            case AUDIO_VOLUME_CONTROL:
+                switch (SetupPacket.bRequest)
+                {
+                case AUDIO_REQUEST_SET_CUR:
+                    VolCur = 252; //*((uint16_t *)EP0Buf);
+                    return (TRUE);
+                }
+                break;
+            }
+        }
     }
-  }
-  return (FALSE);  /* Not Supported */
+    return (FALSE); /* Not Supported */
 }
-
 
 /*
  *  Audio Device Class EndPoint Get Request Callback
@@ -132,17 +142,17 @@ uint32_t ADC_IF_SetRequest (void) {
  *    Return Value:    TRUE - Success, FALSE - Error
  */
 
-uint32_t ADC_EP_GetRequest (void) {
+uint32_t ADC_EP_GetRequest(void)
+{
 
-/*
-  EndPoint = SetupPacket.wIndex.WB.L;
-  Request  = SetupPacket.bRequest;
-  Value    = SetupPacket.wValue.W;
-  ...
-*/
-  return (FALSE);  /* Not Supported */
+    /*
+      EndPoint = SetupPacket.wIndex.WB.L;
+      Request  = SetupPacket.bRequest;
+      Value    = SetupPacket.wValue.W;
+      ...
+    */
+    return (FALSE); /* Not Supported */
 }
-
 
 /*
  *  Audio Device Class EndPoint Set Request Callback
@@ -151,13 +161,14 @@ uint32_t ADC_EP_GetRequest (void) {
  *    Return Value:    TRUE - Success, FALSE - Error
  */
 
-uint32_t ADC_EP_SetRequest (void) {
+uint32_t ADC_EP_SetRequest(void)
+{
 
-/*
-  EndPoint = SetupPacket.wIndex.WB.L;
-  Request  = SetupPacket.bRequest;
-  Value    = SetupPacket.wValue.W;
-  ...
-*/
-  return (FALSE);  /* Not Supported */
+    /*
+      EndPoint = SetupPacket.wIndex.WB.L;
+      Request  = SetupPacket.bRequest;
+      Value    = SetupPacket.wValue.W;
+      ...
+    */
+    return (FALSE); /* Not Supported */
 }

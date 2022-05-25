@@ -196,7 +196,7 @@ int main (void)
          break;
    }
 
-   LPC_TIM0->MR0 = pclk / DATA_FREQ - 1; /* TC0 Match Value 0 */
+   LPC_TIM0->MR0 = pclk / USB_AUDIO_DATA_FREQ - 1; /* TC0 Match Value 0 */
    LPC_TIM0->MCR = 3;                    /* TCO Interrupt and Reset on MR0 */
    LPC_TIM0->TCR = 1;                    /* TC0 Enable */
 

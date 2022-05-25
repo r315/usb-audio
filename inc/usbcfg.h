@@ -59,5 +59,8 @@
 
 #define USB_VENDOR          0
 
+#define USB_PID             0x4002
+#define USB_VID             0x1FC9
+
 
 #endif  /* __USBCFG_H__ */

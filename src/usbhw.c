@@ -62,13 +62,8 @@ const uint32_t DDSz[2] = {16, 20};
 uint32_t EPAdr(uint32_t EPNum)
 {
     uint32_t val;
-
     val = (EPNum & 0x0F) << 1;
-    if (EPNum & 0x80)
-    {
-        val += 1;
-    }
-    return (val);
+    return (EPNum & 0x80) ? val + 1 : val;
 }
 
 /*
@@ -194,9 +189,9 @@ void USB_Reset(void)
     LPC_USB->EpInd = 1;
     LPC_USB->MaxPSize = USB_MAX_PACKET0;
     while ((LPC_USB->DevIntSt & EP_RLZED_INT) == 0);
-
     LPC_USB->EpIntClr = 0xFFFFFFFF;
     LPC_USB->EpIntEn = 0xFFFFFFFF ^ USB_DMA_EP;
+
     LPC_USB->DevIntClr = 0xFFFFFFFF;
     LPC_USB->DevIntEn = DEV_STAT_INT | EP_SLOW_INT |
                         (USB_SOF_EVENT ? FRAME_INT : 0) |
@@ -419,10 +414,10 @@ uint32_t USB_ReadEP(uint32_t EPNum, uint8_t *pData)
 
     LPC_USB->Ctrl = ((EPNum & 0x0F) << 2) | CTRL_RD_EN;
 
-    do
-    {
+    do{
         cnt = LPC_USB->RxPLen;
     } while ((cnt & PKT_RDY) == 0);
+
     cnt &= PKT_LNGTH_MASK;
 
     for (n = 0; n < (cnt + 3) / 4; n++)
@@ -782,7 +777,7 @@ void USB_IRQHandler(void)
 
 #if USB_DMA
 
-    if (LPC_USB->DMAIntSt & 0x00000001)
+    if (LPC_USB->DMAIntSt & EOT_INT)
     { /* End of Transfer Interrupt */
         val = LPC_USB->EoTIntSt;
         for (n = 2; n < USB_EP_NUM; n++)
@@ -809,7 +804,7 @@ void USB_IRQHandler(void)
         LPC_USB->EoTIntClr = val;
     }
 
-    if (LPC_USB->DMAIntSt & 0x00000002)
+    if (LPC_USB->DMAIntSt & NDD_REQ_INT)
     { /* New DD Request Interrupt */
         val = LPC_USB->NDDRIntSt;
         for (n = 2; n < USB_EP_NUM; n++)
@@ -836,7 +831,7 @@ void USB_IRQHandler(void)
         LPC_USB->NDDRIntClr = val;
     }
 
-    if (LPC_USB->DMAIntSt & 0x00000004)
+    if (LPC_USB->DMAIntSt & SYS_ERR_INT)
     { /* System Error Interrupt */
         val = LPC_USB->SysErrIntSt;
         for (n = 2; n < USB_EP_NUM; n++)

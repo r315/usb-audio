@@ -32,8 +32,8 @@ LDSCRIPT =$(PRJ_DIR)/LPC17xx.ld
 #########################################################
 #Startup files and libraries
 #########################################################
-GCFLAGS =-mcpu=cortex-m3 -mthumb -Wall -Og -g -fdata-sections -ffunction-sections -fno-unwind-tables
-GPPFLAGS=$(GCFLAGS) -fno-exceptions -fno-rtti
+CFLAGS =-mcpu=cortex-m3 -mthumb -Wall -Og -g -fdata-sections -ffunction-sections -fno-unwind-tables
+CPPFLAGS=$(CFLAGS) -fno-exceptions -fno-rtti
 LDFLAGS =-mcpu=cortex-m3 -mthumb -nostdlib -lgcc -Wl,--gc-sections -nodefaultlibs #-nostartfiles #-lstdc++ 
 
 DEVICE =LPC1768
@@ -69,9 +69,6 @@ vpath %.cpp $(sort $(dir $(CPP_SOURCES)))
 OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES:.s=.o)))
 vpath %.s $(sort $(dir $(ASM_SOURCES)))
 
-DEP = $(OBJECTS:.o=.d)
-
--include $(DEP)
 ##########################################################
 # RULES
 ##########################################################
@@ -97,7 +94,7 @@ stats: $(TARGET).elf
 	@$(SIZE) -B $<
 
 clean:
-	$(REMOVE) $(BUILD_DIR)  
+	$(REMOVE) $(BUILD_DIR)
 
 $(TARGET).jlink: $(TARGET).hex
 	@echo "Creating Jlink configuration file"
@@ -132,11 +129,11 @@ $(BUILD_DIR):
 ########################################################
 $(BUILD_DIR)/%.o : %.c | $(BUILD_DIR)
 	@echo "Compile" $<
-	@$(GCC) $(GCFLAGS) $(addprefix -I, $(INCSPATH)) $(GCSYMBOLS) -c $< -o $@
+	@$(GCC) $(CFLAGS) $(addprefix -I, $(INCSPATH)) $(GCSYMBOLS) -c $< -o $@
 
 $(BUILD_DIR)/%.obj : %.cpp | $(BUILD_DIR)
 	@echo "Compile" $<
-	@$(GPP) $(GPPFLAGS) $(addprefix -I, $(INCSPATH)) $(GCSYMBOLS) -c $< -o $@
+	@$(GPP) $(CPPFLAGS) $(addprefix -I, $(INCSPATH)) $(GCSYMBOLS) -c $< -o $@
 	
 $(BUILD_DIR)/%.o : %.S | $(BUILD_DIR)
 	@echo "Assemble" $<

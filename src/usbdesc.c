@@ -23,6 +23,7 @@
 
 #include "usb.h"
 #include "audio.h"
+#include "usbaudio.h"
 #include "usbcfg.h"
 #include "usbdesc.h"
 
@@ -36,8 +37,8 @@ const uint8_t USB_DeviceDescriptor[] = {
     0x00,                              /* bDeviceSubClass */
     0x00,                              /* bDeviceProtocol */
     USB_MAX_PACKET0,                   /* bMaxPacketSize0 */
-    WBVAL(0x1FC9),                     /* idVendor */
-    WBVAL(0x4002),                     /* idProduct */
+    WBVAL(USB_VID),                    /* idVendor */
+    WBVAL(USB_PID),                    /* idProduct */
     WBVAL(0x0100), /* 1.00 */          /* bcdDevice */
     0x01,                              /* iManufacturer */
     0x02,                              /* iProduct */
@@ -158,9 +159,9 @@ const uint8_t USB_ConfigDescriptor[] = {
     AUDIO_FORMAT_TYPE_I,                  /* bFormatType */
     0x01,                                 /* bNrChannels */
     0x02,                                 /* bSubFrameSize */
-    16,                                   /* bBitResolution */
+    USB_AUDIO_RESOLUTION,                 /* bBitResolution */
     0x01,                                 /* bSamFreqType */
-    B3VAL(32000),                         /* tSamFreq */
+    B3VAL(USB_AUDIO_DATA_FREQ),           /* tSamFreq */
 /* Endpoint - Standard Descriptor */
     AUDIO_STANDARD_ENDPOINT_DESC_SIZE,    /* bLength */
     USB_ENDPOINT_DESCRIPTOR_TYPE,         /* bDescriptorType */

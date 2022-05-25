@@ -26,6 +26,15 @@
 
 #include "usbaudio.h"
 
+#define P_EP(n) ((USB_EP_EVENT & (1 << (n))) ? USB_EndPoint##n : NULL)
+
+/* USB Endpoint Events Callback Pointers */
+void (*const USB_P_EP[16]) (uint32_t event) = {
+    P_EP (0),  P_EP (1),  P_EP (2),  P_EP (3),  
+    P_EP (4),  P_EP (5),  P_EP (6),  P_EP (7),  
+    P_EP (8),  P_EP (9),  P_EP (10), P_EP (11),
+    P_EP (12), P_EP (13), P_EP (14), P_EP (15),
+};
 
 /*
  *  USB Power Event Callback
@@ -90,7 +99,7 @@ void USB_WakeUp_Event (void) {}
 void USB_SOF_Event (void)
 {
 #if USB_DMA == 0
-   if (USB_ReadEP (0x03, (uint8_t *)&DataBuf[DataIn]))
+   if (USB_ReadEP(0x03, (uint8_t *)&DataBuf[DataIn]))
    {
       /* Data Available */
       DataIn += P_S;     /* Update Data In Index */
@@ -157,17 +166,6 @@ void USB_Interface_Event (void) {}
 #if USB_FEATURE_EVENT
 void USB_Feature_Event (void) {}
 #endif
-
-
-#define P_EP(n) ((USB_EP_EVENT & (1 << (n))) ? USB_EndPoint##n : NULL)
-
-/* USB Endpoint Events Callback Pointers */
-void (*const USB_P_EP[16]) (uint32_t event) = {
-    P_EP (0),  P_EP (1),  P_EP (2),  P_EP (3),  P_EP (4),  P_EP (5),
-    P_EP (6),  P_EP (7),  P_EP (8),  P_EP (9),  P_EP (10), P_EP (11),
-    P_EP (12), P_EP (13), P_EP (14), P_EP (15),
-};
-
 
 /*
  *  USB Endpoint 1 Event Callback

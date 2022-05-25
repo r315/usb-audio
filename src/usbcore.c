@@ -72,7 +72,6 @@ uint8_t USB_AltSetting[USB_IF_NUM];
 
 uint8_t EP0Buf[USB_MAX_PACKET0];
 
-
 USB_EP_DATA EP0Data;
 
 USB_SETUP_PACKET SetupPacket;
@@ -86,7 +85,6 @@ USB_SETUP_PACKET SetupPacket;
 
 void USB_ResetCore (void)
 {
-
    USB_DeviceStatus  = USB_POWER;
    USB_DeviceAddress = 0;
    USB_Configuration = 0;
@@ -102,7 +100,7 @@ void USB_ResetCore (void)
  *    Return Value:    None
  */
 
-void USB_SetupStage (void)
+static void USB_SetupStage (void)
 {
    USB_ReadEP (0x00, (uint8_t *) &SetupPacket);
 }
@@ -114,7 +112,7 @@ void USB_SetupStage (void)
  *    Return Value:    None
  */
 
-void USB_DataInStage (void)
+static void USB_DataInStage (void)
 {
    uint32_t cnt;
 
@@ -138,7 +136,7 @@ void USB_DataInStage (void)
  *    Return Value:    None
  */
 
-void USB_DataOutStage (void)
+static void USB_DataOutStage (void)
 {
    uint32_t cnt;
 
@@ -154,7 +152,7 @@ void USB_DataOutStage (void)
  *    Return Value:    None
  */
 
-void USB_StatusInStage (void)
+static void USB_StatusInStage (void)
 {
    USB_WriteEP (0x80, NULL, 0);
 }
@@ -166,7 +164,7 @@ void USB_StatusInStage (void)
  *    Return Value:    None
  */
 
-void USB_StatusOutStage (void)
+static void USB_StatusOutStage (void)
 {
    USB_ReadEP (0x00, EP0Buf);
 }
@@ -178,7 +176,6 @@ void USB_StatusOutStage (void)
  *    Return Value:    TRUE - Success, FALSE - Error
  */
 
-//__inline 
 uint32_t USB_ReqGetStatus (void)
 {
    uint32_t n, m;
@@ -228,8 +225,7 @@ uint32_t USB_ReqGetStatus (void)
  *    Return Value:    TRUE - Success, FALSE - Error
  */
 
-//__inline 
-uint32_t USB_ReqSetClrFeature (uint32_t sc)
+static uint32_t USB_ReqSetClrFeature (uint32_t sc)
 {
    uint32_t n, m;
 
@@ -312,8 +308,7 @@ uint32_t USB_ReqSetClrFeature (uint32_t sc)
  *    Return Value:    TRUE - Success, FALSE - Error
  */
 
-//__inline 
-uint32_t USB_ReqSetAddress (void)
+static uint32_t USB_ReqSetAddress (void)
 {
 
    switch (SetupPacket.bmRequestType.BM.Recipient)
@@ -334,8 +329,7 @@ uint32_t USB_ReqSetAddress (void)
  *    Return Value:    TRUE - Success, FALSE - Error
  */
 
-//__inline 
-uint32_t USB_ReqGetDescriptor (void)
+ static uint32_t USB_ReqGetDescriptor (void)
 {
    uint8_t *pD;
    uint32_t len, n;
@@ -432,8 +426,7 @@ uint32_t USB_ReqGetDescriptor (void)
  *    Return Value:    TRUE - Success, FALSE - Error
  */
 
-//__inline 
-uint32_t USB_ReqGetConfiguration (void)
+static uint32_t USB_ReqGetConfiguration (void)
 {
 
    switch (SetupPacket.bmRequestType.BM.Recipient)
@@ -454,8 +447,7 @@ uint32_t USB_ReqGetConfiguration (void)
  *    Return Value:    TRUE - Success, FALSE - Error
  */
 
-//__inline
-uint32_t USB_ReqSetConfiguration (void)
+static uint32_t USB_ReqSetConfiguration (void)
 {
    USB_COMMON_DESCRIPTOR *pD;
    uint32_t alt = 0;
@@ -575,8 +567,7 @@ uint32_t USB_ReqSetConfiguration (void)
  *    Return Value:    TRUE - Success, FALSE - Error
  */
 
-//__inline 
-uint32_t USB_ReqGetInterface (void)
+static uint32_t USB_ReqGetInterface (void)
 {
 
    switch (SetupPacket.bmRequestType.BM.Recipient)
@@ -605,8 +596,7 @@ uint32_t USB_ReqGetInterface (void)
  *    Return Value:    TRUE - Success, FALSE - Error
  */
 
-//__inline
-uint32_t USB_ReqSetInterface (void)
+static uint32_t USB_ReqSetInterface (void)
 {
    USB_COMMON_DESCRIPTOR *pD;
    uint32_t ifn = 0, alt = 0, old = 0, msk = 0;
