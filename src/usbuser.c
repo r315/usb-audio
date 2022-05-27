@@ -26,16 +26,6 @@
 
 #include "usbaudio.h"
 
-#define P_EP(n) ((USB_EP_EVENT & (1 << (n))) ? USB_EndPoint##n : NULL)
-
-/* USB Endpoint Events Callback Pointers */
-void (*const USB_P_EP[16]) (uint32_t event) = {
-    P_EP (0),  P_EP (1),  P_EP (2),  P_EP (3),  
-    P_EP (4),  P_EP (5),  P_EP (6),  P_EP (7),  
-    P_EP (8),  P_EP (9),  P_EP (10), P_EP (11),
-    P_EP (12), P_EP (13), P_EP (14), P_EP (15),
-};
-
 /*
  *  USB Power Event Callback
  *   Called automatically on USB Power Event
@@ -193,7 +183,7 @@ void USB_EndPoint2 (uint32_t event) {}
 void USB_EndPoint3 (uint32_t event)
 {
 #if USB_DMA
-   USB_DMA_DESCRIPTOR DD;
+   USB_DMA_DESCRIPTOR dd;
 
    if (event & USB_EVT_OUT_DMA_EOT)
    {
@@ -218,13 +208,13 @@ void USB_EndPoint3 (uint32_t event)
    if ((event & (USB_EVT_OUT_DMA_EOT)) | (USB_EVT_OUT_DMA_NDR))
    {
       /* End of Transfer or New Descriptor Request */
-      DD.BufAdr  = (uint32_t) DataBuf + 2 * DataIn; /* DMA Buffer Address */
-      DD.BufLen  = P_C;                             /* DMA Packet Count */
-      DD.MaxSize = 0;                  /* Must be 0 for Iso Transfer */
-      DD.InfoAdr = (uint32_t) InfoBuf; /* Packet Info Buffer Address */
-      DD.Cfg.Val = 0;                  /* Initial DMA Configuration */
-      DD.Cfg.Type.IsoEP = 1;           /* Iso Endpoint */
-      USB_DMA_Setup (0x03, &DD);       /* Setup DMA */
+      dd.BufAdr  = (uint32_t) DataBuf + 2 * DataIn; /* DMA Buffer Address */
+      dd.BufLen  = P_C;                             /* DMA Packet Count */
+      dd.MaxSize = 0;                  /* Must be 0 for Iso Transfer */
+      dd.InfoAdr = (uint32_t) InfoBuf; /* Packet Info Buffer Address */
+      dd.Cfg.Val = 0;                  /* Initial DMA Configuration */
+      dd.Cfg.Type.IsoEP = 1;           /* Iso Endpoint */
+      USB_DMA_Setup (0x03, &dd);       /* Setup DMA */
       USB_DMA_Enable (0x03);           /* Enable DMA */
    }
 #else

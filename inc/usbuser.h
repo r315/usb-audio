@@ -45,9 +45,6 @@ extern void USB_Error_Event     (uint32_t error);
 #define USB_EVT_OUT_DMA_ERR 12  /* DMA OUT EP - Error */
 #define USB_EVT_IN_DMA_ERR  13  /* DMA  IN EP - Error */
 
-/* USB Endpoint Events Callback Pointers */
-extern void (* const USB_P_EP[16])(uint32_t event);
-
 /* USB Endpoint Events Callback Functions */
 extern void USB_EndPoint0  (uint32_t event);
 extern void USB_EndPoint1  (uint32_t event);

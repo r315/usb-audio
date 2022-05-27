@@ -78,11 +78,11 @@ SECTIONS {
 		__exidx_end = .;
 	} > sram0
 	
-	.peripheral :
+	.ep_ram :
 	{
 		. = ALIGN(4);
-		*(.peripheral)
-		*(.peripheral.*)
+		*(.ep_ram)
+		*(.ep_ram.*)
 	} > sram2
 /*		
 	.stack : {

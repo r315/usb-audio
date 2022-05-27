@@ -31,25 +31,30 @@
 
 #define EP_MSK_CTRL 0x0001 /* Control Endpoint Logical Address Mask */
 #define EP_MSK_BULK 0xC924 /* Bulk Endpoint Logical Address Mask */
-#define EP_MSK_INT 0x4492  /* Interrupt Endpoint Logical Address Mask */
-#define EP_MSK_ISO 0x1248  /* Isochronous Endpoint Logical Address Mask */
+#define EP_MSK_INT  0x4492 /* Interrupt Endpoint Logical Address Mask */
+#define EP_MSK_ISO  0x1248 /* Isochronous Endpoint Logical Address Mask */
+
+#define P_EP(n) ((USB_EP_EVENT & (1 << (n))) ? USB_EndPoint##n : NULL)
 
 #if USB_DMA
 
-//#pragma arm section zidata = "USB_RAM"
-uint32_t UDCA[USB_EP_NUM]; /* UDCA in USB RAM */
-
-uint32_t DD_NISO_Mem[4 * DD_NISO_CNT]; /* Non-Iso DMA Descriptor Memory */
-uint32_t DD_ISO_Mem[5 * DD_ISO_CNT];   /* Iso DMA Descriptor Memory */
-//#pragma arm section zidata
-uint32_t udca[USB_EP_NUM]; /* UDCA saved values */
-
-uint32_t DDMemMap[2]; /* DMA Descriptor Memory Usage */
+//#pragma arm section zidata = "EP_RAM"
+static uint32_t UDCA[USB_EP_NUM]; /* UDCA in USB RAM */
+static uint32_t udca[USB_EP_NUM]; /* UDCA saved values */
+static uint32_t DDMemMap[2];      /* DMA Descriptor Memory Usage */
 
 /* DMA Descriptor Memory Layout */
 const uint32_t DDAdr[2] = {DD_NISO_ADR, DD_ISO_ADR};
 const uint32_t DDSz[2] = {16, 20};
 #endif
+
+/* USB Endpoint Events Callback Pointers */
+void (*const USB_P_EP[16]) (uint32_t event) = {
+    P_EP (0),  P_EP (1),  P_EP (2),  P_EP (3),  
+    P_EP (4),  P_EP (5),  P_EP (6),  P_EP (7),  
+    P_EP (8),  P_EP (9),  P_EP (10), P_EP (11),
+    P_EP (12), P_EP (13), P_EP (14), P_EP (15),
+};
 
 /*
  *  Get Endpoint Physical Address
@@ -74,7 +79,6 @@ uint32_t EPAdr(uint32_t EPNum)
 
 void WrCmd(uint32_t cmd)
 {
-
     LPC_USB->DevIntClr = CCEMTY_INT;
     LPC_USB->CmdCode = cmd;
     while ((LPC_USB->DevIntSt & CCEMTY_INT) == 0);
@@ -89,7 +93,6 @@ void WrCmd(uint32_t cmd)
 
 void WrCmdDat(uint32_t cmd, uint32_t val)
 {
-
     LPC_USB->DevIntClr = CCEMTY_INT;
     LPC_USB->CmdCode = cmd;
     while ((LPC_USB->DevIntSt & CCEMTY_INT) == 0);
@@ -107,7 +110,6 @@ void WrCmdDat(uint32_t cmd, uint32_t val)
 
 void WrCmdEP(uint32_t EPNum, uint32_t cmd)
 {
-
     LPC_USB->DevIntClr = CCEMTY_INT;
     LPC_USB->CmdCode = CMD_SEL_EP(EPAdr(EPNum));
     while ((LPC_USB->DevIntSt & CCEMTY_INT) == 0);
@@ -124,7 +126,6 @@ void WrCmdEP(uint32_t EPNum, uint32_t cmd)
 
 uint32_t RdCmdDat(uint32_t cmd)
 {
-
     LPC_USB->DevIntClr = CCEMTY_INT | CDFULL_INT;
     LPC_USB->CmdCode = cmd;
     while ((LPC_USB->DevIntSt & CDFULL_INT) == 0);
@@ -184,13 +185,14 @@ void USB_Reset(void)
     uint32_t n;
 #endif
 
-    LPC_USB->EpInd = 0;
-    LPC_USB->MaxPSize = USB_MAX_PACKET0;
+    LPC_USB->EpInd = 0;                              // Setup packet size for Ep1:0
+    LPC_USB->MaxPSize = USB_MAX_PACKET0;    
     LPC_USB->EpInd = 1;
     LPC_USB->MaxPSize = USB_MAX_PACKET0;
-    while ((LPC_USB->DevIntSt & EP_RLZED_INT) == 0);
+    while ((LPC_USB->DevIntSt & EP_RLZED_INT) == 0); // Wait for packet size update is completed
+
     LPC_USB->EpIntClr = 0xFFFFFFFF;
-    LPC_USB->EpIntEn = 0xFFFFFFFF ^ USB_DMA_EP;
+    LPC_USB->EpIntEn = 0xFFFFFFFF ^ USB_DMA_EP; // Slave mode for Ep6
 
     LPC_USB->DevIntClr = 0xFFFFFFFF;
     LPC_USB->DevIntEn = DEV_STAT_INT | EP_SLOW_INT |
@@ -198,21 +200,23 @@ void USB_Reset(void)
                         (USB_ERROR_EVENT ? ERR_INT : 0);
 
 #if USB_DMA
-    LPC_USB->UDCAH = USB_RAM_ADR;
-    LPC_USB->DMARClr = 0xFFFFFFFF;
-    LPC_USB->EpDMADis = 0xFFFFFFFF;
-    LPC_USB->EpDMAEn = USB_DMA_EP;
-    LPC_USB->EoTIntClr = 0xFFFFFFFF;
-    LPC_USB->NDDRIntClr = 0xFFFFFFFF;
-    LPC_USB->SysErrIntClr = 0xFFFFFFFF;
-    LPC_USB->DMAIntEn = 0x00000007;
+    LPC_USB->UDCAH = USB_RAM_ADR;       // Set USB Device Communication Area
+    LPC_USB->DMARClr = 0xFFFFFFFF;      // Clear all endpoints DMA requests
+    LPC_USB->EpDMADis = 0xFFFFFFFF;     // Disable DMA on all endpoints
+    LPC_USB->EpDMAEn = USB_DMA_EP;      // Enable DMA for Ep6
+    LPC_USB->EoTIntClr = 0xFFFFFFFF;    // Clear all end of transfer interrupts
+    LPC_USB->NDDRIntClr = 0xFFFFFFFF;   // Clear all new DD requests interrupts
+    LPC_USB->SysErrIntClr = 0xFFFFFFFF; // Clear all system errors
+    LPC_USB->DMAIntEn = 0x00000007;     // Enable EOT, NDDR and ERR interrupts
+
     DDMemMap[0] = 0x00000000;
     DDMemMap[1] = 0x00000000;
-    for (n = 0; n < USB_EP_NUM; n++)
-    {
+
+    for (n = 0; n < USB_EP_NUM; n++){
         udca[n] = 0;
         UDCA[n] = 0;
     }
+
 #endif
 }
 
@@ -246,7 +250,6 @@ void USB_Resume(void)
 
 void USB_WakeUp(void)
 {
-
     if (USB_DeviceStatus & USB_GETSTATUS_REMOTE_WAKEUP)
     {
         WrCmdDat(CMD_SET_DEV_STAT, DAT_WR_BYTE(DEV_CON));
@@ -284,7 +287,6 @@ void USB_SetAddress(uint32_t adr)
 
 void USB_Configure(uint32_t cfg)
 {
-
     WrCmdDat(CMD_CFG_DEV, DAT_WR_BYTE(cfg ? CONF_DVICE : 0));
 
     LPC_USB->ReEp = 0x00000003;
@@ -706,7 +708,7 @@ void USB_IRQHandler(void)
     }
 
 #if USB_SOF_EVENT
-    /* Start of Frame Interrupt */
+    /* Start of Frame Interrupt, called every 1ms*/
     if (disr & FRAME_INT)
     {
         USB_SOF_Event();
