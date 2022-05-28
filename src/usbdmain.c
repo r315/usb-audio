@@ -16,7 +16,8 @@
 
 // https://www.engineersgarage.com/usb-audio-using-lpc1768-part-20-21/
 
-#include "LPC17xx.h" /* LPC17xx definitions */
+#include <stdint.h>
+#include "LPC17xx.h"
 #include "type.h"
 #include "usb.h"
 #include "usbcfg.h"
@@ -25,6 +26,8 @@
 
 #include "usbaudio.h"
 #include "uart.h"
+
+#include "logger.h"
 
 static serialbus_t uart;
 
@@ -73,6 +76,12 @@ uint16_t get_potval (void)
 #endif
 }
 
+int pstring(const char* str){
+   while(*str){
+      UART_PutChar(&uart, *str++);
+   }
+   return 0;
+}
 
 /*
  * Timer Counter 0 Interrupt Service Routine
@@ -210,7 +219,11 @@ int main (void)
    USB_Connect (TRUE); /* USB Connect */
 
    /********* The main Function is an endless loop ***********/
-   while (1);
+   log("\e[2J\rStarting\n\n");
+   
+   while (1){
+      log_flush(pstring);
+   }
 }
 
 /******************************************************************************

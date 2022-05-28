@@ -14,6 +14,8 @@ $(PRJ_DIR)/src/usbcore.c \
 $(PRJ_DIR)/src/usbdesc.c \
 $(PRJ_DIR)/src/usbuser.c \
 $(PRJ_DIR)/src/usbhw.c \
+$(PRJ_DIR)/src/logger.c \
+$(PRJ_DIR)/src/uart_lpc17xx.c \
 
 C_SOURCES   +=$(PRJ_DIR)/src/startup_LPC17xx.c
 
@@ -32,9 +34,12 @@ LDSCRIPT =$(PRJ_DIR)/LPC17xx.ld
 #########################################################
 #Startup files and libraries
 #########################################################
-CFLAGS =-mcpu=cortex-m3 -mthumb -Wall -Og -g -fdata-sections -ffunction-sections -fno-unwind-tables
+CPU =-mcpu=cortex-m3 -mthumb
+CFLAGS =$(CPU) -Wall -Og -g -fdata-sections -ffunction-sections -fno-unwind-tables
 CPPFLAGS=$(CFLAGS) -fno-exceptions -fno-rtti
-LDFLAGS =-mcpu=cortex-m3 -mthumb -nostdlib -lgcc -Wl,--gc-sections -nodefaultlibs #-nostartfiles #-lstdc++ 
+
+# -specs=nosys.specs -specs=nano.specs -lc -lgcc -lstdc++ -Wl,--gc-sections -nodefaultlibs -nostartfiles  -nostdlib
+LDFLAGS =$(CPU) -g -nostdlib -Wl,--gc-sections -lgcc
 
 DEVICE =LPC1768
 
