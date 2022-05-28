@@ -24,11 +24,9 @@
 #include "usbhw.h"
 
 #include "usbaudio.h"
+#include "uart.h"
 
-#define DBG_PIN_INIT    LPC_PINCON->PINSEL4 &= (3 << 24); LPC_GPIO2->FIODIR |= (1 << 12)
-#define DBG_PIN_LOW     LPC_GPIO2->FIOCLR = (1 << 12)
-#define DBG_PIN_HIGH    LPC_GPIO2->FIOSET = (1 << 12)
-#define DBG_PIN_TOGGLE  LPC_GPIO2->FIOPIN ^= (1 << 12)
+static serialbus_t uart;
 
 uint8_t Mute;    /* Mute State */
 uint32_t Volume; /* Volume Level */
@@ -203,6 +201,10 @@ int main (void)
    NVIC_EnableIRQ (TIMER0_IRQn);
 
    DBG_PIN_INIT;
+   
+   uart.bus = UART_BUS0;
+   uart.speed = 115200;
+   UART_Init(&uart);
 
    USB_Init ();        /* USB Initialization */
    USB_Connect (TRUE); /* USB Connect */
