@@ -31,6 +31,13 @@
 #define EP_RLZED_INT        0x00000100
 #define ERR_INT             0x00000200
 
+/* USB Interrupt Status Bit Definitions */
+#define USB_INT_REQ_LP      0x00000001
+#define USB_INT_REQ_HP      0x00000002
+#define USB_INT_REQ_DMA     0x00000004
+#define USB_NEED_CLK        0x00000010
+#define EN_USB_INTS         0x80000000
+
 /* Rx & Tx Packet Length Definitions */
 #define PKT_LNGTH_MASK      0x000003FF
 #define PKT_DV              0x00000400
