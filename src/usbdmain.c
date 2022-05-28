@@ -23,7 +23,7 @@
 #include "usbcfg.h"
 #include "usbcore.h"
 #include "usbhw.h"
-
+#include "usbuser.h"
 #include "usbaudio.h"
 #include "uart.h"
 
