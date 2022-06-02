@@ -6,8 +6,8 @@
 // https://github.com/rxi/log.c
 
 #define FLOAT_MAX_PRECISION     6
-#define LOG_BUF_SIZE            1024
-#define LOG_MAX_COLS            80
+#define LOG_BUF_SIZE            (64 * 64)
+#define LOG_MAX_COLS            64
 #define LOG_MAX_LINES           (LOG_BUF_SIZE / LOG_MAX_COLS)
 
 volatile uint16_t idx_line = 0;
@@ -27,10 +27,35 @@ static const char *log_colors[] = {
 };
 #endif
 
+/**
+ * @brief Attempt to implement atomic compare an swap
+ * TODO: Finish implementation and fix multiple bugs
+ * 
+ * @param p 		: pointer to variable
+ * @param new 		: new value
+ * @param cur 		: expected value
+ * @return uint16_t : value befor swap
+ */
+//__attribute__((naked))
+inline
+uint16_t cas(volatile uint16_t *p, uint16_t new, uint16_t cur){
+	
+	if(*p != cur){
+		return *p;
+	}
+	
+	*p = new;
+	
+	return cur;
+}
 
-static uint16_t next_line(void){
-    uint16_t cur = idx_line;
-    idx_line = (idx_line + 1) % LOG_MAX_LINES;
+static uint16_t next_line(volatile uint16_t *ptr){
+	uint16_t cur, new;
+	do{
+    	cur = *ptr;
+    	new = (cur + 1) % LOG_MAX_LINES;
+	}while(cas(ptr, new, cur) != cur);
+
     return cur;
 }
 
@@ -154,14 +179,14 @@ void logger(const char *tag, int level, const char *fmt, ...){
 #endif
 
     uint8_t new_line;
-
     va_list arp;
-	va_start(arp, fmt);
 
     // lock();
-    new_line = next_line();
+    new_line = next_line(&idx_line);
 
-	dst = (char*)log_buffer[new_line];
+	va_start(arp, fmt);
+
+	dst = (char*)&log_buffer[new_line][0];
 
 #ifdef LOG_USE_TAG_COLOR
     for(uint8_t i = 0; i < 5; i++){
@@ -178,6 +203,8 @@ void logger(const char *tag, int level, const char *fmt, ...){
         *dst++ = log_colors[LOG_TEXT][i];
     }
 #endif
+
+	*dst++ = ' ';
 
 	while ((d = *fmt++) != '\0') {
 
