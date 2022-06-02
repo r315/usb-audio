@@ -39,7 +39,7 @@ CFLAGS =$(CPU) -Wall -Og -g -fdata-sections -ffunction-sections -fno-unwind-tabl
 CPPFLAGS=$(CFLAGS) -fno-exceptions -fno-rtti
 
 # -specs=nosys.specs -specs=nano.specs -lc -lgcc -lstdc++ -Wl,--gc-sections -nodefaultlibs -nostartfiles  -nostdlib
-LDFLAGS =$(CPU) -g -nostdlib -Wl,--gc-sections -lgcc
+LDFLAGS =$(CPU) -g -nostdlib -Wl,--gc-sections -lgcc -Xlinker -Map=$(TARGET).map 
 
 DEVICE =LPC1768
 

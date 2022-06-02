@@ -28,6 +28,7 @@
 #define USB_IF_NUM          4
 #define USB_EP_NUM          32
 #define USB_MAX_PACKET0     64
+#define USB_DMA             1
 #define USB_DMA_EP          0x00000040  // Physical Ep 6 (Logical 3 Out)
 
 #define USB_POWER_EVENT     0

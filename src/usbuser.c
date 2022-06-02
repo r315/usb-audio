@@ -183,42 +183,47 @@ void USB_EndPoint2 (uint32_t event) {}
 void USB_EndPoint3 (uint32_t event)
 {
 #if USB_DMA
-   USB_DMA_DESCRIPTOR dd;
+    struct dma_descriptor dd = {0};
 
-   if (event & USB_EVT_OUT_DMA_EOT)
-   {
-      /* End of Transfer */
-      if (USB_DMA_BufAdr (0x03) != ((uint32_t) DataBuf + 2 * DataIn))
-      {
-         /* Data Available */
-         DataIn += P_C * P_S; /* Update Data In Index */
-         DataIn &= B_S - 1;   /* Adjust Data In Index */
-         if (((DataIn - DataOut) & (B_S - 1)) == (B_S / 2))
-         {
-            DataRun = 1; /* Data Stream running */
-         }
-      }
-      else
-      {
-         /* No Data */
-         DataRun = 0;      /* Data Stream not running */
-         DataOut = DataIn; /* Initialize Data Indexes */
-      }
-   }
-   if ((event & (USB_EVT_OUT_DMA_EOT)) | (USB_EVT_OUT_DMA_NDR))
-   {
-      /* End of Transfer or New Descriptor Request */
-      dd.BufAdr  = (uint32_t) DataBuf + 2 * DataIn; /* DMA Buffer Address */
-      dd.BufLen  = P_C;                             /* DMA Packet Count */
-      dd.MaxSize = 0;                  /* Must be 0 for Iso Transfer */
-      dd.InfoAdr = (uint32_t) InfoBuf; /* Packet Info Buffer Address */
-      dd.Cfg.Val = 0;                  /* Initial DMA Configuration */
-      dd.Cfg.Type.IsoEP = 1;           /* Iso Endpoint */
-      USB_DMA_Setup (0x03, &dd);       /* Setup DMA */
-      USB_DMA_Enable (0x03);           /* Enable DMA */
-   }
+    switch(event){
+        case USB_EVT_OUT_DMA_EOT:
+            /* End of Transfer */
+            if (USB_DMA_BufAdr (0x03) != ((uint32_t) DataBuf + 2 * DataIn)){
+                /* Data Available */
+                DataIn += P_C * P_S; /* Update Data In Index */
+                DataIn &= B_S - 1;   /* Adjust Data In Index */
+                if (((DataIn - DataOut) & (B_S - 1)) == (B_S / 2)){
+                    DataRun = 1; /* Data Stream running */
+                }
+            }else{
+                /* No Data */
+                DataRun = 0;      /* Data Stream not running */
+                DataOut = DataIn; /* Initialize Data Indexes */
+            }
+            break;
+
+        case USB_EVT_OUT_DMA_ERR:
+            /* Invalid DD on EP_RAM, UDCA may be corrupted */
+            break;
+
+        case USB_EVT_OUT_DMA_NDR:
+            break;        
+
+        default:
+            return;
+    }
+
+    dd.w1.bits.length  = P_C;        /* DMA Packet Count */
+    dd.w1.bits.iso = 1;
+    dd.buffer  = (uint32_t*)(DataBuf + DataIn); /* DMA Buffer Address */
+    dd.w3.val = 0;                   /* Initial DMA Configuration */
+    dd.infbuf = InfoBuf;             /* Packet Info Buffer Address */
+
+    USB_DMA_Setup (0x03, &dd);       /* Setup DMA */
+    USB_DMA_Enable (0x03);           /* Enable DMA */
+
 #else
-   event = event;
+    event = event;
 #endif
 }
 
