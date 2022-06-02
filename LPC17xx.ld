@@ -83,6 +83,7 @@ SECTIONS {
 		. = ALIGN(4);
 		*(.ep_ram)
 		*(.ep_ram.*)
+		. = ALIGN(4);
 	} > sram2
 /*		
 	.stack : {

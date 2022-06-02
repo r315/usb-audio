@@ -34,14 +34,8 @@ static serialbus_t uart;
 uint8_t Mute;    /* Mute State */
 uint32_t Volume; /* Volume Level */
 
-
-#if USB_DMA
-uint32_t *info_buffer = (uint32_t *) (DMA_BUF_ADR);
-uint16_t *audio_buffer = (uint16_t *) (DMA_BUF_ADR + 4 * P_C);
-#else
-static uint32_t info_buffer[P_C];
-static uint16_t audio_buffer[B_S];  // __attribute__((section(".ep_ram")));
-#endif
+static uint32_t info_buffer[P_C] __attribute__((section(".ep_ram")));
+static uint16_t audio_buffer[B_S] __attribute__((section(".ep_ram")));
 
 uint32_t *InfoBuf;
 short *DataBuf;
