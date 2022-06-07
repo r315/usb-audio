@@ -11,18 +11,19 @@
 #define EXT_DAC_MONO        1
 
 
-uint8_t Mute;    /* Mute State */
-uint32_t Volume; /* Volume Level */
+static uint8_t Mute;    /* Mute State */
+static uint16_t VolCur = 0x0100;       /* Volume Current Value */
+static uint32_t Volume; /* Volume Level */
 
-short *DataBuf;
-uint16_t DataOut; /* Data Out Index */
-uint16_t DataIn;  /* Data In Index */
-uint8_t DataRun; /* Data Stream Run State */
+static short *DataBuf;
+static uint16_t DataOut; /* Data Out Index */
+static uint16_t DataIn;  /* Data In Index */
+static uint8_t DataRun; /* Data Stream Run State */
 
 static i2sbus_t i2s;
-uint32_t vum;    /* VU Meter */
-uint32_t tick;   /* Time Tick */
-uint16_t audio_buffer[B_S];
+static uint32_t vum;    /* VU Meter */
+static uint32_t tick;   /* Time Tick */
+static uint16_t audio_buffer[B_S];
 static uint16_t test_buffer[TEST_DATA_SIZE];
 
 /**
@@ -223,6 +224,42 @@ void AUDIO_Start(uint16_t *buffer, uint32_t len){
     i2s.buf_len = TEST_DATA_SIZE;
 
     I2S_Start(&i2s);
+}
+
+uint8_t *AUDIO_GetBuffer(void){
+    #if USB_DMA
+    return (uint8_t*)DataBuf + 2 * DataIn;
+    #else
+    return (uint8_t*)&DataBuf[DataIn];
+    #endif
+}
+
+void AUDIO_AdvanceBuffer(uint32_t cnt){
+    DataIn = (DataIn + cnt) & (B_S - 1);     /* Update Data In Index */
+    if (((DataIn - DataOut) & (B_S - 1)) == (B_S / 2)){
+        DataRun = 1; /* Data Stream running */
+    }
+}
+
+void AUDIO_FlushBuffer(void){
+    DataRun = 0;      /* Data Stream not running */
+    DataOut = DataIn; /* Initialize Data Indexes */
+}
+
+void AUDIO_SetVolume(uint16_t vol){
+    VolCur = vol;
+}
+
+uint16_t AUDIO_GetVolume(void){
+    return VolCur;
+}
+
+void AUDIO_SetMute(uint8_t mute){
+    Mute = mute;
+}
+
+uint8_t AUDIO_GetMute(void){
+    return Mute;
 }
 
 /**

@@ -14,14 +14,12 @@
  * Copyright (c) 2009 Keil - An ARM Company. All rights reserved.
  *---------------------------------------------------------------------------*/
 
-/* Audio Demo Variables */
-extern uint8_t  Mute;                      /* Mute State */
-extern uint32_t Volume;                    /* Volume Level */
-extern uint16_t  VolCur;                   /* Volume Current Value */
-extern short *DataBuf;                     /* Data Buffer */
-extern uint16_t  DataOut;                  /* Data Out Index */
-extern uint16_t  DataIn;                   /* Data In Index */
-extern uint8_t   DataRun;                  /* Data Stream Run State */
-
-
 void AUDIO_Init(void);
+uint8_t *AUDIO_GetBuffer(void);
+void AUDIO_AdvanceBuffer(uint32_t cnt);
+void AUDIO_FlushBuffer(void);
+void AUDIO_SetVolume(uint16_t vol);
+uint16_t AUDIO_GetVolume(void);
+uint8_t AUDIO_GetMute(void);
+void AUDIO_SetMute(uint8_t);
+

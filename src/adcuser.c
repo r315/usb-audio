@@ -25,7 +25,6 @@
 
 #include "audio.h"
 
-uint16_t VolCur = 0x0100;       /* Volume Current Value */
 const uint16_t VolMin = 0x0000; /* Volume Minimum Value */
 const uint16_t VolMax = 0x0100; /* Volume Maximum Value */
 const uint16_t VolRes = 0x0004; /* Volume Resolution */
@@ -39,7 +38,6 @@ const uint16_t VolRes = 0x0004; /* Volume Resolution */
 
 uint32_t ADC_IF_GetRequest(void)
 {
-
     /*
       Interface = SetupPacket.wIndex.WB.L;
       EntityID  = SetupPacket.wIndex.WB.H;
@@ -60,7 +58,7 @@ uint32_t ADC_IF_GetRequest(void)
                 switch (SetupPacket.bRequest)
                 {
                 case AUDIO_REQUEST_GET_CUR:
-                    EP0Buf[0] = Mute;
+                    EP0Buf[0] = AUDIO_GetMute();
                     return (TRUE);
                 }
                 break;
@@ -68,7 +66,7 @@ uint32_t ADC_IF_GetRequest(void)
                 switch (SetupPacket.bRequest)
                 {
                 case AUDIO_REQUEST_GET_CUR:
-                    *((uint16_t *)EP0Buf) = VolCur;
+                    *((uint16_t *)EP0Buf) = AUDIO_GetVolume();
                     return (TRUE);
                 case AUDIO_REQUEST_GET_MIN:
                     *((uint16_t *)EP0Buf) = VolMin;
@@ -96,7 +94,6 @@ uint32_t ADC_IF_GetRequest(void)
 
 uint32_t ADC_IF_SetRequest(void)
 {
-
     /*
       Interface = SetupPacket.wIndex.WB.L;
       EntityID  = SetupPacket.wIndex.WB.H;
@@ -117,7 +114,7 @@ uint32_t ADC_IF_SetRequest(void)
                 switch (SetupPacket.bRequest)
                 {
                 case AUDIO_REQUEST_SET_CUR:
-                    Mute = EP0Buf[0];
+                    AUDIO_SetMute(EP0Buf[0]);
                     return (TRUE);
                 }
                 break;
@@ -125,7 +122,7 @@ uint32_t ADC_IF_SetRequest(void)
                 switch (SetupPacket.bRequest)
                 {
                 case AUDIO_REQUEST_SET_CUR:
-                    VolCur = 252; //*((uint16_t *)EP0Buf);
+                    AUDIO_SetVolume(*((uint16_t *)EP0Buf));                    
                     return (TRUE);
                 }
                 break;
@@ -144,7 +141,6 @@ uint32_t ADC_IF_SetRequest(void)
 
 uint32_t ADC_EP_GetRequest(void)
 {
-
     /*
       EndPoint = SetupPacket.wIndex.WB.L;
       Request  = SetupPacket.bRequest;
@@ -163,7 +159,6 @@ uint32_t ADC_EP_GetRequest(void)
 
 uint32_t ADC_EP_SetRequest(void)
 {
-
     /*
       EndPoint = SetupPacket.wIndex.WB.L;
       Request  = SetupPacket.bRequest;

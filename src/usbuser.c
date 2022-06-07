@@ -26,7 +26,9 @@
 
 #include "audio.h"
 
+#if USB_DMA
 static struct dma_pkt_info packet_info[P_C] __attribute__((section(".ep_ram")));
+#endif
 
 /*
  *  USB Power Event Callback
@@ -91,22 +93,13 @@ void USB_WakeUp_Event (void) {}
 void USB_SOF_Event (void)
 {
 #if USB_DMA == 0
-   if (USB_ReadEP(0x03, (uint8_t *)&DataBuf[DataIn]))
-   {
-      /* Data Available */
-      DataIn += P_S;     /* Update Data In Index */
-      DataIn &= B_S - 1; /* Adjust Data In Index */
-      if (((DataIn - DataOut) & (B_S - 1)) == (B_S / 2))
-      {
-         DataRun = 1; /* Data Stream running */
-      }
-   }
-   else
-   {
-      /* No Data */
-      DataRun = 0;      /* Data Stream not running */
-      DataOut = DataIn; /* Initialize Data Indexes */
-   }
+    if (USB_ReadEP(0x03, AUDIO_GetBuffer())){
+        /* Data Available */
+        AUDIO_AdvanceBuffer(P_S);
+    }else {
+        /* No Data */
+        AUDIO_FlushBuffer();
+    }
 #endif
 }
 #endif
@@ -190,17 +183,12 @@ void USB_EndPoint3 (uint32_t event)
     switch(event){
         case USB_EVT_OUT_DMA_EOT:
             /* End of Transfer */
-            if (USB_DMA_BufAdr (0x03) != ((uint32_t) DataBuf + 2 * DataIn)){
+            if (USB_DMA_BufAdr (0x03) != (uint32_t)AUDIO_GetBuffer()){
                 /* Data Available */
-                DataIn += P_C * P_S; /* Update Data In Index */
-                DataIn &= B_S - 1;   /* Adjust Data In Index */
-                if (((DataIn - DataOut) & (B_S - 1)) == (B_S / 2)){
-                    DataRun = 1; /* Data Stream running */
-                }
+                AUDIO_AdvanceBuffer( P_C * P_S);
             }else{
                 /* No Data */
-                DataRun = 0;      /* Data Stream not running */
-                DataOut = DataIn; /* Initialize Data Indexes */
+                AUDIO_FlushBuffer();
             }
             break;
 
@@ -217,7 +205,7 @@ void USB_EndPoint3 (uint32_t event)
 
     dd.w1.bits.length  = P_C;                   /* DMA Packet Count */
     dd.w1.bits.iso = 1;
-    dd.buffer  = (uint32_t*)(DataBuf + DataIn); /* DMA Buffer Address */
+    dd.buffer  = (uint32_t*)AUDIO_GetBuffer();  /* DMA Buffer Address */
     dd.w3.val = 0;                              /* Initial DMA Configuration */
     dd.infbuf = (uint32_t*)packet_info;         /* Packet Info Buffer Address */
 
