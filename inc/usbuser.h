@@ -21,6 +21,8 @@
 
 #include <stdint.h>
 
+#include "usbcfg.h"
+
 /* USB Device Events Callback Functions */
 extern void USB_Power_Event     (uint32_t  power);
 extern void USB_Reset_Event     (void);
@@ -44,6 +46,19 @@ extern void USB_Error_Event     (uint32_t error);
 #define USB_EVT_IN_DMA_NDR  11  /* DMA  IN EP - New Descriptor Request */
 #define USB_EVT_OUT_DMA_ERR 12  /* DMA OUT EP - Error */
 #define USB_EVT_IN_DMA_ERR  13  /* DMA  IN EP - Error */
+
+
+/* Audio Definitions */
+#define USB_AUDIO_DATA_FREQ     32000   /* Audio Data Frequency */
+#define USB_AUDIO_RESOLUTION    16
+
+#define P_S       32                    /* Packet Size */
+#if USB_DMA
+#define P_C       4                     /* Packet Count */
+#else
+#define P_C       1                     /* Packet Count */
+#endif
+#define B_S       (8 * P_C * P_S)       /* Buffer Size */
 
 /* USB Endpoint Events Callback Functions */
 extern void USB_EndPoint0  (uint32_t event);

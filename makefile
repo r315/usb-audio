@@ -19,6 +19,7 @@ $(PRJ_DIR)/src/usbhw.c \
 $(PRJ_DIR)/src/logger.c \
 $(PRJ_DIR)/src/uart_lpc17xx.c \
 $(DRV_DIR)/drv/i2s/i2s_lpc17xx.c \
+$(PRJ_DIR)/src/audio.c \
 
 C_SOURCES   +=$(PRJ_DIR)/src/startup_LPC17xx.c
 

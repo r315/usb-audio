@@ -18,12 +18,12 @@
 
 #include "type.h"
 #include "usb.h"
-#include "audio.h"
+#include "usbaudioclass.h"
 #include "usbcfg.h"
 #include "usbcore.h"
 #include "adcuser.h"
 
-#include "usbaudio.h"
+#include "audio.h"
 
 uint16_t VolCur = 0x0100;       /* Volume Current Value */
 const uint16_t VolMin = 0x0000; /* Volume Minimum Value */

@@ -35,7 +35,7 @@
 
    #if (USB_AUDIO)
       #include "adcuser.h"
-      #include "audio.h"
+      #include "usbaudioclass.h"
    #endif
 
    #if (USB_HID)

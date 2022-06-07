@@ -22,8 +22,8 @@
 #include "type.h"
 
 #include "usb.h"
-#include "audio.h"
-#include "usbaudio.h"
+#include "usbaudioclass.h"
+#include "usbuser.h"
 #include "usbcfg.h"
 #include "usbdesc.h"
 

@@ -24,7 +24,7 @@
 #include "usbhw.h"
 #include "usbuser.h"
 
-#include "usbaudio.h"
+#include "audio.h"
 
 static struct dma_pkt_info packet_info[P_C] __attribute__((section(".ep_ram")));
 
