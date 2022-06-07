@@ -34,10 +34,8 @@ static serialbus_t uart;
 uint8_t Mute;    /* Mute State */
 uint32_t Volume; /* Volume Level */
 
-static uint32_t info_buffer[P_C] __attribute__((section(".ep_ram")));
-static uint16_t audio_buffer[B_S] __attribute__((section(".ep_ram")));
+static uint16_t audio_buffer[B_S];
 
-uint32_t *InfoBuf;
 short *DataBuf;
 
 uint16_t DataOut; /* Data Out Index */
@@ -163,7 +161,6 @@ int main (void)
    DataOut = 0;
    DataIn  = 0;
    DataRun = 0;
-   InfoBuf = (uint32_t *)info_buffer;
    DataBuf = (short *)audio_buffer;
 
    LPC_PINCON->PINSEL1 &= ~((0x03 << 18) | (0x03 << 20));

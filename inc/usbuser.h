@@ -68,9 +68,10 @@ extern void USB_Configure_Event (void);
 extern void USB_Interface_Event (void);
 extern void USB_Feature_Event   (void);
 
-#define DBG_PIN_INIT    LPC_PINCON->PINSEL4 &= (3 << 24); LPC_GPIO2->FIODIR |= (1 << 12)
-#define DBG_PIN_LOW     LPC_GPIO2->FIOCLR = (1 << 12)
-#define DBG_PIN_HIGH    LPC_GPIO2->FIOSET = (1 << 12)
-#define DBG_PIN_TOGGLE  LPC_GPIO2->FIOPIN ^= (1 << 12)
+#define DBG_PIN_MASK    (1 << 29)
+#define DBG_PIN_INIT    LPC_PINCON->PINSEL3 &= (3 << 26); LPC_GPIO1->FIODIR |= DBG_PIN_MASK
+#define DBG_PIN_LOW     LPC_GPIO1->FIOCLR = DBG_PIN_MASK
+#define DBG_PIN_HIGH    LPC_GPIO1->FIOSET = DBG_PIN_MASK
+#define DBG_PIN_TOGGLE  LPC_GPIO1->FIOPIN ^= DBG_PIN_MASK
 
 #endif  /* __USBUSER_H__ */

@@ -30,7 +30,6 @@
 extern uint8_t  Mute;                      /* Mute State */
 extern uint32_t Volume;                    /* Volume Level */
 extern uint16_t  VolCur;                   /* Volume Current Value */
-extern uint32_t *InfoBuf;                  /* Packet Info Buffer */
 extern short *DataBuf;                     /* Data Buffer */
 extern uint16_t  DataOut;                  /* Data Out Index */
 extern uint16_t  DataIn;                   /* Data In Index */

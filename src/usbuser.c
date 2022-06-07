@@ -26,6 +26,8 @@
 
 #include "usbaudio.h"
 
+static struct dma_pkt_info packet_info[P_C] __attribute__((section(".ep_ram")));
+
 /*
  *  USB Power Event Callback
  *   Called automatically on USB Power Event
@@ -213,14 +215,14 @@ void USB_EndPoint3 (uint32_t event)
             return;
     }
 
-    dd.w1.bits.length  = P_C;        /* DMA Packet Count */
+    dd.w1.bits.length  = P_C;                   /* DMA Packet Count */
     dd.w1.bits.iso = 1;
     dd.buffer  = (uint32_t*)(DataBuf + DataIn); /* DMA Buffer Address */
-    dd.w3.val = 0;                   /* Initial DMA Configuration */
-    dd.infbuf = InfoBuf;             /* Packet Info Buffer Address */
+    dd.w3.val = 0;                              /* Initial DMA Configuration */
+    dd.infbuf = (uint32_t*)packet_info;         /* Packet Info Buffer Address */
 
-    USB_DMA_Setup (0x03, &dd);       /* Setup DMA */
-    USB_DMA_Enable (0x03);           /* Enable DMA */
+    USB_DMA_Setup (0x03, &dd);                  /* Setup DMA */
+    USB_DMA_Enable (0x03);                      /* Enable DMA */
 
 #else
     event = event;

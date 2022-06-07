@@ -88,6 +88,11 @@ struct dma_descriptor{
     uint32_t *infbuf;             // W4: isochronous_packet_memory_address
 };
 
+struct dma_pkt_info {
+    uint32_t length : 16;
+    uint32_t valid  : 1;
+    uint32_t frame  : 15;
+};
 
 /* USB Hardware Functions */
 extern void USB_Init(void);

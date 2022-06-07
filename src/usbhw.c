@@ -39,10 +39,8 @@
 #define P_EP(n) ((USB_EP_EVENT & (1 << (n))) ? USB_EndPoint##n : NULL)
 
 #if USB_DMA
-
 static uint32_t udca[USB_EP_NUM] __attribute__((section(".ep_ram"))) __attribute__ ((aligned (128)));       /* UDCA in USB RAM */
-static struct dma_descriptor dd_iso_ram[DD_ISO_CNT] __attribute__((section(".ep_ram")));   /* Iso DMA Descr. */
-//static uint8_t dd_niso_ram[DD_NISO_CNT] __attribute__((section(".ep_ram"))); /* Non-Iso DMA Descr. */
+static struct dma_descriptor dd_ram[DD_ISO_CNT] __attribute__((section(".ep_ram")));                        /* DMA Descriptors area */
 #endif
 
 #define LOG_INFO(...)    logger("[USBHW]", LOG_INFO, __VA_ARGS__)
@@ -203,11 +201,11 @@ void USB_Reset(void)
     LPC_USB->UDCAH = (uint32_t)udca;    // Set USB Device Communication Area
     LPC_USB->DMARClr = 0xFFFFFFFF;      // Clear all endpoints DMA requests
     LPC_USB->EpDMADis = 0xFFFFFFFF;     // Disable DMA on all endpoints
-    LPC_USB->EpDMAEn = USB_DMA_EP;      // Enable DMA for Ep6
     LPC_USB->EoTIntClr = 0xFFFFFFFF;    // Clear all end of transfer interrupts
     LPC_USB->NDDRIntClr = 0xFFFFFFFF;   // Clear all new DD requests interrupts
     LPC_USB->SysErrIntClr = 0xFFFFFFFF; // Clear all system errors
-    LPC_USB->DMAIntEn = 0x00000007;     // Enable EOT, NDDR and ERR interrupts
+    LPC_USB->DMAIntEn = SYS_ERR_INT | NDD_REQ_INT |EOT_INT;   // Enable EOT, NDDR and ERR interrupts
+    LPC_USB->EpDMAEn = USB_DMA_EP;      // Enable DMA for Ep6
 #endif
 }
 
@@ -490,11 +488,10 @@ uint32_t USB_GetFrame(void)
  *                     ddc: Pointer to configuration DMA Descriptor
  *    Return Value:    TRUE - Success, FALSE - Error
  */
-static uint8_t dd_idx = 0;
 uint32_t USB_DMA_Setup(uint32_t EPNum, struct dma_descriptor *ddc)
 {
-    uint32_t ep_num, iso, n, dd_size;
-    const uint32_t *dd_ram;
+    static uint8_t dd_idx = 0;
+    uint32_t ep_num; //, iso, n, dd_size;
     struct dma_descriptor *nxt_dd;
 
     //iso = ddc->w1.bits.iso;      /* Iso or Non-Iso Descriptor */
@@ -503,7 +500,7 @@ uint32_t USB_DMA_Setup(uint32_t EPNum, struct dma_descriptor *ddc)
     //dd_ram = DDAdr[iso];
 
     //nxt_dd = (struct dma_descriptor*)udca_cp[ep_num]; /* Initial Descriptor */
-    nxt_dd = &dd_iso_ram[(dd_idx++) & 7];
+    nxt_dd = &dd_ram[(dd_idx++) & (DD_ISO_CNT - 1)];
 
     nxt_dd->ddp = NULL;
     nxt_dd->buffer= ddc->buffer;
@@ -810,7 +807,7 @@ void USB_IRQHandler(void)
                 { /* OUT Endpoint */
                     if (USB_P_EP[m])
                     {
-                        LOG_INFO("Ep %d Out DMA EOT\n", m);
+                        //LOG_INFO("%x Ep %d Out DMA EOT\n", USB_GetFrame(), m);
                         USB_P_EP[m](USB_EVT_OUT_DMA_EOT);
                     }
                 }
@@ -818,7 +815,7 @@ void USB_IRQHandler(void)
                 { /* IN Endpoint */
                     if (USB_P_EP[m])
                     {
-                        LOG_INFO("Ep %d In DMA EOT\n", m);
+                        //LOG_INFO("Ep %d In DMA EOT\n", m);
                         USB_P_EP[m](USB_EVT_IN_DMA_EOT);
                     }
                 }
