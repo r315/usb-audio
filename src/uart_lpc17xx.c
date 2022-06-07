@@ -104,7 +104,7 @@ return DLest & 255;
 
 void UART_Init(serialbus_t *serialbus){
 	LPC_UART_TypeDef *puart = NULL;
-	IRQn_Type irq;
+	//IRQn_Type irq;
 	struct FdrPair frdiv;	
 	unsigned char DLest;
 
@@ -115,7 +115,7 @@ void UART_Init(serialbus_t *serialbus){
 			LPC_SC->PCONP |= (1 << 3);
             // Turn on UART0 peripheral clock
 			LPC_SC->PCLKSEL0 &= ~(3 << 6);  // CCLK/4			
-			irq = UART0_IRQn;
+			//irq = UART0_IRQn;
 
 	        // P0.2 = TXD0, P0.3 = RXD0, Alternative function impose direction
 	        LPC_PINCON->PINSEL0 &= ~0xf0;
@@ -126,7 +126,7 @@ void UART_Init(serialbus_t *serialbus){
 			puart = (LPC_UART_TypeDef *)LPC_UART1;
 			LPC_SC->PCONP |= (1 << 4);
 			LPC_SC->PCLKSEL0 &= ~(3 << 8);  // CCLK/4
-			irq = UART1_IRQn;
+			//irq = UART1_IRQn;
 
 			// P2.0 = TXD1, P2.1 = RXD1
 	        LPC_PINCON->PINSEL4 &= ~(0x0f << 0);
@@ -151,7 +151,7 @@ void UART_Init(serialbus_t *serialbus){
 			puart = (LPC_UART_TypeDef *)LPC_UART3;
 			LPC_SC->PCONP |= (1 << 25);
 			LPC_SC->PCLKSEL1 &= ~(3 << 18);  // CCLK/4
-			irq = UART3_IRQn;
+			//irq = UART3_IRQn;
 
 			// P0.0 = TXD3, P0.1 = RXD3
 	        //LPC_PINCON->PINSEL0 &= ~(0x0f << 20);
