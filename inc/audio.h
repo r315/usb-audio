@@ -14,6 +14,8 @@
  * Copyright (c) 2009 Keil - An ARM Company. All rights reserved.
  *---------------------------------------------------------------------------*/
 
+#define EXT_DAC_MONO        0
+
 void AUDIO_Init(void);
 uint8_t *AUDIO_GetBuffer(void);
 void AUDIO_AdvanceBuffer(uint32_t cnt);

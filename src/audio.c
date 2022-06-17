@@ -37,16 +37,12 @@ static void extdacCallBack(uint32_t *dst, uint32_t len){
     uint16_t *buf = (uint16_t*)i2s.txbuffer;
     Index = i2s.rdidx;
 
-    #ifndef EXT_DAC_MONO
+    #if EXT_DAC_MONO
     uint8_t msb = 0;
     #endif
 
     while(len){
-        #ifdef EXT_DAC_MONO
-            sample = (uint16_t)buf[Index++];
-            *dst = (sample << 16) | sample;
-            len--;
-        #else
+        #if EXT_DAC_MONO
         if(msb & 1){
             sample |= (uint32_t)buf[Index++];
             *dst = sample;
@@ -56,6 +52,10 @@ static void extdacCallBack(uint32_t *dst, uint32_t len){
             sample <<= 16;
         }
         msb++;
+        #else
+            sample = (uint16_t)buf[Index++];
+            *dst = (sample << 16) | sample;
+            len--;
         #endif
 
         if (Index == i2s.buf_len){
@@ -74,7 +74,7 @@ static void extdacCallBack(uint32_t *dst, uint32_t len){
  * @param len 
  */
 static void dacCallBack(uint32_t *src, uint32_t len){
-    uint32_t cnt, sample;
+    int32_t cnt, sample;
 
     LPC_TIM0->IR = 1; /* Clear Interrupt Flag */
 
@@ -130,24 +130,22 @@ static void dacCallBack(uint32_t *src, uint32_t len){
  * 
  */
 static void AUDIO_InitDac(void){
-    volatile uint32_t pclkdiv, pclk;
-    
+    volatile uint32_t pclk;
+
+    /**
+     *  P0.25, A0.0, function 01, P0.26 AOUT, function 10.
+     *  Setting DAC function on pin also enables DAC
+     * */    
     LPC_PINCON->PINSEL1 &= ~((0x03 << 18) | (0x03 << 20));
-    /* P0.25, A0.0, function 01, P0.26 AOUT, function 10 */
     LPC_PINCON->PINSEL1 |= ((0x01 << 18) | (0x02 << 20));
 
-    /* Enable CLOCK into ADC controller */
-    LPC_SC->PCONP |= (1 << 12);
-
-    LPC_ADC->CR = 0x00200E04; /* ADC: 10-bit AIN2 @ 4MHz */
     LPC_DAC->CR = 0x00008000; /* DAC Output set to Middle Point */
 
-    /* By default, the PCLKSELx value is zero, thus, the PCLK for
-    all the peripherals is 1/4 of the SystemCoreClock. */
-    /* Bit 2~3 is for TIMER0 */
-    pclkdiv = (LPC_SC->PCLKSEL0 >> 2) & 0x03;
-
-    switch (pclkdiv)
+    /**
+     *  By default, the PCLKSELx value is zero, thus, the PCLK for
+     *  all the peripherals is 1/4 of the SystemCoreClock.
+     *  Bit 2~3 is for TIMER0 */
+    switch ((LPC_SC->PCLKSEL0 >> 2) & 0x03)
     {
         case 0x00:
         default:
@@ -181,8 +179,8 @@ static void AUDIO_InitExtDac(void){
     i2s.data_size = 16;
     i2s.mode = (I2S_TX_EN_MASTER | I2S_MCLK_OUT);
     i2s.bus = I2S_BUS2;
-    i2s.txbuffer = NULL;
-    i2s.buf_len = 0;
+    //i2s.txbuffer = NULL;
+    //i2s.buf_len = 0;
     i2s.rdidx = DataOut;
     i2s.txcp = extdacCallBack;
 
@@ -191,6 +189,10 @@ static void AUDIO_InitExtDac(void){
     }
 
     I2S_Init(&i2s);
+
+    i2s.txbuffer = (uint32_t*)test_buffer;
+    i2s.buf_len = TEST_DATA_SIZE;
+    I2S_Start(&i2s);
 }
 
 /**
@@ -206,7 +208,7 @@ void AUDIO_Init(void){
     DataBuf = (short *)audio_buffer;
 
     AUDIO_InitDac();
-    //AUDIO_InitExtDac();
+    AUDIO_InitExtDac();
 }
 
 /**
