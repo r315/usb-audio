@@ -96,7 +96,7 @@ $(TARGET).hex: $(TARGET).elf
 
 $(TARGET).bin: $(TARGET).elf
 	@echo "Generating bin file" $@
-	$(OBJCOPY) -O binary $(TARGET).elf $@
+	$(OBJCOPY) -O binary -j .startup -j .text -j .data -j .ram_code -j .rodata $< $@
 	$(CHECKSUM) $@
 
 stats: $(TARGET).elf
@@ -115,11 +115,10 @@ $(TARGET).jlink: $(TARGET).hex
 #@echo "erase" > $@
 	
 $(TARGET)_jlink.cfg:
-	@echo "Creating openocd configuration file"
 	@echo "adapter driver jlink" >> $@
 	@echo "transport select swd" >> $@
 	@echo "source [find target/lpc17xx.cfg]" >> $@
-	@echo "adapter speed 4000" >> $@
+	@echo "adapter speed 1000" >> $@
 
 $(TARGET)_stlink.cfg:
 	@echo source [find interface/stlink-v2.cfg] >> $@
