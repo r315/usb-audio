@@ -8,7 +8,6 @@
 
 #define TEST_DATA_SIZE      485
 #define VOLUME_CONST        128
-#define EXT_DAC_MONO        1
 
 
 static uint8_t Mute;    /* Mute State */
