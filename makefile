@@ -6,7 +6,7 @@ TARGET 		 =$(BUILD_DIR)/usb_audio
 BUILD_DIR 	:=build
 PRJ_DIR 	:=$(PWD)
 
-DRV_DIR		:=../libemb
+DRV_DIR		:=$(LIBEMB_PATH)
 
 C_SOURCES =\
 $(PRJ_DIR)/src/adcuser.c \
