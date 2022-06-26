@@ -6,10 +6,10 @@
 
 #include "usbuser.h"
 
+#include "logger.h"
+
 #define TEST_DATA_SIZE      485
 #define VOLUME_CONST        128
-#define EXT_DAC_MONO        1
-
 
 static uint8_t Mute;    /* Mute State */
 static uint16_t VolCur = 0x0100;       /* Volume Current Value */
@@ -20,11 +20,12 @@ static uint16_t DataOut; /* Data Out Index */
 static uint16_t DataIn;  /* Data In Index */
 static uint8_t DataRun; /* Data Stream Run State */
 
-static i2sbus_t i2s;
+static i2sbus_t s_i2s;
 static uint32_t vum;    /* VU Meter */
 static uint32_t tick;   /* Time Tick */
-static uint16_t audio_buffer[B_S];
-static uint16_t test_buffer[TEST_DATA_SIZE];
+static uint16_t s_audio_buffer[B_S];
+
+static i2sCallback s_timCallback;
 
 /**
  * @brief Callback to copy 16bit samples to 32bit fifo
@@ -34,8 +35,8 @@ static uint16_t test_buffer[TEST_DATA_SIZE];
  */
 static void extdacCallBack(uint32_t *dst, uint32_t len){
     uint32_t Index, sample = 0;
-    uint16_t *buf = (uint16_t*)i2s.txbuffer;
-    Index = i2s.rdidx;
+    uint16_t *buf = (uint16_t*)s_i2s.txbuffer;
+    Index = s_i2s.rdidx;
 
     #if EXT_DAC_MONO
     uint8_t msb = 0;
@@ -58,12 +59,12 @@ static void extdacCallBack(uint32_t *dst, uint32_t len){
             len--;
         #endif
 
-        if (Index == i2s.buf_len){
+        if (Index == s_i2s.tx_buf_len){
             Index = 0;
         }
     }
 
-    i2s.rdidx = Index;
+    s_i2s.rdidx = Index;
 }
 
 /**
@@ -73,7 +74,7 @@ static void extdacCallBack(uint32_t *dst, uint32_t len){
  * @param dst 
  * @param len 
  */
-static void dacCallBack(uint32_t *src, uint32_t len){
+static void dacCallBack(uint32_t *dst, uint32_t len){
     int32_t cnt, sample;
 
     LPC_TIM0->IR = 1; /* Clear Interrupt Flag */
@@ -122,25 +123,18 @@ static void dacCallBack(uint32_t *src, uint32_t len){
          * if minimum set volume to 0 else
          *  Chained Volume Level and multiply by pot value*/
         Volume = (VolCur == 0x8000) ? 0 : VolCur * 128;
+        log("VU :%d\n", vum);
         vum = 0;         /* Clear VUM */
    }
 }
+
 /**
- * @brief 
+ * @brief Setup a timer for feeding DAC.
+ * It is configure to call
  * 
  */
-static void AUDIO_InitDac(void){
+static void setupDacTimer(uint32_t freq, void (*cb)(uint32_t*, uint32_t)){
     volatile uint32_t pclk;
-
-    /**
-     *  P0.25, A0.0, function 01, P0.26 AOUT, function 10.
-     *  Setting DAC function on pin also enables DAC
-     * */    
-    LPC_PINCON->PINSEL1 &= ~((0x03 << 18) | (0x03 << 20));
-    LPC_PINCON->PINSEL1 |= ((0x01 << 18) | (0x02 << 20));
-
-    LPC_DAC->CR = 0x00008000; /* DAC Output set to Middle Point */
-
     /**
      *  By default, the PCLKSELx value is zero, thus, the PCLK for
      *  all the peripherals is 1/4 of the SystemCoreClock.
@@ -162,11 +156,29 @@ static void AUDIO_InitDac(void){
             break;
     }
 
-    LPC_TIM0->MR0 = pclk / USB_AUDIO_DATA_FREQ - 1; /* TC0 Match Value 0 */
-    LPC_TIM0->MCR = 3;                    /* TCO Interrupt and Reset on MR0 */
-    LPC_TIM0->TCR = 1;                    /* TC0 Enable */
+    LPC_TIM0->MR0 = pclk / freq - 1;    /* TC0 Match Value 0 */
+    LPC_TIM0->MCR = 3;                  /* TCO Interrupt and Reset on MR0 */
+    LPC_TIM0->TCR = TIM_TCR_EN;         /* TC0 Enable */
+
+    s_timCallback = cb;
 
     NVIC_EnableIRQ (TIMER0_IRQn);
+}
+/**
+ * @brief 
+ * 
+ */
+static void AUDIO_InitDac(void){
+    /**
+     *  P0.25, A0.0, function 01, P0.26 AOUT, function 10.
+     *  Setting DAC function on pin also enables DAC
+     * */    
+    LPC_PINCON->PINSEL1 &= ~((0x03 << 18) | (0x03 << 20));
+    LPC_PINCON->PINSEL1 |= ((0x01 << 18) | (0x02 << 20));
+
+    LPC_DAC->CR = 0x00008000; /* DAC Output set to Middle Point */
+
+    setupDacTimer(USB_AUDIO_DATA_FREQ, dacCallBack);
 }
 
 /**
@@ -174,41 +186,21 @@ static void AUDIO_InitDac(void){
  * 
  */
 static void AUDIO_InitExtDac(void){
-    i2s.sample_rate = 32000;
-    i2s.channels = 2;
-    i2s.data_size = 16;
-    i2s.mode = (I2S_TX_EN_MASTER | I2S_MCLK_OUT);
-    i2s.bus = I2S_BUS2;
-    //i2s.txbuffer = NULL;
-    //i2s.buf_len = 0;
-    i2s.rdidx = DataOut;
-    i2s.txcp = extdacCallBack;
+    s_i2s.bus = I2S_BUS2;
+    s_i2s.sample_rate = 32000;
+    s_i2s.channels = 2;
+    s_i2s.data_size = 16;
+    s_i2s.mode = (I2S_TX_EN_MASTER | I2S_MCLK_OUT);
+    s_i2s.txbuffer = NULL;
+    s_i2s.rxbuffer = NULL;
+    s_i2s.tx_buf_len = 0;
+    s_i2s.rx_buf_len = 0;
+    s_i2s.rdidx = 0;
+    s_i2s.wridx = 0;
+    s_i2s.txcp = extdacCallBack;
+    s_i2s.rxcp = NULL;
 
-    for(int i = 0; i < TEST_DATA_SIZE; i++){
-        test_buffer[i] = i;
-    }
-
-    I2S_Init(&i2s);
-
-    i2s.txbuffer = (uint32_t*)test_buffer;
-    i2s.buf_len = TEST_DATA_SIZE;
-    I2S_Start(&i2s);
-}
-
-/**
- * @brief 
- * 
- */
-void AUDIO_Init(void){
-    
-    DataOut = 0;
-    DataIn  = 0;
-    DataRun = 0;
-    Mute = 0;
-    DataBuf = (short *)audio_buffer;
-
-    AUDIO_InitDac();
-    AUDIO_InitExtDac();
+    I2S_Init(&s_i2s);
 }
 
 /**
@@ -222,10 +214,28 @@ void AUDIO_Start(uint16_t *buffer, uint32_t len){
         return;
     }
 
-    i2s.txbuffer = (uint32_t*)test_buffer;
-    i2s.buf_len = TEST_DATA_SIZE;
+    s_i2s.txbuffer = (uint32_t*)buffer;
+    s_i2s.tx_buf_len = len;
 
-    I2S_Start(&i2s);
+    I2S_Start(&s_i2s);
+}
+
+/**
+ * @brief 
+ * 
+ */
+void AUDIO_Init(void){
+    
+    DataOut = 0;    // Read Index
+    DataIn  = 0;    // Write Index
+    DataRun = 0;    // Has data on buffer
+    DataBuf = (short *)s_audio_buffer;
+    Mute = 0;
+
+    AUDIO_InitDac();
+    AUDIO_InitExtDac();
+
+    AUDIO_Start(s_audio_buffer, B_S);
 }
 
 uint8_t *AUDIO_GetBuffer(void){
@@ -265,21 +275,10 @@ uint8_t AUDIO_GetMute(void){
 }
 
 /**
- * @brief Interrupt handlers
- * 
- */
-void I2S_IRQHandler(void){
-    I2S_Handler(&i2s);
-}
-
-/*
- * Timer Counter 0 Interrupt Service Routine
+ * @brief  Timer Counter 0 Interrupt Service Routine
  *   executed each 31.25us (32kHz frequency)
  */
-void TIMER0_IRQHandler(void){
-    
-    LPC_TIM0->IR = 1; /* Clear Interrupt Flag */
-    //DBG_PIN_TOGGLE;
-   
-    dacCallBack(NULL, 0);
+void TIMER0_IRQHandler(void){    
+    LPC_TIM0->IR = TIM_IR_MR0; /* Clear Interrupt Flag */   
+    s_timCallback(NULL, 0);
 }
