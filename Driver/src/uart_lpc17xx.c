@@ -1,8 +1,8 @@
 #include <stdint.h>
 #include <stdio.h>
+#include "lpc17xx_hal.h"
 #include "uart.h"
-#include "uart_lpc17xx.h"
-#include "LPC17xx.h"
+
 
 struct FdrPair{
 	unsigned short fr;

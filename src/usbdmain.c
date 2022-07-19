@@ -17,7 +17,7 @@
 // https://www.engineersgarage.com/usb-audio-using-lpc1768-part-20-21/
 
 #include <stdint.h>
-#include "LPC17xx.h"
+#include "lpc17xx_hal.h"
 #include "type.h"
 #include "usb.h"
 #include "usbcfg.h"
@@ -51,7 +51,7 @@ int main (void)
 
    DBG_PIN_INIT;
    
-   uart.bus = UART_BUS0;
+   uart.bus = UART_BUS1;
    uart.speed = 115200;
    UART_Init(&uart);
 

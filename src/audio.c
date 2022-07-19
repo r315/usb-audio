@@ -3,13 +3,8 @@
 #include "lpc17xx_hal.h"
 #include "i2s.h"
 #include "audio.h"
-
 #include "usbuser.h"
-
 #include "logger.h"
-
-#define TEST_DATA_SIZE      485
-#define VOLUME_CONST        128
 
 static uint8_t Mute;    /* Mute State */
 static uint16_t VolCur = 0x0100;       /* Volume Current Value */
@@ -36,7 +31,7 @@ static i2sCallback s_timCallback;
 static void extdacCallBack(uint32_t *dst, uint32_t len){
     uint32_t Index, sample = 0;
     uint16_t *buf = (uint16_t*)s_i2s.txbuffer;
-    Index = s_i2s.rdidx;
+    Index = DataOut; //s_i2s.rdidx;
 
     #if EXT_DAC_MONO
     uint8_t msb = 0;
@@ -64,7 +59,7 @@ static void extdacCallBack(uint32_t *dst, uint32_t len){
         }
     }
 
-    s_i2s.rdidx = Index;
+    //s_i2s.rdidx = Index;
 }
 
 /**
@@ -123,9 +118,10 @@ static void dacCallBack(uint32_t *dst, uint32_t len){
          * if minimum set volume to 0 else
          *  Chained Volume Level and multiply by pot value*/
         Volume = (VolCur == 0x8000) ? 0 : VolCur * 128;
-        log("VU :%d\n", vum);
+        //log("VU :%d\n", vum);
         vum = 0;         /* Clear VUM */
    }
+   USER_LED_TOGGLE;
 }
 
 /**

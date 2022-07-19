@@ -17,7 +17,7 @@
  *---------------------------------------------------------------------------*/
 
 #include "type.h"
-
+#include "lpc17xx_hal.h"
 #include "usb.h"
 #include "usbcfg.h"
 #include "usbcore.h"
@@ -179,7 +179,7 @@ void USB_EndPoint3 (uint32_t event)
 {
 #if USB_DMA
     struct dma_descriptor dd = {0};
-
+    DBG_PIN_TOGGLE;
     switch(event){
         case USB_EVT_OUT_DMA_EOT:
             /* End of Transfer */

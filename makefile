@@ -6,7 +6,7 @@ TARGET 		 =$(BUILD_DIR)/usb_audio
 BUILD_DIR 	:=build
 PRJ_DIR 	:=$(PWD)
 
-DRV_DIR		:=$(LIBEMB_PATH)
+DRV_DIR		:=Driver
 
 C_SOURCES =\
 $(PRJ_DIR)/src/adcuser.c \
@@ -18,7 +18,7 @@ $(PRJ_DIR)/src/usbuser.c \
 $(PRJ_DIR)/src/usbhw.c \
 $(PRJ_DIR)/src/logger.c \
 $(PRJ_DIR)/src/uart_lpc17xx.c \
-$(DRV_DIR)/drv/i2s/i2s_lpc17xx.c \
+$(DRV_DIR)/src/i2s_lpc17xx.c \
 $(PRJ_DIR)/src/audio.c \
 
 C_SOURCES   +=$(PRJ_DIR)/src/startup_LPC17xx.c
@@ -29,8 +29,7 @@ CPP_SOURCES = \
 
 INCSPATH =\
 $(PRJ_DIR)/inc \
-$(DRV_DIR)/include \
-$(DRV_DIR)/drv/inc \
+$(DRV_DIR)/inc \
 
 GCSYMBOLS =-D__NEWLIB__ -DBOARD_BLUEBOARD -DENABLE_DEBUG
 
