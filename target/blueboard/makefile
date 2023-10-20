@@ -2,17 +2,24 @@
 #########################################################
 # project files
 #########################################################
-TARGET 		 =$(BUILD_DIR)/usb_audio
-BUILD_DIR 	:=build
-PRJ_DIR 	:=$(PWD)
+TARGET 		 	=$(BUILD_DIR)/usb_audio
+BUILD_DIR 		=build
+DRV_DIR			=../../Driver/LPC17xx
+PRJ_DIR 		:=$(CURDIR)
+LIB_DIR			=../../lib/usb-lpc
+CMSIS_DIR		=../../Driver/CMSIS
 
-DRV_DIR		:=Driver
+INCSPATH =\
+$(PRJ_DIR)/inc \
+$(DRV_DIR)/inc \
+$(LIB_DIR)/inc \
+$(CMSIS_DIR)/Core/Include \
 
 C_SOURCES =\
 $(PRJ_DIR)/src/adcuser.c \
 $(PRJ_DIR)/src/system_LPC17xx.c \
 $(PRJ_DIR)/src/usbdmain.c \
-$(PRJ_DIR)/src/usbcore.c \
+$(LIB_DIR)/src/usbcore.c \
 $(PRJ_DIR)/src/usbdesc.c \
 $(PRJ_DIR)/src/usbuser.c \
 $(PRJ_DIR)/src/usbhw.c \
@@ -27,11 +34,7 @@ CPP_SOURCES = \
 
 #ASM_SOURCES   =startup_LPC17xx.s
 
-INCSPATH =\
-$(PRJ_DIR)/inc \
-$(DRV_DIR)/inc \
-
-GCSYMBOLS =-D__NEWLIB__ -DBOARD_BLUEBOARD -DENABLE_DEBUG
+GCSYMBOLS =-DBOARD_BLUEBOARD -DENABLE_DEBUG
 
 LIBSPATH +=
 
