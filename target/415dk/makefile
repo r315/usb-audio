@@ -31,7 +31,7 @@ $(CMSIS_PATH)/Core/Include \
 $(CMSIS_PATH)/Device/ARTERY/AT32F4xx/inc \
 $(LIB_PATH)/usb-at/usb_drivers/inc \
 $(LIB_PATH)/usb-at/usbd_class/audio_hid \
-
+$(LIB_PATH)/cli_simple \
 
 AS_INCLUDES =\
 
@@ -50,9 +50,14 @@ $(DRIVERS_PER_PATH)/src/at32f415_usb.c\
 $(DRIVERS_PER_PATH)/src/at32f415_tmr.c\
 $(DRIVERS_PER_PATH)/src/at32f415_misc.c\
 $(LIB_PATH)/usb-at/usb_drivers/src/usb_core.c \
+$(LIB_PATH)/usb-at/usb_drivers/src/usbd_int.c \
 $(LIB_PATH)/usb-at/usb_drivers/src/usbd_core.c \
+$(LIB_PATH)/usb-at/usb_drivers/src/usbd_sdr.c \
 $(LIB_PATH)/usb-at/usbd_class/audio_hid/audio_hid_desc.c \
 $(LIB_PATH)/usb-at/usbd_class/audio_hid/audio_hid_class.c \
+$(LIB_PATH)/cli_simple/cli_simple.c \
+$(LIB_PATH)/cli_simple/syscalls.c \
+
 
 C_SOURCES = \
 $(DRIVER_SOURCES) \
@@ -61,6 +66,7 @@ $(TARGET_PATH)/src/at32f415_clock.c \
 $(TARGET_PATH)/src/audio_codec.c \
 $(TARGET_PATH)/src/i2c_application.c \
 $(TARGET_PATH)/src/main.c \
+$(TARGET_PATH)/src/415dk_serial.c \
 
 CPP_SOURCES = \
 
@@ -76,14 +82,6 @@ C_DEFS +=\
 $(DEVICE) \
 BOARD_415DK \
 _USE_STDPERIPH_DRIVER \
-
-ifeq ($(FEATURE_BENCHMAK), yes)
-C_DEFS +=ENABLE_BENCHMARK
-endif
-
-ifeq ($(FEATURE_BENCHMAK_DHYSTONE),yes)
-C_DEFS +=ENABLE_BENCHMAK_DHYSTONE
-endif
 
 ifeq ($(FEATURE_TFT_DISPLAY),yes)
 C_DEFS +=ENABLE_TFT_DISPLAY
@@ -108,11 +106,9 @@ FLOAT_ABI =#-u_printf_float
 MCU = $(CPU) $(FPU) $(FLOAT_ABI)
 
 ifdef RELEASE
-DEBUG =0
 OPT   =-O2
 else
-DEBUG =1
-OPT   =-O0 -g -gdwarf-2 -Wall #-Wextra
+OPT   =-Og -g -gdwarf-2 -Wall #-Wextra
 endif
 
 ifndef V
@@ -175,7 +171,7 @@ BIN = $(OBJCOPY) -O binary -S
 ifeq ($(shell uname -s), Linux)
 JLK ="/opt/SEGGER/JLink/JLinkExe"
 else
-JLK :=$(JLINK)
+JLK =jlink
 endif
 
 #######################################
@@ -187,8 +183,8 @@ all: $(BUILD_DIR)/$(TARGET).elf size
 bin: $(BUILD_DIR)/$(TARGET).bin
 
 program: $(BUILD_DIR)/$(TARGET).jlink bin
-#$(VERBOSE)$(JLK) -device $(DEVICE) -if SWD -speed auto -CommanderScript $<
-	openocd -f at32f415.cfg -c "program $(BUILD_DIR)/$(TARGET).elf verify reset exit"
+	$(VERBOSE)$(JLK) -device $(DEVICE) -if SWD -speed auto -CommanderScript $<
+#openocd -f at32f415.cfg -c "program $(BUILD_DIR)/$(TARGET).elf verify reset exit"
 
 $(BUILD_DIR)/$(TARGET).jlink: $(BUILD_DIR)/$(TARGET).bin
 	@echo "Creating Jlink configuration file"

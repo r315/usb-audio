@@ -30,6 +30,7 @@
 #include "audio_hid_class.h"
 #include "audio_hid_desc.h"
 #include "audio_codec.h"
+#include "cli_simple.h"
 
 #define USER_BUTTON 1
 /** @addtogroup AT32F415_periph_examples
@@ -41,13 +42,32 @@
   */
 
 /* usb global struct define */
-otg_core_type otg_core_struct;
 void usb_clock48m_select(usb_clk48_s clk_s);
 void usb_gpio_config(void);
 void usb_low_power_wakeup_config(void);
+
+void serial_init(void);
+uint32_t serial_write(const uint8_t*, uint32_t);
+uint32_t serial_read(uint8_t*, uint32_t);
+
+
+
+static int testCmd(int argc, char **argv) {
+    
+    return CLI_OK;
+}
+
+cli_command_t cli_cmds [] = {
+    {"help", ((int (*)(int, char**))CLI_Commands)},
+    {"test", testCmd},
+};
+
+
+otg_core_type otg_core_struct;
 #if defined ( __ICCARM__ ) /* iar compiler */
   #pragma data_alignment=4
 #endif
+
 ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
 
 static int at32_button_press(void)
@@ -61,16 +81,21 @@ static int at32_button_press(void)
   */
 int main(void)
 {
+  board_init();
+
   nvic_priority_group_config(NVIC_PRIORITY_GROUP_4);
 
   system_clock_config();
 
- /* audio codec init */
+  serial_init();
+
+  CLI_Init("Audio >");
+  CLI_RegisterCommand(cli_cmds, 2);
+
+  /* audio codec init */
   audio_codec_init();
 
-  board_init();
-
-    /* usb gpio config */
+  /* usb gpio config */
   usb_gpio_config();
 
 #ifdef USB_LOW_POWER_WAKUP
@@ -96,6 +121,7 @@ int main(void)
   while(1)
   {
     audio_codec_loop();
+
     if(at32_button_press() == USER_BUTTON)
     {
       report_buf[0] = HID_REPORT_ID_5;
@@ -103,8 +129,14 @@ int main(void)
       audio_hid_class_send_report(&otg_core_struct.dev, report_buf, USBD_AUHID_IN_MAXPACKET_SIZE);
     }
 
+    #ifndef USB_SOF_OUTPUT_ENABLE
     LED1_TOGGLE;
+    #endif
+    
     delay_ms(100);
+    if(CLI_ReadLine()){
+        CLI_HandleLine();
+    }
   }
 }
 
@@ -164,7 +196,6 @@ void usb_gpio_config(void)
   gpio_init_struct.gpio_out_type  = GPIO_OUTPUT_PUSH_PULL;
   gpio_init_struct.gpio_mode = GPIO_MODE_MUX;
   gpio_init_struct.gpio_pull = GPIO_PULL_NONE;
-
 
 #ifdef USB_SOF_OUTPUT_ENABLE
   crm_periph_clock_enable(OTG_PIN_SOF_GPIO_CLOCK, TRUE);

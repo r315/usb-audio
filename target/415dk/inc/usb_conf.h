@@ -123,7 +123,7 @@ extern "C" {
   *        ignore vbus detection, the internal vbus is always valid.
   *        the vbus pin (pa9) can be used for other functionality.
   */
-/* #define USB_VBUS_IGNORE */
+#define USB_VBUS_IGNORE
 
 /**
   * @brief usb low power wakeup handler enable

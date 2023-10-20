@@ -29,7 +29,7 @@ NORETURN void Reset_Handler(void)
     while (dest < &_estack)
         *dest++ = 0;
 
-    //__libc_init_array();
+    __libc_init_array();
     
     main();
 
@@ -70,7 +70,7 @@ void HardFault_Handler(void){
 
 void Default_Handler(void){
     volatile uint8_t isr_number = (SCB->ICSR & 255) - 16;
-    // See position number on Table 61 from RM0008
+    // See position number on Table 1-3 from RM_AT32F415
     (void)isr_number;
 
     asm volatile
@@ -132,14 +132,14 @@ void USART2_IRQHandler (void)   __attribute__ ((weak, alias("Default_Handler")))
 void USART3_IRQHandler (void)   __attribute__ ((weak, alias("Default_Handler")));
 void EXTI15_10_IRQHandler (void) __attribute__ ((weak, alias("Default_Handler")));
 void ERTCAlarm_IRQHandler (void) __attribute__ ((weak, alias("Default_Handler")));
-void USBWakeUp_IRQHandler (void) __attribute__ ((weak, alias("Default_Handler")));
+void OTGFS1_WKUP_IRQHandler (void) __attribute__ ((weak, alias("Default_Handler")));
 void SDIO_IRQHandler (void)     __attribute__ ((weak, alias("Default_Handler")));
 void TMR5_GLOBAL_IRQHandler (void)  __attribute__ ((weak, alias("Default_Handler")));
 void DMA2_Channel1_IRQHandler (void) __attribute__ ((weak, alias("Default_Handler")));
 void DMA2_Channel2_IRQHandler (void) __attribute__ ((weak, alias("Default_Handler")));
 void DMA2_Channel3_IRQHandler (void) __attribute__ ((weak, alias("Default_Handler")));
 void DMA2_Channel4_5_IRQHandler (void) __attribute__ ((weak, alias("Default_Handler")));
-void USBOTG_IRQHandler (void)   __attribute__ ((weak, alias("Default_Handler")));
+void OTGFS1_IRQHandler (void)   __attribute__ ((weak, alias("Default_Handler")));
 void COMP1_IRQHandler (void)    __attribute__ ((weak, alias("Default_Handler")));
 void COMP2_IRQHandler (void)    __attribute__ ((weak, alias("Default_Handler")));
 void ACC_IRQHandler (void)      __attribute__ ((weak, alias("Default_Handler")));
@@ -207,7 +207,7 @@ ISR void *vector_table[] = {
     USART3_IRQHandler,                   /* USART3                                      */
     EXTI15_10_IRQHandler,                /* EXTI Line [15:10]                           */
     ERTCAlarm_IRQHandler,                /* ERTC Alarm through EXTI Line                */
-    USBWakeUp_IRQHandler,                /* USB Wakeup from suspend                     */
+    OTGFS1_WKUP_IRQHandler,              /* USB Wakeup from suspend                     */
     0,                                   /* Reserved                                    */
     0,                                   /* Reserved                                    */
     0,                                   /* Reserved                                    */
@@ -232,7 +232,7 @@ ISR void *vector_table[] = {
     0,                                   /* Reserved                                    */
     0,                                   /* Reserved                                    */
     0,                                   /* Reserved                                    */
-    USBOTG_IRQHandler,                   /* USBOTG                                      */
+    OTGFS1_IRQHandler,                   /* USBOTG                                      */
     0,                                   /* Reserved                                    */
     0,                                   /* Reserved                                    */
     COMP1_IRQHandler,                    /* COMP1                                       */
