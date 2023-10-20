@@ -1,4 +1,5 @@
 #include "at32f4xx.h"
+#include "at32f4xx_rcc.h"
 
 #define VECT_TAB_OFFSET 0x0
 

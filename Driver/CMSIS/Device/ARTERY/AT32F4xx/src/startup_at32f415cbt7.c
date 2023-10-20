@@ -29,7 +29,7 @@ NORETURN void Reset_Handler(void)
     while (dest < &_estack)
         *dest++ = 0;
 
-    __libc_init_array();
+    //__libc_init_array();
     
     main();
 
