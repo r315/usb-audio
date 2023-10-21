@@ -22,10 +22,9 @@
   **************************************************************************
   */
 #include "audio_hid_class.h"
-//#include "usb_conf.h"
 #include "usbd_core.h"
 #include "audio_hid_desc.h"
-#include "audio_codec.h"
+#include "audio.h"
 
 
 /** @addtogroup AT32F415_middlewares_usbd_class
@@ -284,6 +283,9 @@ static usb_sts_type class_hid_setup_handler(void *udev, usb_setup_type *setup)
           {
             len = MIN(9, setup->wLength);
             buf = (uint8_t *)g_audio_hid_usb_desc;
+          }else{
+            while(1); // TODO: remove after tests
+            break;
           }
           usbd_ctrl_send(pudev, (uint8_t *)buf, len);
           break;
@@ -391,26 +393,26 @@ static usb_sts_type class_ept0_rx_handler(void *udev)
             paudio_hid->spk_volume = (uint16_t)(paudio_hid->g_audio_cur[0] |
                                                  (paudio_hid->g_audio_cur[1] << 8));
             /* set volume */
-            audio_codec_set_spk_volume(paudio_hid->spk_volume*100/paudio_hid->spk_volume_limits[1]);
+            audio_set_spk_volume(paudio_hid->spk_volume*100/paudio_hid->spk_volume_limits[1]);
           }
           else
           {
             paudio_hid->mic_volume = (uint16_t)(paudio_hid->g_audio_cur[0] |
                                                  (paudio_hid->g_audio_cur[1] << 8));
 
-            audio_codec_set_mic_volume(paudio_hid->mic_volume*256/paudio_hid->mic_volume_limits[1]);
+            audio_set_mic_volume(paudio_hid->mic_volume*256/paudio_hid->mic_volume_limits[1]);
           }
           break;
         case AUDIO_MUTE_CONTROL:
           if(paudio_hid->interface == AUDIO_SPK_FEATURE_UNIT_ID)
           {
             paudio_hid->spk_mute = paudio_hid->g_audio_cur[0];
-            audio_codec_set_spk_mute(paudio_hid->spk_mute);
+            audio_set_spk_mute(paudio_hid->spk_mute);
           }
           else
           {
             paudio_hid->mic_mute = paudio_hid->g_audio_cur[0];
-            audio_codec_set_mic_mute(paudio_hid->mic_mute);
+            audio_set_mic_mute(paudio_hid->mic_mute);
           }
 
           break;
@@ -420,14 +422,14 @@ static usb_sts_type class_ept0_rx_handler(void *udev)
             paudio_hid->mic_freq = (paudio_hid->g_audio_cur[0] |
                               (paudio_hid->g_audio_cur[1] << 8) |
                               (paudio_hid->g_audio_cur[2] << 16));
-            audio_codec_set_mic_freq(paudio_hid->mic_freq);
+            audio_set_mic_freq(paudio_hid->mic_freq);
           }
           else
           {
             paudio_hid->spk_freq = (paudio_hid->g_audio_cur[0] |
                               (paudio_hid->g_audio_cur[1] << 8) |
                               (paudio_hid->g_audio_cur[2] << 16));
-            audio_codec_set_spk_freq(paudio_hid->spk_freq);
+            audio_set_spk_freq(paudio_hid->spk_freq);
           }
           break;
         default:
@@ -457,7 +459,7 @@ static usb_sts_type class_in_handler(void *udev, uint8_t ept_num)
   */
   if((ept_num & 0x7F) == (USBD_AUHID_AUDIO_MIC_IN_EPT & 0x7F))
   {
-    len = audio_codec_mic_get_data(paudio_hid->audio_mic_data);
+    len = audio_dequeue_data(paudio_hid->audio_mic_data);
     usbd_flush_tx_fifo(udev, USBD_AUHID_AUDIO_MIC_IN_EPT);
     usbd_ept_send(udev, USBD_AUHID_AUDIO_MIC_IN_EPT, paudio_hid->audio_mic_data, len);
   }
@@ -493,7 +495,7 @@ static usb_sts_type class_out_handler(void *udev, uint8_t ept_num)
   if((ept_num & 0x7F) == (USBD_AUHID_AUDIO_SPK_OUT_EPT & 0x7F))
   {
     /* speaker data*/
-    audio_codec_spk_fifo_write(paudio_hid->audio_spk_data, g_rxlen);
+    audio_enqueue_data(paudio_hid->audio_spk_data, g_rxlen);
     paudio_hid->audio_spk_out_stage = 1;
     /* get next data */
     usbd_ept_recv(pudev, USBD_AUHID_AUDIO_SPK_OUT_EPT, paudio_hid->audio_spk_data, AUDIO_SPK_OUT_MAXPACKET_SIZE);
@@ -532,14 +534,14 @@ static usb_sts_type class_sof_handler(void *udev)
     if( 0 == paudio_hid->audio_feedback_state )
     {
       usbd_core_type *pudev = (usbd_core_type *)udev;
-      int len = audio_codec_spk_feedback(paudio_hid->audio_feed_back);
+      int len = audio_spk_feedback(paudio_hid->audio_feed_back);
       usbd_ept_send(pudev, USBD_AUHID_AUDIO_FEEDBACK_EPT, paudio_hid->audio_feed_back, len);
       paudio_hid->audio_feedback_state = 1;
     }
       if( paudio_hid->audio_feedback_state++ > (1<<FEEDBACK_REFRESH_TIME) ) //timeout
       {
         usbd_core_type *pudev = (usbd_core_type *)udev;
-        int len = audio_codec_spk_feedback(paudio_hid->audio_feed_back);
+        int len = audio_spk_feedback(paudio_hid->audio_feed_back);
         usbd_flush_tx_fifo(pudev, USBD_AUHID_AUDIO_FEEDBACK_EPT);
         usbd_ept_send(pudev, USBD_AUHID_AUDIO_FEEDBACK_EPT, paudio_hid->audio_feed_back, len);
         paudio_hid->audio_feedback_state = 1;
@@ -561,7 +563,7 @@ static usb_sts_type class_event_handler(void *udev, usbd_event_type event)
 {
   usb_sts_type status = USB_OK;
   usbd_core_type *pudev = (usbd_core_type *)udev;
-  usb_audio_hid_type *paudio_hid = (usb_audio_hid_type *)pudev->class_handler->pdata;
+  //usb_audio_hid_type *paudio_hid = (usb_audio_hid_type *)pudev->class_handler->pdata;
   switch(event)
   {
     case USBD_RESET_EVENT:
@@ -570,10 +572,10 @@ static usb_sts_type class_event_handler(void *udev, usbd_event_type event)
 
       break;
     case USBD_SUSPEND_EVENT:
-      paudio_hid->spk_alt_setting = 0;
-      audio_codec_spk_alt_setting(paudio_hid->spk_alt_setting);
-      paudio_hid->mic_alt_setting = 0;
-      audio_codec_mic_alt_setting(paudio_hid->spk_alt_setting);
+      //paudio_hid->spk_alt_setting = 0;
+      //audio_spk_alt_setting(paudio_hid->spk_alt_setting);
+      //paudio_hid->mic_alt_setting = 0;
+      //audio_mic_alt_setting(paudio_hid->spk_alt_setting);
       /* ...user code... */
 
       break;
@@ -621,7 +623,7 @@ static void audio_inisoincom_event(void *udev)
     USB_INEPT(pudev->usb_reg, (USBD_AUHID_AUDIO_MIC_IN_EPT&0x7F))->diepctl_bit.snak = 1;
     usb_flush_tx_fifo(pudev->usb_reg, USBD_AUHID_AUDIO_MIC_IN_EPT&0x7F);
 
-    len = audio_codec_mic_get_data(paudio_hid->audio_mic_data);
+    len = audio_dequeue_data(paudio_hid->audio_mic_data);
     usbd_ept_send(pudev, USBD_AUHID_AUDIO_MIC_IN_EPT, paudio_hid->audio_mic_data, len);
   }
 #endif
@@ -786,7 +788,7 @@ static void audio_set_interface(void *udev, usb_setup_type *setup)
   if(LBYTE(setup->wIndex) == AUDIO_SPK_INTERFACE_NUMBER)
   {
     paudio_hid->spk_alt_setting = setup->wValue;
-    audio_codec_spk_alt_setting(paudio_hid->spk_alt_setting);
+    audio_spk_alt_setting(paudio_hid->spk_alt_setting);
     if(paudio_hid->spk_alt_setting )
     {
       usbd_ept_recv(pudev, USBD_AUHID_AUDIO_SPK_OUT_EPT, paudio_hid->audio_spk_data, AUDIO_SPK_OUT_MAXPACKET_SIZE);
@@ -796,10 +798,10 @@ static void audio_set_interface(void *udev, usb_setup_type *setup)
   else if(LBYTE(setup->wIndex) == AUDIO_MIC_INTERFACE_NUMBER)
   {
     paudio_hid->mic_alt_setting = setup->wValue;
-    audio_codec_mic_alt_setting(paudio_hid->mic_alt_setting);
+    audio_mic_alt_setting(paudio_hid->mic_alt_setting);
     if(paudio_hid->mic_alt_setting)
     {
-      len = audio_codec_mic_get_data(paudio_hid->audio_mic_data);
+      len = audio_dequeue_data(paudio_hid->audio_mic_data);
       usbd_ept_send(pudev, USBD_AUHID_AUDIO_MIC_IN_EPT, paudio_hid->audio_mic_data, len);
     }
   }

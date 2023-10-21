@@ -35,18 +35,18 @@ extern "C" {
   * @{
   */
 
-/** @addtogroup USB_audio_hid_class
+/** @addtogroup USB_audio_class
   * @{
   */
 
-/** @defgroup USB_device_audio_hid_config_definition
+/** @defgroup USB_device_audio_config_definition
   * @{
   */
 #define AUDIO_SUPPORT_SPK                1
 #define AUDIO_SUPPORT_MIC                1
 #define AUDIO_SUPPORT_FEEDBACK           1
 
-#define AUDIO_SUPPORT_FREQ_16K           0
+#define AUDIO_SUPPORT_FREQ_16K           1
 #define AUDIO_SUPPORT_FREQ_48K           1
 
 
@@ -57,6 +57,7 @@ extern "C" {
 #define AUDIO_FREQ_16K                   16000
 #define AUDIO_FREQ_48K                   48000
 #define AUDIO_BITW_16                    16
+#define AUDIO_BITW_32                    32
 
 #define AUDIO_MIC_CHANEL_NUM            2
 #define AUDIO_MIC_DEFAULT_BITW          AUDIO_BITW_16
@@ -68,6 +69,13 @@ extern "C" {
 #define AUDIO_SUPPORT_MAX_FREQ           48
 #define AUDIO_DEFAULT_FREQ               AUDIO_FREQ_48K
 #define AUDIO_DEFAULT_BITW               AUDIO_BITW_16
+
+#define AUDIO_MODE_MASTER               0
+#define AUDIO_MODE_SLAVE                1
+#define AUDIO_DEFAULT_MODE              AUDIO_MODE_MASTER
+
+#define AUDIO_DEFAULT_MCLK              0
+#define AUDIO_DEFAULT_MCLK_FREQ         0
 
 /**
   * @}

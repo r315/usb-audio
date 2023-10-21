@@ -32,7 +32,7 @@ extern "C" {
 
 #include "audio_hid_class.h"
 #include "usbd_core.h"
-#include "audio_conf.h"
+
 
 /** @addtogroup AT32F415_middlewares_usbd_class
   * @{

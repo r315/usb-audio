@@ -63,7 +63,7 @@ C_SOURCES = \
 $(DRIVER_SOURCES) \
 $(TARGET_PATH)/src/board_415dk.c \
 $(TARGET_PATH)/src/at32f415_clock.c \
-$(TARGET_PATH)/src/audio_codec.c \
+$(TARGET_PATH)/src/audio.c \
 $(TARGET_PATH)/src/i2c_application.c \
 $(TARGET_PATH)/src/main.c \
 $(TARGET_PATH)/src/415dk_serial.c \

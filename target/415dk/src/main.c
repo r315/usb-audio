@@ -29,17 +29,29 @@
 #include "usbd_int.h"
 #include "audio_hid_class.h"
 #include "audio_hid_desc.h"
-#include "audio_codec.h"
+#include "audio.h"
 #include "cli_simple.h"
+#include "i2c_application.h"
 
 #define USER_BUTTON 1
-/** @addtogroup AT32F415_periph_examples
-  * @{
-  */
 
-/** @addtogroup 415_USB_device_audio_hid USB_device_audio_hid
-  * @{
-  */
+#define I2C_TIMEOUT                      0xFFFFFFFF
+
+#define I2Cx_SPEED                       100000
+#define I2Cx_ADDRESS                     0x00
+
+#define I2Cx_PORT                        I2C1
+#define I2Cx_CLK                         CRM_I2C1_PERIPH_CLOCK
+
+#define I2Cx_SCL_GPIO_CLK                CRM_GPIOB_PERIPH_CLOCK
+#define I2Cx_SCL_GPIO_PIN                GPIO_PINS_8
+#define I2Cx_SCL_GPIO_PORT               GPIOB
+
+#define I2Cx_SDA_GPIO_CLK                CRM_GPIOB_PERIPH_CLOCK
+#define I2Cx_SDA_GPIO_PIN                GPIO_PINS_9
+#define I2Cx_SDA_GPIO_PORT               GPIOB
+
+i2c_handle_type hi2cx;
 
 /* usb global struct define */
 void usb_clock48m_select(usb_clk48_s clk_s);
@@ -51,27 +63,35 @@ uint32_t serial_write(const uint8_t*, uint32_t);
 uint32_t serial_read(uint8_t*, uint32_t);
 
 
+static uint8_t user_button_state;
 
-static int testCmd(int argc, char **argv) {
-    
-    return CLI_OK;
-}
-
-cli_command_t cli_cmds [] = {
-    {"help", ((int (*)(int, char**))CLI_Commands)},
-    {"test", testCmd},
-};
-
-
-otg_core_type otg_core_struct;
+static otg_core_type otg_core_struct;
 #if defined ( __ICCARM__ ) /* iar compiler */
   #pragma data_alignment=4
 #endif
 
 ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
 
+
+
+static int codecCmd(int argc, char **argv) 
+{
+    return CLI_OK;
+}
+
+static int hidCmd(int argc, char **argv)
+{
+    user_button_state = USER_BUTTON;
+    return CLI_OK;
+}
+
 static int at32_button_press(void)
 {
+    if(user_button_state){
+        user_button_state = 0;
+        return USER_BUTTON;
+    }
+
     return 0;
 }
 /**
@@ -81,6 +101,12 @@ static int at32_button_press(void)
   */
 int main(void)
 {
+    cli_command_t cli_cmds [] = {
+        {"help", ((int (*)(int, char**))CLI_Commands)},
+        {"codec", codecCmd},
+        {"hid", hidCmd},
+    };
+
   board_init();
 
   nvic_priority_group_config(NVIC_PRIORITY_GROUP_4);
@@ -90,13 +116,15 @@ int main(void)
   serial_init();
 
   CLI_Init("Audio >");
-  CLI_RegisterCommand(cli_cmds, 2);
+  CLI_RegisterCommand(cli_cmds, sizeof(cli_cmds) / sizeof(cli_command_t));
 
-  /* audio codec init */
-  audio_codec_init();
+  /* audio init */
+  audio_init();
 
   /* usb gpio config */
   usb_gpio_config();
+
+  user_button_state = 0;
 
 #ifdef USB_LOW_POWER_WAKUP
   usb_low_power_wakeup_config();
@@ -120,7 +148,7 @@ int main(void)
 
   while(1)
   {
-    audio_codec_loop();
+    audio_loop();
 
     if(at32_button_press() == USER_BUTTON)
     {
@@ -133,7 +161,7 @@ int main(void)
     LED1_TOGGLE;
     #endif
     
-    delay_ms(100);
+    delay_ms(50);
     if(CLI_ReadLine()){
         CLI_HandleLine();
     }
@@ -266,6 +294,46 @@ void usb_delay_ms(uint32_t ms)
 {
   /* user can define self delay function */
   delay_ms(ms);
+}
+
+
+
+/**
+  * @brief  initializes peripherals used by the i2c.
+  * @param  none
+  * @retval none
+  */
+void i2c_lowlevel_init(i2c_handle_type* hi2c)
+{
+  gpio_init_type gpio_init_structure;
+
+  if(hi2c->i2cx == I2Cx_PORT)
+  {
+    /* i2c periph clock enable */
+    crm_periph_clock_enable(I2Cx_CLK, TRUE);
+    crm_periph_clock_enable(I2Cx_SCL_GPIO_CLK, TRUE);
+    crm_periph_clock_enable(I2Cx_SDA_GPIO_CLK, TRUE);
+    crm_periph_clock_enable(CRM_IOMUX_PERIPH_CLOCK, TRUE);
+    gpio_pin_remap_config(I2C1_MUX, TRUE);
+
+    /* configure i2c pins: scl */
+    gpio_init_structure.gpio_out_type       = GPIO_OUTPUT_OPEN_DRAIN;
+    gpio_init_structure.gpio_pull           = GPIO_PULL_UP;
+    gpio_init_structure.gpio_mode           = GPIO_MODE_MUX;
+    gpio_init_structure.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MODERATE;
+
+    gpio_init_structure.gpio_pins           = I2Cx_SCL_GPIO_PIN;
+    gpio_init(I2Cx_SCL_GPIO_PORT, &gpio_init_structure);
+
+    /* configure i2c pins: sda */
+    gpio_init_structure.gpio_pins           = I2Cx_SDA_GPIO_PIN;
+    gpio_init(I2Cx_SDA_GPIO_PORT, &gpio_init_structure);
+
+    /* config i2c */
+    i2c_init(hi2c->i2cx, I2C_FSMODE_DUTY_2_1, I2Cx_SPEED);
+
+    i2c_own_address1_set(hi2c->i2cx, I2C_ADDRESS_MODE_7BIT, I2Cx_ADDRESS);
+  }
 }
 
 /**
