@@ -102,17 +102,17 @@ void usbd_irq_handler(otg_core_type *otgdev)
       usbd_incomisioin_handler(udev);
       usb_global_clear_interrupt(usbx, USB_OTG_INCOMISOIN_FLAG);
     }
+#ifndef USB_VBUS_IGNORE
     /* disconnect detected interrupt  */
     if(intsts & USB_OTG_OTGINT_FLAG)
     {
       uint32_t tmp = udev->usb_reg->gotgint;
-#ifndef USB_VBUS_IGNORE
       if(udev->usb_reg->gotgint_bit.sesenddet)
         usbd_discon_handler(udev);
-#endif
       udev->usb_reg->gotgint = tmp;
       usb_global_clear_interrupt(usbx, USB_OTG_OTGINT_FLAG);
     }
+#endif
  
     /* incomplete isochronous out transfer interrupt */
     if(intsts & USB_OTG_INCOMPIP_INCOMPISOOUT_FLAG)

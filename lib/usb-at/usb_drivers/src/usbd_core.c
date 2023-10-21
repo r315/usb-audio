@@ -854,8 +854,12 @@ usb_sts_type usbd_core_init(usbd_core_type *udev,
                   USB_OTG_USBSUSP_INT | USB_OTG_USBRST_INT |
                   USB_OTG_ENUMDONE_INT | USB_OTG_IEPT_INT |
                   USB_OTG_OEPT_INT | USB_OTG_INCOMISOIN_INT |
-                  USB_OTG_INCOMPIP_INCOMPISOOUT_INT | USB_OTG_WKUP_INT |
-                  USB_OTG_OTGINT_INT;
+                  USB_OTG_INCOMPIP_INCOMPISOOUT_INT | USB_OTG_WKUP_INT
+            #ifndef USB_VBUS_IGNORE
+                  | USB_OTG_OTGINT_INT;
+            #else
+                ;
+            #endif
 
   /* usb connect */
   usbd_connect(udev);
