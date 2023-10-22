@@ -7,7 +7,8 @@ TARGET =usb-audio
 # Features
 #######################################
 
-FEATURE_TFT_DISPLAY :=yes
+FEATURE_TFT_DISPLAY =yes
+FEATURE_CLI			=yes
 
 #######################################
 # paths
@@ -85,6 +86,10 @@ _USE_STDPERIPH_DRIVER \
 
 ifeq ($(FEATURE_TFT_DISPLAY),yes)
 C_DEFS +=ENABLE_TFT_DISPLAY
+endif
+
+ifeq ($(FEATURE_CLI),yes)
+C_DEFS +=ENABLE_CLI
 endif
 
 #######################################

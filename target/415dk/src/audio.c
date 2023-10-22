@@ -51,6 +51,13 @@ static void memset16(uint16_t *buffer, uint32_t set, uint32_t len)
     }
 }
 
+static void memcpy16(uint16_t *dst, uint16_t *src, uint32_t len)
+{
+    while(len--){
+        *dst++ = *src++;
+    }
+}
+
 /**
   * @brief  audio codec modify freq
   * @param  freq: freq (wm8988 microphone and speaker must as same freq)
@@ -162,7 +169,7 @@ uint8_t audio_spk_feedback(uint8_t *feedback)
     feedback[0] = (uint8_t)(feedback_value);
     feedback[1] = (uint8_t)(feedback_value >> 8);
     feedback[2] = (uint8_t)(feedback_value >> 16);
-    
+
   return 3;
 }
 
@@ -352,7 +359,7 @@ static audio_status bus_i2s_init(audio_codec_t *audio)
     i2s_init_struct.mclk_output_enable = FALSE;
     i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
     i2s_init_struct.clock_polarity = I2S_CLOCK_POLARITY_LOW;
-    i2s_init_struct.operation_mode = I2S_MODE_SLAVE_RX;
+    i2s_init_struct.operation_mode = (audio->mode == AUDIO_MODE_MASTER) ? I2S_MODE_MASTER_RX : I2S_MODE_SLAVE_RX;
     i2s_init(SPI2, &i2s_init_struct);
 
      /* dma config */
@@ -468,13 +475,58 @@ static audio_status bus_i2s_init(audio_codec_t *audio)
 }
 
 /**
-  * @brief  mclk clock conifg
+  * @brief  Config PA3 to output mclk clock
   * @param  none
   * @retval none
   */
 void audio_cfg_mclk(uint32_t freq, uint32_t enable)
 {
+    gpio_init_type gpio_init_struct;
+    tmr_output_config_type tmr_oc_init_structure;
+    uint16_t prescaler_value;
+    crm_clocks_freq_type clocks;
 
+    if(!enable){
+        gpio_init_struct.gpio_pins = GPIO_PINS_3;
+        gpio_init_struct.gpio_mode = GPIO_MODE_INPUT;
+        gpio_init(GPIOA, &gpio_init_struct);
+
+        crm_periph_reset(CRM_TMR2_PERIPH_CLOCK, TRUE);
+        return;
+    }
+
+    
+    crm_clocks_freq_get(&clocks);
+
+    prescaler_value = (uint16_t)(clocks.apb1_freq / freq) - 1;
+
+    crm_periph_clock_enable(CRM_TMR2_PERIPH_CLOCK, TRUE);
+    crm_periph_clock_enable(CRM_GPIOA_PERIPH_CLOCK, TRUE);
+    crm_periph_clock_enable(CRM_IOMUX_PERIPH_CLOCK, TRUE);
+
+    gpio_default_para_init(&gpio_init_struct);
+
+    gpio_init_struct.gpio_pins = GPIO_PINS_3;
+    gpio_init_struct.gpio_mode = GPIO_MODE_MUX;
+    gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MAXIMUM;
+    gpio_init(GPIOA, &gpio_init_struct);
+
+    tmr_base_init(TMR2, 1, prescaler_value);
+    tmr_cnt_dir_set(TMR2, TMR_COUNT_UP);
+    tmr_clock_source_div_set(TMR2, TMR_CLOCK_DIV1);
+
+    tmr_output_default_para_init(&tmr_oc_init_structure);
+    tmr_oc_init_structure.oc_mode = TMR_OUTPUT_CONTROL_PWM_MODE_A;
+    tmr_oc_init_structure.oc_idle_state = FALSE;
+    tmr_oc_init_structure.oc_polarity = TMR_OUTPUT_ACTIVE_HIGH;
+    tmr_oc_init_structure.oc_output_state = TRUE;
+    tmr_output_channel_config(TMR2, TMR_SELECT_CHANNEL_4, &tmr_oc_init_structure);
+    tmr_channel_value_set(TMR2, TMR_SELECT_CHANNEL_4, 1);
+    tmr_output_channel_buffer_enable(TMR2, TMR_SELECT_CHANNEL_4, TRUE);
+
+    /* tmr enable counter */
+    tmr_counter_enable(TMR2, TRUE);
+    tmr_output_enable(TMR2, TRUE);
 }
 /**
   * @brief  audio codec init
@@ -497,7 +549,7 @@ audio_status audio_init(void)
     audio_codec->mic.dma_buffer = mic_dma_buffer;
     audio_codec->spk.dma_buffer = spk_dma_buffer;
 
-    audio_cfg_mclk(AUDIO_DEFAULT_MCLK_FREQ, AUDIO_DEFAULT_MCLK);
+    //audio_cfg_mclk(AUDIO_DEFAULT_MCLK_FREQ, AUDIO_DEFAULT_MCLK);
 
     return bus_i2s_init(audio_codec);
 }
@@ -543,7 +595,7 @@ void DMA1_Channel3_IRQHandler(void)
     {
         case 0:
         case 1:
-        memset(pdst, 0, half_size << 1);
+        memset16(pdst, 0, half_size);
         break;
         
         case 2:
@@ -560,9 +612,11 @@ void DMA1_Channel3_IRQHandler(void)
         }
         else
         {
-            memcpy(pdst, audio_codec->spk.roff, half_size << 1);
+            memcpy16(pdst, audio_codec->spk.roff, half_size);
+
             audio_codec->spk.roff += half_size;
             audio_codec->spk.rtotal += half_size;
+
             if (audio_codec->spk.roff >= audio_codec->spk.end)
             {
                 audio_codec->spk.roff = audio_codec->spk.buffer;

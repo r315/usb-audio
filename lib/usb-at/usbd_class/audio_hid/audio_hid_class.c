@@ -562,7 +562,7 @@ static usb_sts_type class_sof_handler(void *udev)
 static usb_sts_type class_event_handler(void *udev, usbd_event_type event)
 {
   usb_sts_type status = USB_OK;
-  usbd_core_type *pudev = (usbd_core_type *)udev;
+  //usbd_core_type *pudev = (usbd_core_type *)udev;
   //usb_audio_hid_type *paudio_hid = (usb_audio_hid_type *)pudev->class_handler->pdata;
   switch(event)
   {

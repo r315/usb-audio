@@ -22,6 +22,7 @@
   **************************************************************************
   */
 
+#include <string.h>
 #include "board.h"
 #include "at32f415_clock.h"
 #include "usb_conf.h"
@@ -72,8 +73,7 @@ static otg_core_type otg_core_struct;
 
 ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
 
-
-
+#if ENABLE_CLI
 static int codecCmd(int argc, char **argv) 
 {
     return CLI_OK;
@@ -85,6 +85,25 @@ static int hidCmd(int argc, char **argv)
     return CLI_OK;
 }
 
+static int audioCmd(int argc, char **argv)
+{
+    if(!strcmp("mclk", argv[0])){
+        uint32_t val;
+        if(CLI_Ha2i(argv[1], &val)){
+            audio_cfg_mclk(AUDIO_DEFAULT_MCLK_FREQ, val & 1);
+        }
+    }
+    return CLI_OK;
+}
+
+ cli_command_t cli_cmds [] = {
+    {"help", ((int (*)(int, char**))CLI_Commands)},
+    {"codec", codecCmd},
+    {"hid", hidCmd},
+    {"mclk", audioCmd}
+};
+#endif
+
 static int at32_button_press(void)
 {
     if(user_button_state){
@@ -94,6 +113,7 @@ static int at32_button_press(void)
 
     return 0;
 }
+
 /**
   * @brief  main function.
   * @param  none
@@ -101,23 +121,17 @@ static int at32_button_press(void)
   */
 int main(void)
 {
-    cli_command_t cli_cmds [] = {
-        {"help", ((int (*)(int, char**))CLI_Commands)},
-        {"codec", codecCmd},
-        {"hid", hidCmd},
-    };
-
   board_init();
 
   nvic_priority_group_config(NVIC_PRIORITY_GROUP_4);
 
   system_clock_config();
-
+#if ENABLE_CLI
   serial_init();
 
   CLI_Init("Audio >");
   CLI_RegisterCommand(cli_cmds, sizeof(cli_cmds) / sizeof(cli_command_t));
-
+#endif
   /* audio init */
   audio_init();
 
@@ -160,11 +174,12 @@ int main(void)
     #ifndef USB_SOF_OUTPUT_ENABLE
     LED1_TOGGLE;
     #endif
-    
     delay_ms(50);
+    #if ENABLE_CLI
     if(CLI_ReadLine()){
         CLI_HandleLine();
     }
+    #endif
   }
 }
 
