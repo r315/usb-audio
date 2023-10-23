@@ -21,6 +21,7 @@
   *
   **************************************************************************
   */
+#include "usb_conf.h"
 #include "usb_core.h"
 
 /** @addtogroup AT32F415_middlewares_usb_drivers

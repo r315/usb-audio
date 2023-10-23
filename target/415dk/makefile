@@ -8,7 +8,7 @@ TARGET =usb-audio
 #######################################
 
 FEATURE_TFT_DISPLAY =yes
-FEATURE_CLI			=yes
+FEATURE_CLI			=no
 
 #######################################
 # paths
@@ -56,8 +56,7 @@ $(LIB_PATH)/usb-at/usb_drivers/src/usbd_core.c \
 $(LIB_PATH)/usb-at/usb_drivers/src/usbd_sdr.c \
 $(LIB_PATH)/usb-at/usbd_class/audio_hid/audio_hid_desc.c \
 $(LIB_PATH)/usb-at/usbd_class/audio_hid/audio_hid_class.c \
-$(LIB_PATH)/cli_simple/cli_simple.c \
-$(LIB_PATH)/cli_simple/syscalls.c \
+
 
 
 C_SOURCES = \
@@ -67,7 +66,7 @@ $(TARGET_PATH)/src/at32f415_clock.c \
 $(TARGET_PATH)/src/audio.c \
 $(TARGET_PATH)/src/i2c_application.c \
 $(TARGET_PATH)/src/main.c \
-$(TARGET_PATH)/src/415dk_serial.c \
+
 
 CPP_SOURCES = \
 
@@ -90,6 +89,9 @@ endif
 
 ifeq ($(FEATURE_CLI),yes)
 C_DEFS +=ENABLE_CLI
+C_SOURCES +=$(TARGET_PATH)/src/415dk_serial.c \
+$(LIB_PATH)/cli_simple/cli_simple.c \
+$(LIB_PATH)/cli_simple/syscalls.c 
 endif
 
 #######################################
@@ -182,13 +184,13 @@ endif
 #######################################
 # Rules
 #######################################
-all: $(BUILD_DIR)/$(TARGET).elf size
+all: $(BUILD_DIR) $(BUILD_DIR)/$(TARGET).elf size
 #@echo $(CMSIS_PATH)
 
 bin: $(BUILD_DIR)/$(TARGET).bin
 
 program: $(BUILD_DIR)/$(TARGET).jlink bin
-	$(VERBOSE)$(JLK) -device $(DEVICE) -if SWD -speed auto -CommanderScript $<
+	$(VERBOSE)$(JLK) -device STM32F103CB -if SWD -speed auto -CommanderScript $<
 #openocd -f at32f415.cfg -c "program $(BUILD_DIR)/$(TARGET).elf verify reset exit"
 
 $(BUILD_DIR)/$(TARGET).jlink: $(BUILD_DIR)/$(TARGET).bin
@@ -199,29 +201,32 @@ $(BUILD_DIR)/$(TARGET).jlink: $(BUILD_DIR)/$(TARGET).bin
 #######################################
 # build rules
 #######################################
-$(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/%.d: %.c
+	$(VERBOSE)$(CC) $(CFLAGS) -MF"$@" -MG -MM -MP -MT"$@" -MT"$(<:.c=.o)" "$<"
+
+$(BUILD_DIR)/%.o: %.c
 	@echo "[CC]  $<"
 	$(VERBOSE)$(CC) -c $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/%.obj: %.cpp Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/%.obj: %.cpp
 	@echo "[CP]  $<"
 	$(VERBOSE)$(CPP) -c $(CPPFLAGS)  $< -o $@
 
-$(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/%.o: %.s
 	@echo "[AS]  $<"
 	$(VERBOSE)$(AS) -c $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) | Makefile
+$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS)
 	@echo "[LD]  $@"
 	$(VERBOSE)$(LD) $(LIBDIR) -T$(LDSCRIPT) $(LDFLAGS) $^ $(LIBS) -o $@
 
-$(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
+$(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf
 	$(VERBOSE)$(HEX) $< $@
 	
-$(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
+$(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf
 	$(VERBOSE)$(BIN) $< $@	
 	
-$(BUILD_DIR):
+$(BUILD_DIR): 
 	mkdir -p $@		
 
 size: $(BUILD_DIR)/$(TARGET).elf

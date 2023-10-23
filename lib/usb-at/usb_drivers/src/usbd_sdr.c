@@ -21,6 +21,7 @@
   *
   **************************************************************************
   */
+#include <stddef.h>
 #include "usbd_sdr.h"
 
 /** @addtogroup AT32F415_middlewares_usbd_drivers

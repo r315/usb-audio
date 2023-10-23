@@ -30,7 +30,7 @@
 extern "C" {
 #endif
 
-
+#include <stdint.h>
 #include "usb_std.h"
 #include "usb_conf.h"
 
@@ -127,6 +127,8 @@ usb_sts_type usbh_init(otg_core_type *hdev,
 /**
   * @}
   */
+
+void usb_delay_ms(uint32_t ms);
 
 /**
   * @}

@@ -31,17 +31,6 @@ extern "C" {
 #endif
 
 #include "at32f415_usb.h"
-#include "at32f415.h"
-#include "stdio.h"
-
-/** @addtogroup AT32F415_periph_examples
-  * @{
-  */
-
-/** @addtogroup 415_USB_device_audio_hid
-  * @{
-  */
-
 /**
   * @brief enable usb device mode
   */
@@ -50,8 +39,11 @@ extern "C" {
 /**
   * @brief enable usb host mode
   */
-/* #define USE_OTG_HOST_MODE */
+//#define USE_OTG_HOST_MODE
 
+/**
+ * @brief
+ * */
 #define USB_ID                           0
 #define OTG_CLOCK                        CRM_OTGFS1_PERIPH_CLOCK
 #define OTG_IRQ                          OTGFS1_IRQn
@@ -63,6 +55,7 @@ extern "C" {
 #define OTG_PIN_GPIO                     GPIOA
 #define OTG_PIN_GPIO_CLOCK               CRM_GPIOA_PERIPH_CLOCK
 #define OTG_PIN_VBUS                     GPIO_PINS_9
+
 #define OTG_PIN_ID                       GPIO_PINS_10
 
 #define OTG_PIN_SOF_GPIO                 GPIOA
@@ -130,7 +123,6 @@ extern "C" {
   */
 /* #define USB_LOW_POWER_WAKUP */
 
-void usb_delay_ms(uint32_t ms);
 
 /**
   * @}

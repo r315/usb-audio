@@ -21,6 +21,8 @@
   *
   **************************************************************************
   */
+
+#include <stddef.h>
 #include "usb_std.h"
 #include "usbd_sdr.h"
 #include "usbd_core.h"

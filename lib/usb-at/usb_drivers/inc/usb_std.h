@@ -259,8 +259,8 @@ typedef struct
 /**
   * @brief low byte and high byte define
   */
-#define LBYTE(x)  ((uint8_t)(x & 0x00FF))        /*!< low byte define */
-#define HBYTE(x)  ((uint8_t)((x & 0xFF00) >>8))  /*!< high byte define*/
+#define LBYTE(x)  ((uint8_t)((x) & 0x00FF))        /*!< low byte define */
+#define HBYTE(x)  ((uint8_t)(((x) & 0xFF00) >>8))  /*!< high byte define*/
 
 /**
   * @brief usb return status

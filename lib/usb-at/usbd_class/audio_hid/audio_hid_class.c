@@ -519,10 +519,10 @@ static usb_sts_type class_out_handler(void *udev, uint8_t ept_num)
 static usb_sts_type class_sof_handler(void *udev)
 {
   usb_sts_type status = USB_OK;
+#if AUDIO_SUPPORT_FEEDBACK
   usbd_core_type *pudev = (usbd_core_type *)udev;
   usb_audio_hid_type *paudio_hid = (usb_audio_hid_type *)pudev->class_handler->pdata;
 
-#if AUDIO_SUPPORT_FEEDBACK
   if(paudio_hid->audio_spk_out_stage & 2)
   {
     paudio_hid->audio_spk_out_stage = 0;
