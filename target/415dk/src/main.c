@@ -148,7 +148,7 @@ int main(void)
   crm_periph_clock_enable(OTG_CLOCK, TRUE);
 
   /* select usb 48m clcok source */
-  usb_clock48m_select(USB_CLK_HEXT);
+  usb_clock48m_select(USB_CLK_HICK);
 
   /* enable otgfs irq */
   nvic_irq_enable(OTG_IRQ, 0, 0);
@@ -237,12 +237,12 @@ void usb_gpio_config(void)
 
   gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_STRONGER;
   gpio_init_struct.gpio_out_type  = GPIO_OUTPUT_PUSH_PULL;
-  gpio_init_struct.gpio_mode = GPIO_MODE_MUX;
-  gpio_init_struct.gpio_pull = GPIO_PULL_NONE;
 
 #ifdef USB_SOF_OUTPUT_ENABLE
   crm_periph_clock_enable(OTG_PIN_SOF_GPIO_CLOCK, TRUE);
   gpio_init_struct.gpio_pins = OTG_PIN_SOF;
+  gpio_init_struct.gpio_pull = GPIO_PULL_NONE;
+  gpio_init_struct.gpio_mode = GPIO_MODE_MUX;
   gpio_init(OTG_PIN_SOF_GPIO, &gpio_init_struct);
 #endif
 
