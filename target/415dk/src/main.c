@@ -237,7 +237,9 @@ void usb_gpio_config(void)
 {
   gpio_init_type gpio_init_struct;
 
-  crm_periph_clock_enable(OTG_PIN_GPIO_CLOCK, TRUE);
+  crm_periph_clock_enable(CRM_GPIOA_PERIPH_CLOCK, TRUE);
+  crm_periph_clock_enable(CRM_GPIOB_PERIPH_CLOCK, TRUE);
+
   gpio_default_para_init(&gpio_init_struct);
 
   gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_STRONGER;

@@ -44,7 +44,7 @@ extern "C" {
 /**
   * @brief usb sof output enable
   * */
-#define USB_SOF_OUTPUT_ENABLE
+//#define USB_SOF_OUTPUT_ENABLE
 
 /**
   * @brief ignore vbus detection, only available in at32f415xx revision C.
@@ -57,7 +57,7 @@ extern "C" {
   *        the vbus pin (pa9) can be used for other functionality.
   */
 
-//#define USB_VBUS_IGNORE
+#define USB_VBUS_IGNORE
 
 /**
   * @brief usb low power wakeup handler enable
@@ -78,7 +78,6 @@ extern "C" {
 
 #ifndef USB_VBUS_IGNORE
   #define OTG_PIN_GPIO                     GPIOA
-  #define OTG_PIN_GPIO_CLOCK               CRM_GPIOA_PERIPH_CLOCK
   #define OTG_PIN_VBUS                     GPIO_PINS_9
 #endif
 
@@ -86,7 +85,6 @@ extern "C" {
 
 #ifdef USB_SOF_OUTPUT_ENABLE
   #define OTG_PIN_SOF_GPIO                 GPIOA
-  #define OTG_PIN_SOF_GPIO_CLOCK           CRM_GPIOA_PERIPH_CLOCK
   #define OTG_PIN_SOF                      GPIO_PINS_8
 #endif
 

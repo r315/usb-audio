@@ -32,8 +32,8 @@ extern "C" {
 #define LED1_ON         GPIOA->CLR = (1 << 8)
 #define LED1_TOGGLE     GPIOA->odt = GPIOA->idt ^ (1 << 8)
 
-#define DBG_PIN_INIT    //LED1_PIN_INIT
-#define DBG_PIN_TOGGLE  //LED1_TOGGLE
+#define DBG_PIN_INIT    LED1_PIN_INIT
+#define DBG_PIN_TOGGLE  LED1_TOGGLE
 
 //enum {false = 0, true, OFF = false, ON = true};
 

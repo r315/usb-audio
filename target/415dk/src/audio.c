@@ -65,8 +65,14 @@ static void memcpy16(uint16_t *dst, uint16_t *src, uint32_t len)
   */
 static void audio_set_freq(uint32_t freq)
 {
+    if(audio_codec->freq != freq)
+    {
+        audio_codec->freq = freq;
+        audio_set_freq(freq);
+        bus_i2s_reset();        
+        bus_i2s_init(audio_codec);
+    }
 }
-
 
 /**
   * @brief  audio codec set microphone freq
@@ -75,13 +81,7 @@ static void audio_set_freq(uint32_t freq)
   */
 void audio_set_mic_freq(uint32_t freq)
 {
-    if(audio_codec->freq != freq)
-    {
-        audio_codec->freq = freq;
-        audio_set_freq(freq);
-        bus_i2s_reset();        
-        bus_i2s_init(audio_codec);
-    }
+    printf("%s :%lu\n", __func__, freq);    
 }
 
 /**
@@ -170,7 +170,7 @@ uint8_t audio_spk_feedback(uint8_t *feedback)
     feedback[1] = (uint8_t)(feedback_value >> 8);
     feedback[2] = (uint8_t)(feedback_value >> 16);
 
-  return 3;
+    return 3;
 }
 
 /**
@@ -548,8 +548,6 @@ audio_status audio_init(void)
     audio_codec->mic.buffer = mic_buffer;
     audio_codec->mic.dma_buffer = mic_dma_buffer;
     audio_codec->spk.dma_buffer = spk_dma_buffer;
-
-    //audio_cfg_mclk(AUDIO_DEFAULT_MCLK_FREQ, AUDIO_DEFAULT_MCLK);
 
     return bus_i2s_init(audio_codec);
 }

@@ -8,7 +8,7 @@ TARGET =usb-audio
 #######################################
 
 FEATURE_TFT_DISPLAY =yes
-FEATURE_CLI			=no
+FEATURE_CLI			=yes
 
 #######################################
 # paths
