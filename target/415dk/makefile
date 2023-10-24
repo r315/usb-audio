@@ -31,7 +31,7 @@ $(DRIVERS_PER_PATH)/inc \
 $(CMSIS_PATH)/Core/Include \
 $(CMSIS_PATH)/Device/ARTERY/AT32F4xx/inc \
 $(LIB_PATH)/usb-at/usb_drivers/inc \
-$(LIB_PATH)/usb-at/usbd_class/audio_hid \
+$(LIB_PATH)/usb-at/usbd_class/audio \
 $(LIB_PATH)/cli_simple \
 
 AS_INCLUDES =\
@@ -50,12 +50,13 @@ $(DRIVERS_PER_PATH)/src/at32f415_dma.c\
 $(DRIVERS_PER_PATH)/src/at32f415_usb.c\
 $(DRIVERS_PER_PATH)/src/at32f415_tmr.c\
 $(DRIVERS_PER_PATH)/src/at32f415_misc.c\
+$(DRIVERS_PER_PATH)/src/at32f415_exint.c\
 $(LIB_PATH)/usb-at/usb_drivers/src/usb_core.c \
 $(LIB_PATH)/usb-at/usb_drivers/src/usbd_int.c \
 $(LIB_PATH)/usb-at/usb_drivers/src/usbd_core.c \
 $(LIB_PATH)/usb-at/usb_drivers/src/usbd_sdr.c \
-$(LIB_PATH)/usb-at/usbd_class/audio_hid/audio_hid_desc.c \
-$(LIB_PATH)/usb-at/usbd_class/audio_hid/audio_hid_class.c \
+$(LIB_PATH)/usb-at/usbd_class/audio/audio_desc.c \
+$(LIB_PATH)/usb-at/usbd_class/audio/audio_class.c \
 
 
 

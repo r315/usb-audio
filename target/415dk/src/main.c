@@ -28,8 +28,8 @@
 #include "usb_conf.h"
 #include "usb_core.h"
 #include "usbd_int.h"
-#include "audio_hid_class.h"
-#include "audio_hid_desc.h"
+#include "audio_class.h"
+#include "audio_desc.h"
 #include "audio.h"
 #include "cli_simple.h"
 #include "i2c_application.h"
@@ -71,7 +71,9 @@ static otg_core_type otg_core_struct;
   #pragma data_alignment=4
 #endif
 
+#ifdef __AUDIO_HID_CLASS_H
 ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
+#endif
 
 #if ENABLE_CLI
 static int codecCmd(int argc, char **argv) 
@@ -148,7 +150,8 @@ int main(void)
   crm_periph_clock_enable(OTG_CLOCK, TRUE);
 
   /* select usb 48m clcok source */
-  usb_clock48m_select(USB_CLK_HICK);
+  //usb_clock48m_select(USB_CLK_HICK);
+  crm_usb_clock_source_select(CRM_USB_CLOCK_SOURCE_HICK);
 
   /* enable otgfs irq */
   nvic_irq_enable(OTG_IRQ, 0, 0);
@@ -157,8 +160,8 @@ int main(void)
   usbd_init(&otg_core_struct,
             USB_FULL_SPEED_CORE_ID,
             USB_ID,
-            &audio_hid_class_handler,
-            &audio_hid_desc_handler);
+            &audio_class_handler,
+            &audio_desc_handler);
 
   while(1)
   {
@@ -166,9 +169,11 @@ int main(void)
 
     if(at32_button_press() == USER_BUTTON)
     {
+      #ifdef __AUDIO_HID_CLASS_H
       report_buf[0] = HID_REPORT_ID_5;
       report_buf[1] = (~report_buf[1]) & 0x1;
       audio_hid_class_send_report(&otg_core_struct.dev, report_buf, USBD_AUHID_IN_MAXPACKET_SIZE);
+      #endif
     }
 
     #ifndef USB_SOF_OUTPUT_ENABLE

@@ -42,9 +42,33 @@ extern "C" {
 //#define USE_OTG_HOST_MODE
 
 /**
+  * @brief usb sof output enable
+  * */
+#define USB_SOF_OUTPUT_ENABLE
+
+/**
+  * @brief ignore vbus detection, only available in at32f415xx revision C.
+  *        at32f415xx revision B: (not support)
+  *        the vbus detection pin (pa9) can not be used for other functionality.
+  *        vbus pin must kept at VBUS or VDD.
+  *
+  *        at32f415xx revision C: (support)
+  *        ignore vbus detection, the internal vbus is always valid.
+  *        the vbus pin (pa9) can be used for other functionality.
+  */
+
+//#define USB_VBUS_IGNORE
+
+/**
+  * @brief usb low power wakeup handler enable
+  * */
+
+/* #define USB_LOW_POWER_WAKUP */
+
+/**
  * @brief
  * */
-#define USB_ID                           0
+#define USB_ID                           USB_OTG1_ID
 #define OTG_CLOCK                        CRM_OTGFS1_PERIPH_CLOCK
 #define OTG_IRQ                          OTGFS1_IRQn
 #define OTG_IRQ_HANDLER                  OTGFS1_IRQHandler
@@ -52,15 +76,19 @@ extern "C" {
 #define OTG_WKUP_HANDLER                 OTGFS1_WKUP_IRQHandler
 #define OTG_WKUP_EXINT_LINE              EXINT_LINE_18
 
-#define OTG_PIN_GPIO                     GPIOA
-#define OTG_PIN_GPIO_CLOCK               CRM_GPIOA_PERIPH_CLOCK
-#define OTG_PIN_VBUS                     GPIO_PINS_9
+#ifndef USB_VBUS_IGNORE
+  #define OTG_PIN_GPIO                     GPIOA
+  #define OTG_PIN_GPIO_CLOCK               CRM_GPIOA_PERIPH_CLOCK
+  #define OTG_PIN_VBUS                     GPIO_PINS_9
+#endif
 
 #define OTG_PIN_ID                       GPIO_PINS_10
 
-#define OTG_PIN_SOF_GPIO                 GPIOA
-#define OTG_PIN_SOF_GPIO_CLOCK           CRM_GPIOA_PERIPH_CLOCK
-#define OTG_PIN_SOF                      GPIO_PINS_8
+#ifdef USB_SOF_OUTPUT_ENABLE
+  #define OTG_PIN_SOF_GPIO                 GPIOA
+  #define OTG_PIN_SOF_GPIO_CLOCK           CRM_GPIOA_PERIPH_CLOCK
+  #define OTG_PIN_SOF                      GPIO_PINS_8
+#endif
 
 /**
   * @brief usb device mode config
@@ -100,28 +128,6 @@ extern "C" {
 #define USBH_NP_TX_FIFO_SIZE             96
 #define USBH_P_TX_FIFO_SIZE              96
 #endif
-
-/**
-  * @brief usb sof output enable
-  */
-/* #define USB_SOF_OUTPUT_ENABLE */
-
-/**
-  * @brief ignore vbus detection, only available in at32f415xx revision C.
-  *        at32f415xx revision B: (not support)
-  *        the vbus detection pin (pa9) can not be used for other functionality.
-  *        vbus pin must kept at VBUS or VDD.
-  *
-  *        at32f415xx revision C: (support)
-  *        ignore vbus detection, the internal vbus is always valid.
-  *        the vbus pin (pa9) can be used for other functionality.
-  */
-#define USB_VBUS_IGNORE
-
-/**
-  * @brief usb low power wakeup handler enable
-  */
-/* #define USB_LOW_POWER_WAKUP */
 
 
 /**

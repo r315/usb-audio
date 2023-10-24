@@ -24,7 +24,7 @@
 #include "usbd_core.h"
 #include "audio_class.h"
 #include "audio_desc.h"
-#include "audio_codec.h"
+#include "audio.h"
 
 /** @addtogroup AT32F415_middlewares_usbd_class
   * @{

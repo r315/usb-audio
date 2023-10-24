@@ -48,7 +48,7 @@ void usbd_irq_handler(otg_core_type *otgdev)
   uint32_t intsts = usb_global_get_all_interrupt(usbx);
 
   /* check current device mode */
-  if(usbx->gintsts_bit.curmode == 0)
+  if(usbx->gintsts_bit.curmode == OTG_DEVICE_MODE)
   {
     /* mode mismatch interrupt */
     if(intsts & USB_OTG_MODEMIS_FLAG)
