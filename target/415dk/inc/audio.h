@@ -31,6 +31,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include "codec.h"
 /**
   * @}
   */
@@ -80,30 +81,32 @@ typedef struct audio_channel_s
     uint8_t  enabled;
 }audio_channel_t;
 
-typedef struct
+typedef struct audio_driver_s
 {
-  uint32_t freq;
-  uint32_t bitw;
-  uint8_t  mode;
-  //spk part
-  audio_channel_t spk;
-  //mic part
-  audio_channel_t mic;
-}audio_codec_t;
+    uint32_t freq;
+    uint32_t bitw;
+    uint8_t  mode;
+    //spk part
+    audio_channel_t spk;
+    //mic part
+    audio_channel_t mic;
+    // Common part
+    const CDC_Type *codec;
+}audio_driver_t;
 
-typedef enum {
+typedef enum audio_status_e{
     AUDIO_OK = 0,
     AUDIO_ERROR_FREQ,
     AUDIO_ERROR_BITW,
-}audio_status;
+    AUDIO_ERROR_CODEC,
+}audio_status_t;
 
 /**
   * @brief audio codec interface
   */
-audio_status audio_init(void);
-audio_status audio_loop(void);
-audio_status audio_set_codec(audio_codec_t *);
-audio_status audio_change_mode(uint32_t mode);
+audio_status_t audio_init(const CDC_Type *codec);
+audio_status_t audio_loop(void);
+audio_status_t audio_change_mode(uint32_t mode);
 void audio_cfg_mclk(uint32_t freq, uint32_t enable);
 
 void audio_enqueue_data(uint8_t *data, uint32_t len);
