@@ -191,7 +191,7 @@ all: $(BUILD_DIR) $(BUILD_DIR)/$(TARGET).elf size
 
 bin: $(BUILD_DIR)/$(TARGET).bin
 
-program: $(BUILD_DIR)/$(TARGET).jlink bin
+program: $(BUILD_DIR) $(BUILD_DIR)/$(TARGET).jlink bin
 #$(VERBOSE)$(JLK) -device STM32F103CB -if SWD -speed auto -CommanderScript $<
 	openocd -f at32f415.cfg -c "program $(BUILD_DIR)/$(TARGET).elf verify reset exit"
 

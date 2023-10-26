@@ -18,7 +18,6 @@
 #include "tas2563.h"
 #include "board.h"
 
-#define TAS2563_I2C_ADDR       0x98 // 8-bit address
 
 const CDC_Type tas2563 = 
 {
@@ -28,7 +27,9 @@ const CDC_Type tas2563 =
    TAS2563_Enable,
    TAS2563_Disable,
    TAS2563_Volume,
-   TAS2563_Mute
+   TAS2563_Mute,
+   TAS2563_WriteReg,
+   TAS2563_ReadReg
 };
 
 // =============================================================================
@@ -43,14 +44,14 @@ const CDC_Type tas2563 =
  */
 // =============================================================================
 
-static uint8_t TAS2563_WriteReg (uint8_t Register, uint8_t Val)
+uint8_t TAS2563_WriteReg (uint8_t Register, uint8_t Val)
 {
    uint8_t Data[2];
 
    Data[0] = Register;
    Data[1] = Val;
 
-   return I2C_Master_Write (TAS2563_I2C_ADDR, Data, 2) == 0;
+   return I2C_Master_Write (TAS2563_I2C_ADDR, Data, 2);
 }
 
 // =============================================================================
@@ -66,11 +67,12 @@ static uint8_t TAS2563_WriteReg (uint8_t Register, uint8_t Val)
  */
 // =============================================================================
 
-static uint8_t TAS2563_ReadReg (uint8_t Register)
+uint8_t TAS2563_ReadReg (uint8_t Register)
 {
    uint8_t Data;
 
-   I2C_Mem_Read (TAS2563_I2C_ADDR, Register, &Data, 1);
+   I2C_Master_Write (TAS2563_I2C_ADDR, &Register, 1);
+   I2C_Master_Read(TAS2563_I2C_ADDR, &Data, 1);
 
    return Data;
 }
@@ -87,9 +89,13 @@ static uint8_t TAS2563_ReadReg (uint8_t Register)
 
 void TAS2563_Enable (void)
 {
-   // Power up DAC
+   uint8_t RegVal;
 
-   // Put it in mute
+   // Mask active power mode
+
+   RegVal = TAS2563_ReadReg(TAS2563_PWR_CTL_REG) & 0xFC;
+
+   TAS2563_WriteReg(TAS2563_PWR_CTL_REG, RegVal);
 }
 
 
@@ -105,7 +111,13 @@ void TAS2563_Enable (void)
 
 void TAS2563_Disable (void)
 {
-   // Power down DAC
+   uint8_t RegVal;
+
+   RegVal = TAS2563_ReadReg(TAS2563_PWR_CTL_REG) & 0xFC;
+
+   // Software shutdown, registers keep their value
+
+   TAS2563_WriteReg(TAS2563_PWR_CTL_REG, RegVal | 2);
 }
 
 
@@ -121,12 +133,30 @@ void TAS2563_Disable (void)
 
 uint8_t TAS2563_Init (void)
 {
-   if( TAS2563_WriteReg (TAS2563_SW_RESET_REG, 1) == 0)
+   // Change to page 0
+
+   // Verify if DAC is present by trying to set page
+
+   if(TAS2563_WriteReg (TAS2563_PAGE_REG, 0) == 0)
    {
       return 0;
    }
 
-   TAS2563_Disable ();
+   // Reset
+
+   TAS2563_WriteReg (TAS2563_SW_RESET_REG, 1);
+   
+   delay_ms(100);
+
+   // Disable global address
+
+   TAS2563_WriteReg (TAS2563_MISC_CFG2_REG, 0x20);  
+
+   // Default to 16kHz, frame start at rising edge of FS and disable AUTO_RATE
+   
+   TAS2563_WriteReg (TAS2563_TDM_CFG0_REG, 0x02);
+
+   TAS2563_Enable ();
 
    return 1;
 }
@@ -140,14 +170,19 @@ uint8_t TAS2563_Init (void)
  * Configure CODEC inputs and outputs
  *
  * \param DevID - ID of the input/output to configure
- * \param Mode  - Configuration mode
+ * \param Cfg  - Configuration mode
  *
  */
 // =============================================================================
 
-void TAS2563_Config (uint8_t DevID, uint8_t Mode)
+void TAS2563_Config (uint8_t DevID, uint8_t Cfg)
 {
-   
+   switch(DevID)
+   {
+      case CDC_CFG_SPK:
+      case CDC_CFG_DAI:        
+      break;
+   }
 }
 
 
@@ -166,6 +201,8 @@ void TAS2563_Config (uint8_t DevID, uint8_t Mode)
 
 void TAS2563_Volume (uint8_t DevID, uint8_t Volume)
 {
+   uint8_t RegVal;
+
    if (Volume > 15)
    {
       return;
@@ -173,12 +210,24 @@ void TAS2563_Volume (uint8_t DevID, uint8_t Volume)
 
    if (Volume)
    {
-      // Unmute
+      TAS2563_Mute(0, 0);
+
+      // Mask AMP_LEVEL bits
+   
+      RegVal = TAS2563_ReadReg(TAS2563_PB_CFG1_REG) & 0xC1;
+
+      // Map Volume to AMP_LEVEL [1:0x1C]
+
+      Volume = (Volume * 0x1C ) / 15;
+
+      RegVal |= Volume << 1;
+
+      TAS2563_WriteReg(TAS2563_PB_CFG1_REG, RegVal);
+
+      return;
    }
-   else
-   {
-      // Mute
-   }
+   
+   TAS2563_Mute(0, 1);
 }
 
 
@@ -196,6 +245,50 @@ void TAS2563_Volume (uint8_t DevID, uint8_t Volume)
 
 void TAS2563_SampleRate (uint8_t Rate)
 {
+    uint8_t RegVal;
+    
+    switch(Rate)
+    {
+        case CDC_SR_8K:
+            Rate = 0;
+            break;
+
+        case CDC_SR_16K: 
+            Rate = 1;
+            break;
+
+        case CDC_SR_22K:
+        case CDC_SR_24K:
+            Rate = 2;
+            break;
+
+        case CDC_SR_32K: 
+            Rate = 3;
+            break;
+
+        case CDC_SR_44K:
+        case CDC_SR_48K:
+            Rate = 4;
+            break;
+
+        case CDC_SR_88K:
+        case CDC_SR_96K:
+            Rate = 5;
+            break;
+
+        default:
+            return;
+    }
+
+    // Read register and mask SAMP_RATE bits
+
+    RegVal = TAS2563_ReadReg(TAS2563_TDM_CFG0_REG) & 0x0E;
+
+    RegVal |= (Rate << 1);
+
+    TAS2563_WriteReg(TAS2563_TDM_CFG0_REG, RegVal);
+
+    TAS2563_Enable();
 }
 
 
@@ -207,13 +300,26 @@ void TAS2563_SampleRate (uint8_t Rate)
  * Mute/Unmute CODEC inputs or outputs
  *
  * \param DevID - ID of the channel (unused this DAC is mono)
- * \param Mode  - 0: Un-mute, Muted otherwise
+ * \param Mute  - 0: Un-mute, Muted otherwise
  *
  */
 // =============================================================================
 
-void TAS2563_Mute (uint8_t DevID, uint8_t Mode)
+void TAS2563_Mute (uint8_t DevID, uint8_t Mute)
 {
-  
+   uint8_t RegVal;
+
+   // Mask MODE bits
+
+   RegVal = TAS2563_ReadReg(TAS2563_PWR_CTL_REG) & 0xFC;
+
+   // Set mute mode
+
+   if(Mute)
+   {
+      RegVal |= 1;
+   }
+
+   TAS2563_WriteReg(TAS2563_PWR_CTL_REG, RegVal);  
 }
 

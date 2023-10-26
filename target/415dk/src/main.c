@@ -48,6 +48,7 @@ uint32_t serial_read(uint8_t*, uint32_t);
 
 
 static uint8_t user_button_state;
+static CDC_Type *codec;
 
 static i2c_handle_type hi2cx;
 static otg_core_type otg_core_struct;
@@ -59,7 +60,37 @@ ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
 #if ENABLE_CLI
 static int codecCmd(int argc, char **argv) 
 {
-    uint8_t count;
+    if( !strcmp("vol", argv[1])){
+        int32_t val;
+        if(CLI_Ia2i(argv[2], &val)){
+            audio_set_spk_volume(val);
+        }        
+        return CLI_OK;
+    }
+  
+    if( !strcmp("rr", argv[1])){
+        uint32_t val;
+        if(CLI_Ha2i(argv[2], &val)){
+            printf("%02X\n", codec->ReadReg(val));
+        }        
+        return CLI_OK;
+    }
+
+    if( !strcmp("wr", argv[1])){
+        uint32_t val, val2;
+        if(CLI_Ha2i(argv[2], &val)){
+            if(CLI_Ha2i(argv[3], &val2)){
+                codec->WriteReg(val, val2);
+            }
+        }        
+        return CLI_OK;
+    }
+
+    if( !strcmp("init", argv[1])){
+        printf("%d\n", codec->Init());
+        
+        return CLI_OK;
+    }
 
     if( !strcmp("scan", argv[1])){
         printf("\n   ");
@@ -67,7 +98,9 @@ static int codecCmd(int argc, char **argv)
         for(int i = 0; i < 16; i++){
             printf("%02X ", i);
         }           
-
+        
+        uint8_t count;
+        
         for(int i = 0; i < 128; i++){
             if( (i & 15) == 0) 
                 printf("\n%02X ", i & 0xF0);
@@ -75,7 +108,7 @@ static int codecCmd(int argc, char **argv)
             if(i2c_master_transmit(&hi2cx, (i << 1), &count, 1, 1000) != I2C_OK){
                 printf("-- ");
             }else{
-                printf("%02X ", i << 1);
+                printf("%02X ", i << 1); // print 8bit address
             }
             
             delay_ms(1);
@@ -84,7 +117,8 @@ static int codecCmd(int argc, char **argv)
 
         return CLI_OK;
     }
-    return CLI_OK;
+
+    return CLI_BAD_PARAM;
 }
 
 #ifdef __AUDIO_HID_CLASS_H
@@ -103,6 +137,13 @@ static int audioCmd(int argc, char **argv)
             audio_cfg_mclk(AUDIO_DEFAULT_MCLK_FREQ, val & 1);
         }
     }
+
+    if(!strcmp("freq", argv[0])){
+        int32_t val;
+        if(CLI_Ia2i(argv[1], &val)){
+            audio_set_freq(val);
+        }
+    }
     
     return CLI_OK;
 }
@@ -117,8 +158,9 @@ cli_command_t cli_cmds [] = {
     {"help", ((int (*)(int, char**))CLI_Commands)},
     //{"hid", hidCmd},
     {"codec", codecCmd},
-    {"mclk", audioCmd},
     {"reset", resetCmd},
+    {"mclk", audioCmd},
+    {"freq", audioCmd},
 };
 #endif
 
@@ -151,7 +193,8 @@ int main(void)
   CLI_RegisterCommand(cli_cmds, sizeof(cli_cmds) / sizeof(cli_command_t));
 #endif
   /* audio init */
-  audio_init(&tas2563);
+  codec = &tas2563;
+  audio_init(codec);
 
   /* i2c init */
   hi2cx.i2cx = I2Cx_PORT;
@@ -378,20 +421,20 @@ void i2c_lowlevel_init(i2c_handle_type* hi2c)
 
 uint32_t I2C_Master_Write(uint8_t device, const uint8_t* data, uint32_t len)
 {
-    if(i2c_master_transmit(&hi2cx, device, (uint8_t*)data, len, 1000) == I2C_OK){
-        return len;
+    if(i2c_master_transmit(&hi2cx, device, (uint8_t*)data, len, 1000) != I2C_OK){
+        return 0;
     }
 
-    return 0;
+    return len;
 }
 
 uint32_t I2C_Master_Read(uint8_t device, uint8_t* data, uint32_t len)
 {
-    if(i2c_master_receive(&hi2cx, device, data, len, 1000) == I2C_OK){
-        return len;
+    if(i2c_master_receive(&hi2cx, device, data, len, 1000) != I2C_OK){
+        return 0;
     }
 
-    return 0;
+    return len;
 }
 
 /**

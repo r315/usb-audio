@@ -108,6 +108,7 @@ audio_status_t audio_init(const CDC_Type *codec);
 audio_status_t audio_loop(void);
 audio_status_t audio_change_mode(uint32_t mode);
 void audio_cfg_mclk(uint32_t freq, uint32_t enable);
+void audio_set_freq(uint32_t freq);
 
 void audio_enqueue_data(uint8_t *data, uint32_t len);
 uint32_t audio_dequeue_data(uint8_t *buffer);

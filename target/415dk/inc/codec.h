@@ -68,6 +68,8 @@ typedef struct CDC_Type_s
    void    (*Disable) (void);
    void    (*Volume) (uint8_t DevID, uint8_t Volume);
    void    (*Mute) (uint8_t DevID, uint8_t Mode);
+   uint8_t (*WriteReg) (uint8_t Register, uint8_t Val);
+   uint8_t (*ReadReg) (uint8_t Register);
 }CDC_Type;
 
 // =============================================================================

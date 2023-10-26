@@ -43,6 +43,24 @@ static uint16_t mic_buffer[MIC_BUFFER_SIZE];
 static void bus_i2s_reset(void);
 static audio_status_t bus_i2s_init(audio_driver_t *audio);
 
+static uint8_t dummy_Init (void){ return 1; }
+static void    dummy_Config (uint8_t DevID, uint8_t Mode) {}
+static void    dummy_SampleRate (uint8_t Rate){}
+static void    dummy_Enable (void) {}
+static void    dummy_Disable (void) {}
+static void    dummy_Volume (uint8_t DevID, uint8_t Volume){}
+static void    dummy_Mute (uint8_t DevID, uint8_t Mode) {}
+
+static const CDC_Type dummy_codec = {
+    dummy_Init,
+    dummy_Config,
+    dummy_SampleRate,
+    dummy_Enable,
+    dummy_Disable,
+    dummy_Volume,
+    dummy_Mute,
+};
+
 static void memset16(uint16_t *buffer, uint32_t set, uint32_t len)
 {
     while(len--){
@@ -59,15 +77,14 @@ static void memcpy16(uint16_t *dst, uint16_t *src, uint32_t len)
 
 /**
   * @brief  audio codec modify freq
-  * @param  freq: freq (wm8988 microphone and speaker must as same freq)
+  * @param  freq: freq 
   * @retval none
   */
-static void audio_set_freq(uint32_t freq)
+void audio_set_freq(uint32_t freq)
 {
     if(audio_driver.freq != freq)
     {
         audio_driver.freq = freq;
-        audio_set_freq(freq);
         bus_i2s_reset();        
         bus_i2s_init(&audio_driver);
     }
@@ -135,6 +152,7 @@ void audio_set_mic_volume(uint16_t volume)
 void audio_set_spk_volume(uint16_t volume)
 {
     printf("%s :%d\n", __func__, volume);
+    audio_driver.codec->Volume(0, (volume * 15) / 100);
 }
 
 
@@ -310,7 +328,7 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     i2s_data_channel_format_type format;
 
     if(audio->bitw == AUDIO_BITW_16){
-        format = I2S_DATA_16BIT_CHANNEL_16BIT;
+        format = I2S_DATA_16BIT_CHANNEL_32BIT;
     }else if(audio->bitw == AUDIO_BITW_32){    
         format = I2S_DATA_24BIT_CHANNEL_32BIT;
     }else{
@@ -344,7 +362,7 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     /* Config TX I2S1 */
     spi_i2s_reset(SPI1);
     i2s_default_para_init(&i2s_init_struct);
-    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
+    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
     i2s_init_struct.data_channel_format = format;
     i2s_init_struct.mclk_output_enable = FALSE;
     i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
@@ -355,7 +373,7 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     /* Config RX I2S2 */
     spi_i2s_reset(SPI2);
     i2s_default_para_init(&i2s_init_struct);
-    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
+    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
     i2s_init_struct.data_channel_format = format;
     i2s_init_struct.mclk_output_enable = FALSE;
     i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
@@ -537,7 +555,7 @@ void audio_cfg_mclk(uint32_t freq, uint32_t enable)
 audio_status_t audio_init(const CDC_Type *codec)
 {
     audio_status_t res;
-    audio_driver.codec = codec;
+    audio_driver.codec = (codec != NULL) ? codec : &dummy_codec;
 
     audio_driver.freq = AUDIO_DEFAULT_FREQ;
     audio_driver.bitw = AUDIO_DEFAULT_BITW;
