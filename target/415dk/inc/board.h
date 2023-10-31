@@ -35,7 +35,17 @@ extern "C" {
 #define DBG_PIN_INIT    LED1_PIN_INIT
 #define DBG_PIN_TOGGLE  LED1_TOGGLE
 
-//enum {false = 0, true, OFF = false, ON = true};
+#define USER_BUTTON 1
+
+#define I2C_TIMEOUT                      0xFFFFFFFF
+#define I2Cx_SPEED                       100000
+#define I2Cx_ADDRESS                     0x00
+#define I2Cx_PORT                        I2C1
+#define I2Cx_CLK                         CRM_I2C1_PERIPH_CLOCK
+#define I2Cx_SCL_GPIO_PIN                GPIO_PINS_8
+#define I2Cx_SCL_GPIO_PORT               GPIOB
+#define I2Cx_SDA_GPIO_PIN                GPIO_PINS_9
+#define I2Cx_SDA_GPIO_PORT               GPIOB
 
 
 void board_init(void);
@@ -46,6 +56,10 @@ void SW_Reset(void);
 void __debugbreak(void);
 
 void BOARD_LCD_Init(void);
+
+uint32_t I2C_Master_Write(uint8_t, const uint8_t*, uint32_t);
+uint32_t I2C_Master_Read(uint8_t, uint8_t*, uint32_t);
+
 #ifdef __cplusplus
 }
 #endif

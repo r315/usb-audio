@@ -80,31 +80,47 @@ typedef struct audio_channel_s
     uint8_t  enabled;
 }audio_channel_t;
 
-typedef struct
+typedef struct audio_codec_s
 {
-  uint32_t freq;
-  uint32_t bitw;
-  uint8_t  mode;
-  //spk part
-  audio_channel_t spk;
-  //mic part
-  audio_channel_t mic;
+   uint8_t (*Init) (void);
+   void    (*Config) (uint8_t DevID, uint8_t Mode);
+   void    (*SampleRate) (uint8_t Rate);
+   void    (*Enable) (void);
+   void    (*Disable) (void);
+   void    (*Volume) (uint8_t DevID, uint8_t Volume);
+   void    (*Mute) (uint8_t DevID, uint8_t Mode);
+   uint8_t (*WriteReg) (uint16_t Register, uint8_t Val);
+   uint8_t (*ReadReg) (uint16_t Register);
 }audio_codec_t;
 
-typedef enum {
+typedef struct audio_driver_s
+{
+    uint32_t freq;
+    uint32_t bitw;
+    uint8_t  mode;
+    //spk part
+    audio_channel_t spk;
+    //mic part
+    audio_channel_t mic;
+    // Common part
+    const audio_codec_t *codec;
+}audio_driver_t;
+
+typedef enum audio_status_e{
     AUDIO_OK = 0,
     AUDIO_ERROR_FREQ,
     AUDIO_ERROR_BITW,
-}audio_status;
+    AUDIO_ERROR_CODEC,
+}audio_status_t;
 
 /**
   * @brief audio codec interface
   */
-audio_status audio_init(void);
-audio_status audio_loop(void);
-audio_status audio_set_codec(audio_codec_t *);
-audio_status audio_change_mode(uint32_t mode);
+audio_status_t audio_init(const audio_codec_t *codec);
+audio_status_t audio_loop(void);
+audio_status_t audio_change_mode(uint32_t mode);
 void audio_cfg_mclk(uint32_t freq, uint32_t enable);
+void audio_set_freq(uint32_t freq);
 
 void audio_enqueue_data(uint8_t *data, uint32_t len);
 uint32_t audio_dequeue_data(uint8_t *buffer);

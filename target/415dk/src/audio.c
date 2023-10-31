@@ -26,23 +26,40 @@
 #include <string.h>
 #include <stdio.h>
 #include "at32f415.h"
-#include "audio.h"
 #include "audio_conf.h"
+#include "audio.h"
+#include "audio_desc.h"
 
 #define MIC_BUFFER_SIZE   1024
 #define SPK_BUFFER_SIZE   4096
 #define DMA_BUFFER_SIZE   288
 
-static audio_codec_t *audio_codec;
+static audio_driver_t audio_driver;
 static uint16_t spk_dma_buffer[DMA_BUFFER_SIZE];
 static uint16_t mic_dma_buffer[DMA_BUFFER_SIZE];
 static uint16_t spk_buffer[SPK_BUFFER_SIZE];
 static uint16_t mic_buffer[MIC_BUFFER_SIZE];
 
-static audio_codec_t audio_nocodec;
-
 static void bus_i2s_reset(void);
-static audio_status bus_i2s_init(audio_codec_t *audio);
+static audio_status_t bus_i2s_init(audio_driver_t *audio);
+
+static uint8_t dummy_Init (void){ return 1; }
+static void    dummy_Config (uint8_t DevID, uint8_t Mode) {}
+static void    dummy_SampleRate (uint8_t Rate){}
+static void    dummy_Enable (void) {}
+static void    dummy_Disable (void) {}
+static void    dummy_Volume (uint8_t DevID, uint8_t Volume){}
+static void    dummy_Mute (uint8_t DevID, uint8_t Mode) {}
+
+static const audio_codec_t dummy_codec = {
+    dummy_Init,
+    dummy_Config,
+    dummy_SampleRate,
+    dummy_Enable,
+    dummy_Disable,
+    dummy_Volume,
+    dummy_Mute,
+};
 
 static void memset16(uint16_t *buffer, uint32_t set, uint32_t len)
 {
@@ -60,17 +77,18 @@ static void memcpy16(uint16_t *dst, uint16_t *src, uint32_t len)
 
 /**
   * @brief  audio codec modify freq
-  * @param  freq: freq (wm8988 microphone and speaker must as same freq)
+  * @param  freq: freq 
   * @retval none
   */
-static void audio_set_freq(uint32_t freq)
+void audio_set_freq(uint32_t freq)
 {
-    if(audio_codec->freq != freq)
+    if(audio_driver.freq != freq)
     {
-        audio_codec->freq = freq;
-        audio_set_freq(freq);
+        audio_driver.freq = freq;
+        audio_driver.codec->Disable();
         bus_i2s_reset();        
-        bus_i2s_init(audio_codec);
+        bus_i2s_init(&audio_driver);
+        audio_driver.codec->SampleRate(freq);
     }
 }
 
@@ -81,7 +99,8 @@ static void audio_set_freq(uint32_t freq)
   */
 void audio_set_mic_freq(uint32_t freq)
 {
-    printf("%s :%lu\n", __func__, freq);    
+    printf("%s :%lu\n", __func__, freq);
+    audio_set_freq(freq);
 }
 
 /**
@@ -92,27 +111,7 @@ void audio_set_mic_freq(uint32_t freq)
 void audio_set_spk_freq(uint32_t freq)
 {
     printf("%s :%lu\n", __func__, freq);
-}
-
-
-/**
-  * @brief  audio codec speaker alt setting config
-  * @param  none
-  * @retval none
-  */
-void audio_spk_alt_setting(uint32_t alt_seting)
-{
-    //printf("%s :%lu\n", __func__, alt_seting);
-}
-
-/**
-  * @brief  audio codec microphone alt setting config
-  * @param  none
-  * @retval none
-  */
-void audio_mic_alt_setting(uint32_t alt_seting)
-{
-    //printf("%s :%lu\n", __func__, alt_seting);
+    audio_set_freq(freq);
 }
 
 /**
@@ -155,6 +154,28 @@ void audio_set_mic_volume(uint16_t volume)
 void audio_set_spk_volume(uint16_t volume)
 {
     printf("%s :%d\n", __func__, volume);
+    audio_driver.codec->Volume(0, (volume * 15) / 100);
+}
+
+
+/**
+  * @brief  audio codec speaker alt setting config
+  * @param  none
+  * @retval none
+  */
+void audio_spk_alt_setting(uint32_t alt_seting)
+{
+    //printf("%s :%lu\n", __func__, alt_seting);
+}
+
+/**
+  * @brief  audio codec microphone alt setting config
+  * @param  none
+  * @retval none
+  */
+void audio_mic_alt_setting(uint32_t alt_seting)
+{
+    //printf("%s :%lu\n", __func__, alt_seting);
 }
 
 /**
@@ -164,7 +185,7 @@ void audio_set_spk_volume(uint16_t volume)
   */
 uint8_t audio_spk_feedback(uint8_t *feedback)
 {
-    uint32_t feedback_value = (audio_codec->spk.freq);
+    uint32_t feedback_value = (audio_driver.spk.freq);
     feedback_value = ((feedback_value/1000)<<14)|((feedback_value%1000)<<4);
     feedback[0] = (uint8_t)(feedback_value);
     feedback[1] = (uint8_t)(feedback_value >> 8);
@@ -185,19 +206,19 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
     uint16_t ulen = len / 2, i;
     uint16_t *u16data = (uint16_t *)data;
 
-    switch (audio_codec->spk.stage)
+    switch (audio_driver.spk.stage)
     {
         case 0:
-        audio_codec->spk.woff = audio_codec->spk.roff = audio_codec->spk.buffer;
-        audio_codec->spk.wtotal = audio_codec->spk.rtotal = 0;
-        audio_codec->spk.stage = 1;
-        audio_codec->spk.threshold = SPK_BUFFER_SIZE / 2;
+        audio_driver.spk.woff = audio_driver.spk.roff = audio_driver.spk.buffer;
+        audio_driver.spk.wtotal = audio_driver.spk.rtotal = 0;
+        audio_driver.spk.stage = 1;
+        audio_driver.spk.threshold = SPK_BUFFER_SIZE / 2;
         break;
 
         case 1:
-        if (audio_codec->spk.wtotal >= SPK_BUFFER_SIZE / 2)
+        if (audio_driver.spk.wtotal >= SPK_BUFFER_SIZE / 2)
         {
-            audio_codec->spk.stage = 2;
+            audio_driver.spk.stage = 2;
         }
         break;
         
@@ -207,14 +228,14 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
   
     for (i = 0; i < ulen; ++i)
     {
-        *(audio_codec->spk.woff++) = *u16data++;
-        if (audio_codec->spk.woff >= audio_codec->spk.end)
+        *(audio_driver.spk.woff++) = *u16data++;
+        if (audio_driver.spk.woff >= audio_driver.spk.end)
         {
-            audio_codec->spk.woff = audio_codec->spk.buffer;
+            audio_driver.spk.woff = audio_driver.spk.buffer;
         }
     }
 
-    audio_codec->spk.wtotal += ulen;
+    audio_driver.spk.wtotal += ulen;
 }
 
 /**
@@ -226,58 +247,58 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
 uint32_t audio_dequeue_data(uint8_t *buffer)
 {
     // copy_buff((uint16_t *)buffer, audio_codec.mic_buffer + audio_codec.mic_hf_status, audio_codec.mic_rx_size);
-    uint16_t len = audio_codec->mic.size << 1;
+    uint16_t len = audio_driver.mic.size << 1;
     uint16_t i;
     uint16_t *u16buf = (uint16_t *)buffer;
 
-    switch (audio_codec->mic.stage)
+    switch (audio_driver.mic.stage)
     {
         case 0:
-        audio_codec->mic.stage = 1;
+        audio_driver.mic.stage = 1;
         memset(buffer, 0, len);
         return len;
 
         case 1:
-        if ((audio_codec->mic.wtotal - audio_codec->mic.rtotal) >= (MIC_BUFFER_SIZE / 2)){
-            audio_codec->mic.stage = 2;
+        if ((audio_driver.mic.wtotal - audio_driver.mic.rtotal) >= (MIC_BUFFER_SIZE / 2)){
+            audio_driver.mic.stage = 2;
         }
         return len;
     }
-    switch (audio_codec->mic.adj_stage)
+    switch (audio_driver.mic.adj_stage)
     {
         case 0:
         break;
 
         case 1:
-        if (audio_codec->mic.adj_count >= 4){
+        if (audio_driver.mic.adj_count >= 4){
             len += 4;
-            audio_codec->mic.adj_count -= 4;
+            audio_driver.mic.adj_count -= 4;
         }
         break;
 
         case 2:
-        if (audio_codec->mic.adj_count >= 4){
+        if (audio_driver.mic.adj_count >= 4){
             len -= 4;
-            audio_codec->mic.adj_count -= 4;
+            audio_driver.mic.adj_count -= 4;
         }
         break;
     }
 
     for (i = 0; i < len / 2; ++i){
-        *u16buf++ = *(audio_codec->mic.roff++);
+        *u16buf++ = *(audio_driver.mic.roff++);
 
-        if (audio_codec->mic.roff >= audio_codec->mic.end){
-            audio_codec->mic.roff = audio_codec->mic.buffer;
+        if (audio_driver.mic.roff >= audio_driver.mic.end){
+            audio_driver.mic.roff = audio_driver.mic.buffer;
         }
     }
 
-    if (audio_codec->mic.wtotal <= audio_codec->mic.rtotal)
+    if (audio_driver.mic.wtotal <= audio_driver.mic.rtotal)
     { // should not happen
         while (1)
             ;
     }
-    audio_codec->mic.rtotal += len / 2;
-    audio_codec->mic.delta += len / 2;
+    audio_driver.mic.rtotal += len / 2;
+    audio_driver.mic.delta += len / 2;
 
     return len;
 }
@@ -301,7 +322,7 @@ static void bus_i2s_reset(void)
   * @param  bitw_format: bit width
   * @retval error status
   */
-static audio_status bus_i2s_init(audio_codec_t *audio)
+static audio_status_t bus_i2s_init(audio_driver_t *audio)
 {
     gpio_init_type gpio_init_struct;
     dma_init_type dma_init_struct;
@@ -309,7 +330,7 @@ static audio_status bus_i2s_init(audio_codec_t *audio)
     i2s_data_channel_format_type format;
 
     if(audio->bitw == AUDIO_BITW_16){
-        format = I2S_DATA_16BIT_CHANNEL_16BIT;
+        format = I2S_DATA_16BIT_CHANNEL_32BIT;
     }else if(audio->bitw == AUDIO_BITW_32){    
         format = I2S_DATA_24BIT_CHANNEL_32BIT;
     }else{
@@ -343,7 +364,7 @@ static audio_status bus_i2s_init(audio_codec_t *audio)
     /* Config TX I2S1 */
     spi_i2s_reset(SPI1);
     i2s_default_para_init(&i2s_init_struct);
-    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
+    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
     i2s_init_struct.data_channel_format = format;
     i2s_init_struct.mclk_output_enable = FALSE;
     i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
@@ -354,7 +375,7 @@ static audio_status bus_i2s_init(audio_codec_t *audio)
     /* Config RX I2S2 */
     spi_i2s_reset(SPI2);
     i2s_default_para_init(&i2s_init_struct);
-    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
+    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
     i2s_init_struct.data_channel_format = format;
     i2s_init_struct.mclk_output_enable = FALSE;
     i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
@@ -533,23 +554,34 @@ void audio_cfg_mclk(uint32_t freq, uint32_t enable)
   * @param  none
   * @retval error status
   */
-audio_status audio_init(void)
+audio_status_t audio_init(const audio_codec_t *codec)
 {
-    audio_codec = &audio_nocodec;
+    audio_status_t res;
+    audio_driver.codec = (codec != NULL) ? codec : &dummy_codec;
 
-    audio_codec->freq = AUDIO_DEFAULT_FREQ;
-    audio_codec->bitw = AUDIO_DEFAULT_BITW;
-    audio_codec->mode = AUDIO_DEFAULT_MODE;
+    audio_driver.freq = AUDIO_DEFAULT_FREQ;
+    audio_driver.bitw = AUDIO_DEFAULT_BITW;
+    audio_driver.mode = AUDIO_DEFAULT_MODE;
 
     memset16(spk_buffer, 0, SPK_BUFFER_SIZE);
     memset16(mic_buffer, 0, MIC_BUFFER_SIZE);
 
-    audio_codec->spk.buffer = spk_buffer;
-    audio_codec->mic.buffer = mic_buffer;
-    audio_codec->mic.dma_buffer = mic_dma_buffer;
-    audio_codec->spk.dma_buffer = spk_dma_buffer;
+    audio_driver.spk.buffer = spk_buffer;
+    audio_driver.mic.buffer = mic_buffer;
+    audio_driver.mic.dma_buffer = mic_dma_buffer;
+    audio_driver.spk.dma_buffer = spk_dma_buffer;
 
-    return bus_i2s_init(audio_codec);
+    res = bus_i2s_init(&audio_driver);
+
+    if(res != AUDIO_OK){
+        return res;
+    }
+
+    if(!audio_driver.codec->Init()){
+        return AUDIO_ERROR_CODEC;
+    }
+
+    return AUDIO_OK;
 }
 
 /**
@@ -557,7 +589,7 @@ audio_status audio_init(void)
   * @param  none
   * @retval none
   */
-audio_status audio_loop(void)
+audio_status_t audio_loop(void)
 {
     return AUDIO_OK;
 }
@@ -569,7 +601,7 @@ audio_status audio_loop(void)
  */
 void DMA1_Channel3_IRQHandler(void)
 {
-    uint16_t half_size = audio_codec->spk.size;
+    uint16_t half_size = audio_driver.spk.size;
     uint16_t *pdst;
 
     if (dma_flag_get(DMA1_HDT3_FLAG) == SET)
@@ -589,7 +621,7 @@ void DMA1_Channel3_IRQHandler(void)
         return;
     }
 
-    switch (audio_codec->spk.stage)
+    switch (audio_driver.spk.stage)
     {
         case 0:
         case 1:
@@ -597,46 +629,46 @@ void DMA1_Channel3_IRQHandler(void)
         break;
         
         case 2:
-        if (audio_codec->spk.wtotal >= audio_codec->spk.rtotal + SPK_BUFFER_SIZE)
+        if (audio_driver.spk.wtotal >= audio_driver.spk.rtotal + SPK_BUFFER_SIZE)
         {
             while (1)
                 ; // should not happen;
         }
-        if (audio_codec->spk.rtotal >= audio_codec->spk.wtotal)
+        if (audio_driver.spk.rtotal >= audio_driver.spk.wtotal)
         {
-            audio_codec->spk.stage = 0;
-            audio_codec->spk.woff = audio_codec->spk.roff = audio_codec->spk.buffer;
-            audio_codec->spk.rtotal = audio_codec->spk.wtotal = 0;
+            audio_driver.spk.stage = 0;
+            audio_driver.spk.woff = audio_driver.spk.roff = audio_driver.spk.buffer;
+            audio_driver.spk.rtotal = audio_driver.spk.wtotal = 0;
         }
         else
         {
-            memcpy16(pdst, audio_codec->spk.roff, half_size);
+            memcpy16(pdst, audio_driver.spk.roff, half_size);
 
-            audio_codec->spk.roff += half_size;
-            audio_codec->spk.rtotal += half_size;
+            audio_driver.spk.roff += half_size;
+            audio_driver.spk.rtotal += half_size;
 
-            if (audio_codec->spk.roff >= audio_codec->spk.end)
+            if (audio_driver.spk.roff >= audio_driver.spk.end)
             {
-                audio_codec->spk.roff = audio_codec->spk.buffer;
+                audio_driver.spk.roff = audio_driver.spk.buffer;
             }
-            if (++audio_codec->spk.calc == 256)
+            if (++audio_driver.spk.calc == 256)
             {
-                uint16_t delta = audio_codec->spk.wtotal - audio_codec->spk.rtotal;
-                audio_codec->spk.calc = 0;
-                if (delta < audio_codec->spk.threshold - half_size)
+                uint16_t delta = audio_driver.spk.wtotal - audio_driver.spk.rtotal;
+                audio_driver.spk.calc = 0;
+                if (delta < audio_driver.spk.threshold - half_size)
                 {
-                    audio_codec->spk.threshold -= half_size;
-                    audio_codec->spk.freq += audio_codec->freq / 1024;
+                    audio_driver.spk.threshold -= half_size;
+                    audio_driver.spk.freq += audio_driver.freq / 1024;
                 }
-                else if (delta > audio_codec->spk.threshold + half_size)
+                else if (delta > audio_driver.spk.threshold + half_size)
                 {
-                    audio_codec->spk.threshold += half_size;
-                    audio_codec->spk.freq -= audio_codec->freq / 1024;
+                    audio_driver.spk.threshold += half_size;
+                    audio_driver.spk.freq -= audio_driver.freq / 1024;
                 }
-                if (audio_codec->spk.rtotal > 0x20000000)
+                if (audio_driver.spk.rtotal > 0x20000000)
                 {
-                    audio_codec->spk.rtotal -= 0x10000000;
-                    audio_codec->spk.wtotal -= 0x10000000;
+                    audio_driver.spk.rtotal -= 0x10000000;
+                    audio_driver.spk.wtotal -= 0x10000000;
                 }
             }
         }
@@ -652,7 +684,7 @@ void DMA1_Channel3_IRQHandler(void)
 void DMA1_Channel4_IRQHandler(void)
 {
     uint16_t *psrc;
-    uint16_t len = audio_codec->mic.size << 1;
+    uint16_t len = audio_driver.mic.size << 1;
 
     if (dma_flag_get(DMA1_HDT4_FLAG) == SET)
     {
@@ -661,58 +693,58 @@ void DMA1_Channel4_IRQHandler(void)
     }
     else if (dma_flag_get(DMA1_FDT4_FLAG) == SET)
     {
-        psrc = mic_dma_buffer + audio_codec->mic.size;
+        psrc = mic_dma_buffer + audio_driver.mic.size;
         dma_flag_clear(DMA1_FDT4_FLAG);
     }else{
         DMA1->clr = DMA1->sts;
         return;
     }
 
-    if (audio_codec->mic.stage)
+    if (audio_driver.mic.stage)
     {
-        memcpy(audio_codec->mic.woff, psrc, len);
-        audio_codec->mic.woff += len / 2;
-        audio_codec->mic.wtotal += len / 2;
-        if (audio_codec->mic.woff >= audio_codec->mic.end)
+        memcpy(audio_driver.mic.woff, psrc, len);
+        audio_driver.mic.woff += len / 2;
+        audio_driver.mic.wtotal += len / 2;
+        if (audio_driver.mic.woff >= audio_driver.mic.end)
         {
-            audio_codec->mic.woff = audio_codec->mic.buffer;
+            audio_driver.mic.woff = audio_driver.mic.buffer;
         }
-        if (audio_codec->mic.stage == 2)
+        if (audio_driver.mic.stage == 2)
         {
-            if (1024 == ++audio_codec->mic.calc)
+            if (1024 == ++audio_driver.mic.calc)
             {
-                uint32_t size_estimate = 1024 * audio_codec->mic.size;
-                audio_codec->mic.calc = 0;
-                if (audio_codec->mic.delta > size_estimate)
+                uint32_t size_estimate = 1024 * audio_driver.mic.size;
+                audio_driver.mic.calc = 0;
+                if (audio_driver.mic.delta > size_estimate)
                 {
-                    audio_codec->mic.adj_count = audio_codec->mic.delta - size_estimate;
-                    audio_codec->mic.adj_stage = 2;
+                    audio_driver.mic.adj_count = audio_driver.mic.delta - size_estimate;
+                    audio_driver.mic.adj_stage = 2;
                 }
-                else if (audio_codec->mic.delta < size_estimate)
+                else if (audio_driver.mic.delta < size_estimate)
                 {
-                    audio_codec->mic.adj_count = size_estimate - audio_codec->mic.delta;
-                    audio_codec->mic.adj_stage = 1;
+                    audio_driver.mic.adj_count = size_estimate - audio_driver.mic.delta;
+                    audio_driver.mic.adj_stage = 1;
                 }
                 else
                 {
-                    audio_codec->mic.adj_count = 0;
-                    audio_codec->mic.adj_stage = 0;
+                    audio_driver.mic.adj_count = 0;
+                    audio_driver.mic.adj_stage = 0;
                 }
-                audio_codec->mic.delta = 0;
-                if (audio_codec->mic.rtotal >= 0x80000000)
+                audio_driver.mic.delta = 0;
+                if (audio_driver.mic.rtotal >= 0x80000000)
                 {
-                    audio_codec->mic.rtotal -= 0x80000000;
-                    audio_codec->mic.wtotal -= 0x80000000;
+                    audio_driver.mic.rtotal -= 0x80000000;
+                    audio_driver.mic.wtotal -= 0x80000000;
                 }
             }
-            if (audio_codec->mic.wtotal >= audio_codec->mic.rtotal + MIC_BUFFER_SIZE)
+            if (audio_driver.mic.wtotal >= audio_driver.mic.rtotal + MIC_BUFFER_SIZE)
             {
-                audio_codec->mic.delta = audio_codec->mic.wtotal = audio_codec->mic.rtotal = 0;
-                audio_codec->mic.woff = audio_codec->mic.roff = audio_codec->mic.buffer;
-                audio_codec->mic.stage = 0;
-                audio_codec->mic.adj_stage = 0;
-                audio_codec->mic.adj_count = 0;
-                audio_codec->mic.calc = 0;
+                audio_driver.mic.delta = audio_driver.mic.wtotal = audio_driver.mic.rtotal = 0;
+                audio_driver.mic.woff = audio_driver.mic.roff = audio_driver.mic.buffer;
+                audio_driver.mic.stage = 0;
+                audio_driver.mic.adj_stage = 0;
+                audio_driver.mic.adj_count = 0;
+                audio_driver.mic.calc = 0;
             }
         }
     }

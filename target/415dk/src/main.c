@@ -23,6 +23,7 @@
   */
 
 #include <string.h>
+#include <stdio.h>
 #include "board.h"
 #include "at32f415_clock.h"
 #include "usb_conf.h"
@@ -33,26 +34,9 @@
 #include "audio.h"
 #include "cli_simple.h"
 #include "i2c_application.h"
+//#include "tas2563.h"
+//#include "max98374.h"
 
-#define USER_BUTTON 1
-
-#define I2C_TIMEOUT                      0xFFFFFFFF
-
-#define I2Cx_SPEED                       100000
-#define I2Cx_ADDRESS                     0x00
-
-#define I2Cx_PORT                        I2C1
-#define I2Cx_CLK                         CRM_I2C1_PERIPH_CLOCK
-
-#define I2Cx_SCL_GPIO_CLK                CRM_GPIOB_PERIPH_CLOCK
-#define I2Cx_SCL_GPIO_PIN                GPIO_PINS_8
-#define I2Cx_SCL_GPIO_PORT               GPIOB
-
-#define I2Cx_SDA_GPIO_CLK                CRM_GPIOB_PERIPH_CLOCK
-#define I2Cx_SDA_GPIO_PIN                GPIO_PINS_9
-#define I2Cx_SDA_GPIO_PORT               GPIOB
-
-i2c_handle_type hi2cx;
 
 /* usb global struct define */
 void usb_clock48m_select(usb_clk48_s clk_s);
@@ -65,11 +49,10 @@ uint32_t serial_read(uint8_t*, uint32_t);
 
 
 static uint8_t user_button_state;
+static const audio_codec_t *codec;
 
+static i2c_handle_type hi2cx;
 static otg_core_type otg_core_struct;
-#if defined ( __ICCARM__ ) /* iar compiler */
-  #pragma data_alignment=4
-#endif
 
 #ifdef __AUDIO_HID_CLASS_H
 ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
@@ -78,14 +61,73 @@ ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
 #if ENABLE_CLI
 static int codecCmd(int argc, char **argv) 
 {
-    return CLI_OK;
+    if( !strcmp("vol", argv[1])){
+        int32_t val;
+        if(CLI_Ia2i(argv[2], &val)){
+            audio_set_spk_volume(val);
+        }        
+        return CLI_OK;
+    }
+  
+    if( !strcmp("rr", argv[1])){
+        uint32_t val;
+        if(CLI_Ha2i(argv[2], &val)){
+            printf("%02X\n", codec->ReadReg(val));
+        }        
+        return CLI_OK;
+    }
+
+    if( !strcmp("wr", argv[1])){
+        uint32_t val, val2;
+        if(CLI_Ha2i(argv[2], &val)){
+            if(CLI_Ha2i(argv[3], &val2)){
+                codec->WriteReg(val, val2);
+            }
+        }        
+        return CLI_OK;
+    }
+
+    if( !strcmp("init", argv[1])){
+        printf("%d\n", codec->Init());   
+        return CLI_OK;
+    }
+
+    if( !strcmp("scan", argv[1])){
+        printf("\n   ");
+        
+        for(int i = 0; i < 16; i++){
+            printf("%02X ", i);
+        }           
+        
+        uint8_t count;
+        
+        for(int i = 0; i < 128; i++){
+            if( (i & 15) == 0) 
+                printf("\n%02X ", i & 0xF0);
+            
+            if(i2c_master_transmit(&hi2cx, (i << 1), &count, 1, 1000) != I2C_OK){
+                printf("-- ");
+            }else{
+                printf("%02X ", i << 1); // print 8bit address
+            }
+            
+            delay_ms(1);
+        }
+        putchar('\n');
+
+        return CLI_OK;
+    }
+
+    return CLI_BAD_PARAM;
 }
 
+#ifdef __AUDIO_HID_CLASS_H
 static int hidCmd(int argc, char **argv)
 {
     user_button_state = USER_BUTTON;
     return CLI_OK;
 }
+#endif
 
 static int audioCmd(int argc, char **argv)
 {
@@ -95,14 +137,30 @@ static int audioCmd(int argc, char **argv)
             audio_cfg_mclk(AUDIO_DEFAULT_MCLK_FREQ, val & 1);
         }
     }
+
+    if(!strcmp("freq", argv[0])){
+        int32_t val;
+        if(CLI_Ia2i(argv[1], &val)){
+            audio_set_freq(val);
+        }
+    }
+    
     return CLI_OK;
 }
 
- cli_command_t cli_cmds [] = {
+static int resetCmd(int argc, char **argv)
+{
+    SW_Reset();
+    return CLI_OK;
+}
+
+cli_command_t cli_cmds [] = {
     {"help", ((int (*)(int, char**))CLI_Commands)},
+    //{"hid", hidCmd},
     {"codec", codecCmd},
-    {"hid", hidCmd},
-    {"mclk", audioCmd}
+    {"reset", resetCmd},
+    {"mclk", audioCmd},
+    {"freq", audioCmd},
 };
 #endif
 
@@ -128,17 +186,23 @@ int main(void)
   nvic_priority_group_config(NVIC_PRIORITY_GROUP_4);
 
   system_clock_config();
+
 #if ENABLE_CLI
   serial_init();
 
   CLI_Init("Audio >");
   CLI_RegisterCommand(cli_cmds, sizeof(cli_cmds) / sizeof(cli_command_t));
-#endif
-  /* audio init */
-  audio_init();
+#endif  
 
-  /* usb gpio config */
-  usb_gpio_config();
+  /* i2c init */
+  hi2cx.i2cx = I2Cx_PORT;
+  i2c_config(&hi2cx);
+
+  /* audio init */
+  //codec = &max98374;
+  //codec = &tas2563;
+  codec = NULL;
+  printf("%d\n", audio_init(codec));
 
   user_button_state = 0;
 
@@ -162,6 +226,9 @@ int main(void)
             USB_ID,
             &audio_class_handler,
             &audio_desc_handler);
+
+  /* usb gpio config */
+  usb_gpio_config();
 
   while(1)
   {
@@ -238,7 +305,6 @@ void usb_gpio_config(void)
   gpio_init_type gpio_init_struct;
 
   crm_periph_clock_enable(CRM_GPIOA_PERIPH_CLOCK, TRUE);
-  crm_periph_clock_enable(CRM_GPIOB_PERIPH_CLOCK, TRUE);
 
   gpio_default_para_init(&gpio_init_struct);
 
@@ -333,16 +399,15 @@ void i2c_lowlevel_init(i2c_handle_type* hi2c)
   {
     /* i2c periph clock enable */
     crm_periph_clock_enable(I2Cx_CLK, TRUE);
-    crm_periph_clock_enable(I2Cx_SCL_GPIO_CLK, TRUE);
-    crm_periph_clock_enable(I2Cx_SDA_GPIO_CLK, TRUE);
+    crm_periph_clock_enable(CRM_GPIOB_PERIPH_CLOCK, TRUE);
     crm_periph_clock_enable(CRM_IOMUX_PERIPH_CLOCK, TRUE);
     gpio_pin_remap_config(I2C1_MUX, TRUE);
 
     /* configure i2c pins: scl */
     gpio_init_structure.gpio_out_type       = GPIO_OUTPUT_OPEN_DRAIN;
-    gpio_init_structure.gpio_pull           = GPIO_PULL_UP;
+    gpio_init_structure.gpio_pull           = GPIO_PULL_NONE;
     gpio_init_structure.gpio_mode           = GPIO_MODE_MUX;
-    gpio_init_structure.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MODERATE;
+    gpio_init_structure.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MAXIMUM;
 
     gpio_init_structure.gpio_pins           = I2Cx_SCL_GPIO_PIN;
     gpio_init(I2Cx_SCL_GPIO_PORT, &gpio_init_structure);
@@ -356,6 +421,24 @@ void i2c_lowlevel_init(i2c_handle_type* hi2c)
 
     i2c_own_address1_set(hi2c->i2cx, I2C_ADDRESS_MODE_7BIT, I2Cx_ADDRESS);
   }
+}
+
+uint32_t I2C_Master_Write(uint8_t device, const uint8_t* data, uint32_t len)
+{
+    if(i2c_master_transmit(&hi2cx, device, (uint8_t*)data, len, 1000) != I2C_OK){
+        return 0;
+    }
+
+    return len;
+}
+
+uint32_t I2C_Master_Read(uint8_t device, uint8_t* data, uint32_t len)
+{
+    if(i2c_master_receive(&hi2cx, device, data, len, 1000) != I2C_OK){
+        return 0;
+    }
+
+    return len;
 }
 
 /**
