@@ -8,11 +8,11 @@ static uint16_t CliLineLen;
 static uint8_t *CliArgv[CLI_CMD_MAX_ARGS];
 static uint32_t CliArgc;
 
+static uint16_t CliCommandsCount;
+static cli_history_t History;
 static const char *Prompt;
 static const cli_command_t *CliCommands;
-static uint16_t CliCommandsCount;
 
-static cli_history_t History;
 
 extern int getavl (void);
 

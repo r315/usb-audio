@@ -34,6 +34,8 @@
 #include "audio.h"
 #include "cli_simple.h"
 #include "i2c_application.h"
+//#include "tas2563.h"
+//#include "max98374.h"
 
 
 /* usb global struct define */
