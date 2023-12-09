@@ -51,7 +51,7 @@ static void    dummy_Disable (void) {}
 static void    dummy_Volume (uint8_t DevID, uint8_t Volume){}
 static void    dummy_Mute (uint8_t DevID, uint8_t Mode) {}
 
-static const CDC_Type dummy_codec = {
+static const audio_codec_t dummy_codec = {
     dummy_Init,
     dummy_Config,
     dummy_SampleRate,
@@ -85,8 +85,10 @@ void audio_set_freq(uint32_t freq)
     if(audio_driver.freq != freq)
     {
         audio_driver.freq = freq;
+        audio_driver.codec->Disable();
         bus_i2s_reset();        
         bus_i2s_init(&audio_driver);
+        audio_driver.codec->SampleRate(freq);
     }
 }
 
@@ -552,7 +554,7 @@ void audio_cfg_mclk(uint32_t freq, uint32_t enable)
   * @param  none
   * @retval error status
   */
-audio_status_t audio_init(const CDC_Type *codec)
+audio_status_t audio_init(const audio_codec_t *codec)
 {
     audio_status_t res;
     audio_driver.codec = (codec != NULL) ? codec : &dummy_codec;

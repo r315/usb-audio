@@ -233,7 +233,7 @@ static usb_sts_type class_ept0_rx_handler(void *udev)
   usb_sts_type status = USB_OK;
   usbd_core_type *pudev = (usbd_core_type *)udev;
   usb_audio_type *paudio = (usb_audio_type *)pudev->class_handler->pdata;
-  uint32_t recv_len = usbd_get_recv_len(pudev, 0);
+  //uint32_t recv_len = usbd_get_recv_len(pudev, 0);
   /* ...user code... */
   if( paudio->audio_cmd == AUDIO_REQ_SET_CUR)
   {

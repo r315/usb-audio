@@ -34,7 +34,6 @@
 #include "audio.h"
 #include "cli_simple.h"
 #include "i2c_application.h"
-#include "tas2563.h"
 
 
 /* usb global struct define */
@@ -48,7 +47,7 @@ uint32_t serial_read(uint8_t*, uint32_t);
 
 
 static uint8_t user_button_state;
-static CDC_Type *codec;
+static const audio_codec_t *codec;
 
 static i2c_handle_type hi2cx;
 static otg_core_type otg_core_struct;
@@ -87,8 +86,7 @@ static int codecCmd(int argc, char **argv)
     }
 
     if( !strcmp("init", argv[1])){
-        printf("%d\n", codec->Init());
-        
+        printf("%d\n", codec->Init());   
         return CLI_OK;
     }
 
@@ -186,22 +184,23 @@ int main(void)
   nvic_priority_group_config(NVIC_PRIORITY_GROUP_4);
 
   system_clock_config();
+
 #if ENABLE_CLI
   serial_init();
 
   CLI_Init("Audio >");
   CLI_RegisterCommand(cli_cmds, sizeof(cli_cmds) / sizeof(cli_command_t));
-#endif
-  /* audio init */
-  codec = &tas2563;
-  audio_init(codec);
+#endif  
 
   /* i2c init */
   hi2cx.i2cx = I2Cx_PORT;
   i2c_config(&hi2cx);
 
-  /* usb gpio config */
-  usb_gpio_config();
+  /* audio init */
+  //codec = &max98374;
+  //codec = &tas2563;
+  codec = NULL;
+  printf("%d\n", audio_init(codec));
 
   user_button_state = 0;
 
@@ -225,6 +224,9 @@ int main(void)
             USB_ID,
             &audio_class_handler,
             &audio_desc_handler);
+
+  /* usb gpio config */
+  usb_gpio_config();
 
   while(1)
   {
@@ -301,7 +303,6 @@ void usb_gpio_config(void)
   gpio_init_type gpio_init_struct;
 
   crm_periph_clock_enable(CRM_GPIOA_PERIPH_CLOCK, TRUE);
-  crm_periph_clock_enable(CRM_GPIOB_PERIPH_CLOCK, TRUE);
 
   gpio_default_para_init(&gpio_init_struct);
 
@@ -396,6 +397,7 @@ void i2c_lowlevel_init(i2c_handle_type* hi2c)
   {
     /* i2c periph clock enable */
     crm_periph_clock_enable(I2Cx_CLK, TRUE);
+    crm_periph_clock_enable(CRM_GPIOB_PERIPH_CLOCK, TRUE);
     crm_periph_clock_enable(CRM_IOMUX_PERIPH_CLOCK, TRUE);
     gpio_pin_remap_config(I2C1_MUX, TRUE);
 
@@ -403,7 +405,7 @@ void i2c_lowlevel_init(i2c_handle_type* hi2c)
     gpio_init_structure.gpio_out_type       = GPIO_OUTPUT_OPEN_DRAIN;
     gpio_init_structure.gpio_pull           = GPIO_PULL_NONE;
     gpio_init_structure.gpio_mode           = GPIO_MODE_MUX;
-    gpio_init_structure.gpio_drive_strength = GPIO_DRIVE_STRENGTH_STRONGER;
+    gpio_init_structure.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MAXIMUM;
 
     gpio_init_structure.gpio_pins           = I2Cx_SCL_GPIO_PIN;
     gpio_init(I2Cx_SCL_GPIO_PORT, &gpio_init_structure);

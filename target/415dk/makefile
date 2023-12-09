@@ -67,7 +67,6 @@ $(TARGET_PATH)/src/at32f415_clock.c \
 $(TARGET_PATH)/src/i2c_application.c \
 $(TARGET_PATH)/src/main.c \
 $(TARGET_PATH)/src/audio.c \
-$(TARGET_PATH)/src/tas2563.c \
 
 
 CPP_SOURCES = \
