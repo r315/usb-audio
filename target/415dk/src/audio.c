@@ -31,7 +31,7 @@
 #include "audio_desc.h"
 
 #define MIC_BUFFER_SIZE   1024
-#define SPK_BUFFER_SIZE   4096
+#define SPK_BUFFER_SIZE   8192
 #define DMA_BUFFER_SIZE   288
 
 static audio_driver_t audio_driver;
@@ -44,12 +44,14 @@ static void bus_i2s_reset(void);
 static audio_status_t bus_i2s_init(audio_driver_t *audio);
 
 static uint8_t dummy_Init (void){ return 1; }
-static void    dummy_Config (uint8_t DevID, uint8_t Mode) {}
-static void    dummy_SampleRate (uint8_t Rate){}
+static uint8_t    dummy_Config (uint8_t DevID, uint8_t Mode) {return 0;}
+static void    dummy_SampleRate (uint32_t Rate){}
 static void    dummy_Enable (void) {}
 static void    dummy_Disable (void) {}
 static void    dummy_Volume (uint8_t DevID, uint8_t Volume){}
 static void    dummy_Mute (uint8_t DevID, uint8_t Mode) {}
+static uint8_t dummy_writeReg (uint16_t reg, uint8_t val) {return 1;}
+static uint8_t dummy_readReg (uint16_t reg, uint8_t *val) {return 1;}
 
 static const audio_codec_t dummy_codec = {
     dummy_Init,
@@ -59,6 +61,8 @@ static const audio_codec_t dummy_codec = {
     dummy_Disable,
     dummy_Volume,
     dummy_Mute,
+    dummy_writeReg,
+    dummy_readReg
 };
 
 static void memset16(uint16_t *buffer, uint32_t set, uint32_t len)
@@ -361,12 +365,23 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     }
     audio->spk.end -= audio->spk.size;
 
+    gpio_default_para_init(&gpio_init_struct);
+
     /* Config TX I2S1 */
     spi_i2s_reset(SPI1);
     i2s_default_para_init(&i2s_init_struct);
     i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
     i2s_init_struct.data_channel_format = format;
-    i2s_init_struct.mclk_output_enable = FALSE;
+    if(audio->codec->Config(CDC_NODEV, CDC_CFG_MCLK)){
+        i2s_init_struct.mclk_output_enable = TRUE;
+        gpio_init_struct.gpio_pins = I2S1_MCK_PIN;
+        gpio_init_struct.gpio_mode = GPIO_MODE_MUX;
+        gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MAXIMUM;
+        i2s_init_struct.mclk_output_enable = TRUE;
+        gpio_init(I2S1_MCK_GPIO, &gpio_init_struct);
+    }else{
+        i2s_init_struct.mclk_output_enable = FALSE;
+    }
     i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
     i2s_init_struct.clock_polarity = I2S_CLOCK_POLARITY_LOW;
     i2s_init_struct.operation_mode = (audio->mode == AUDIO_MODE_MASTER) ? I2S_MODE_MASTER_TX : I2S_MODE_SLAVE_TX;
@@ -422,8 +437,6 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     nvic_irq_enable(DMA1_Channel4_IRQn, 2, 0);   
 
     /* Config gpio's */
-    gpio_default_para_init(&gpio_init_struct);
-
     if(audio->mode == AUDIO_MODE_MASTER){
         /* i2s1 ck, ws, tx pins */
         gpio_init_struct.gpio_mode           = GPIO_MODE_MUX;
@@ -483,6 +496,7 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
         gpio_init_struct.gpio_pins           = I2S2_SD_PIN;
         gpio_init(I2S2_GPIO, &gpio_init_struct);
     }
+
     /* Start I2S */
     spi_i2s_dma_transmitter_enable(SPI1, TRUE);
     spi_i2s_dma_receiver_enable(SPI2, TRUE);
@@ -515,7 +529,6 @@ void audio_cfg_mclk(uint32_t freq, uint32_t enable)
         crm_periph_reset(CRM_TMR2_PERIPH_CLOCK, TRUE);
         return;
     }
-
     
     crm_clocks_freq_get(&clocks);
 
@@ -549,6 +562,7 @@ void audio_cfg_mclk(uint32_t freq, uint32_t enable)
     tmr_counter_enable(TMR2, TRUE);
     tmr_output_enable(TMR2, TRUE);
 }
+
 /**
   * @brief  audio codec init
   * @param  none

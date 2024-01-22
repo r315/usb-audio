@@ -36,6 +36,7 @@
 #include "i2c_application.h"
 //#include "tas2563.h"
 //#include "max98374.h"
+#include "ak4619.h"
 
 
 /* usb global struct define */
@@ -72,7 +73,8 @@ static int codecCmd(int argc, char **argv)
     if( !strcmp("rr", argv[1])){
         uint32_t val;
         if(CLI_Ha2i(argv[2], &val)){
-            printf("%02X\n", codec->ReadReg(val));
+            codec->ReadReg(val, (uint8_t*)&val);
+            printf("%02X\n", (uint8_t)val);
         }        
         return CLI_OK;
     }
@@ -199,9 +201,10 @@ int main(void)
   i2c_config(&hi2cx);
 
   /* audio init */
+  codec = &ak4619;
   //codec = &max98374;
   //codec = &tas2563;
-  codec = NULL;
+  //codec = NULL;
   printf("%d\n", audio_init(codec));
 
   user_button_state = 0;

@@ -67,6 +67,7 @@ $(TARGET_PATH)/src/at32f415_clock.c \
 $(TARGET_PATH)/src/i2c_application.c \
 $(TARGET_PATH)/src/main.c \
 $(TARGET_PATH)/src/audio.c \
+$(TARGET_PATH)/src/ak4619.c \
 
 
 CPP_SOURCES = \
@@ -190,9 +191,9 @@ all: $(BUILD_DIR) $(BUILD_DIR)/$(TARGET).elf size
 
 bin: $(BUILD_DIR)/$(TARGET).bin
 
-program: $(BUILD_DIR) $(BUILD_DIR)/$(TARGET).jlink bin
-#$(VERBOSE)$(JLK) -device STM32F103CB -if SWD -speed auto -CommanderScript $<
-	openocd -f at32f415.cfg -c "program $(BUILD_DIR)/$(TARGET).elf verify reset exit"
+program: $(BUILD_DIR)/$(TARGET).jlink
+	$(VERBOSE)$(JLK) -device AT32F415CBT7 -if SWD -speed auto -CommanderScript $<
+#openocd -f at32f415.cfg -c "program $(BUILD_DIR)/$(TARGET).elf verify reset exit"
 
 $(BUILD_DIR)/$(TARGET).jlink: $(BUILD_DIR)/$(TARGET).bin
 	@echo "Creating Jlink configuration file"

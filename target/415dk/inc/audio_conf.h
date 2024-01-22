@@ -64,8 +64,8 @@ extern "C" {
 #define AUDIO_SPK_DEFAULT_BITW          AUDIO_BITW_16
 
 
-#define AUDIO_SUPPORT_MAX_FREQ           48
-#define AUDIO_DEFAULT_FREQ               AT32_AUDIO_FREQ_48K
+#define AUDIO_SUPPORT_MAX_FREQ           (AUDIO_SUPPORT_FREQ_48K ? 48 : 16)
+#define AUDIO_DEFAULT_FREQ               AT32_AUDIO_FREQ_16K
 #define AUDIO_DEFAULT_BITW               AUDIO_BITW_16
 
 #define AUDIO_MODE_MASTER               0

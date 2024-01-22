@@ -41,22 +41,41 @@ extern "C" {
 #define I2S1_WS_PIN                      GPIO_PINS_4
 #define I2S1_CK_PIN                      GPIO_PINS_5
 #define I2S1_SD_PIN                      GPIO_PINS_7
+#define I2S1_MCK_PIN                     GPIO_PINS_0
 
 #define I2S1_GPIO                        GPIOA
 #define I2S1_GPIO_CRM_CLK                CRM_GPIOA_PERIPH_CLOCK
 #define I2S1_DT_ADDRESS                  (&(SPI1->dt))
+#define I2S1_MCK_GPIO                    GPIOB
 
 /*I2S2 Pin*/
 #define I2S2_WS_PIN                      GPIO_PINS_12
 #define I2S2_CK_PIN                      GPIO_PINS_13
 #define I2S2_SD_PIN                      GPIO_PINS_15
 
-
 #define I2S2_GPIO                        GPIOB
 #define I2S2_GPIO_CRM_CLK                CRM_GPIOB_PERIPH_CLOCK
 #define I2S2_DT_ADDRESS                  (&(SPI2->dt))
 
 #define SPK_TX_FIFO_SIZE                 (1024 * 4)
+
+enum {
+    CDC_NODEV = 0,
+    CDC_DEV_ADC1,
+    CDC_DEV_ADC2,
+    CDC_DEV_ADC3,
+    CDC_DEV_ADC4,
+
+    CDC_DEV_DAC1,
+    CDC_DEV_DAC2,
+    CDC_DEV_DAC3,
+    CDC_DEV_DAC4,
+};
+
+enum {
+    CDC_CFG_MCLK = 1
+};
+
 
 typedef struct audio_channel_s 
 {
@@ -83,14 +102,14 @@ typedef struct audio_channel_s
 typedef struct audio_codec_s
 {
    uint8_t (*Init) (void);
-   void    (*Config) (uint8_t DevID, uint8_t Mode);
-   void    (*SampleRate) (uint8_t Rate);
+   uint8_t (*Config) (uint8_t DevID, uint8_t Mode);
+   void    (*SampleRate) (uint32_t Rate);
    void    (*Enable) (void);
    void    (*Disable) (void);
    void    (*Volume) (uint8_t DevID, uint8_t Volume);
    void    (*Mute) (uint8_t DevID, uint8_t Mode);
    uint8_t (*WriteReg) (uint16_t Register, uint8_t Val);
-   uint8_t (*ReadReg) (uint16_t Register);
+   uint8_t (*ReadReg) (uint16_t Register, uint8_t *dst);
 }audio_codec_t;
 
 typedef struct audio_driver_s
