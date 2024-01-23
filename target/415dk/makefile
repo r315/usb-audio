@@ -179,8 +179,12 @@ BIN = $(OBJCOPY) -O binary -S
 
 ifeq ($(shell uname -s), Linux)
 JLK ="/opt/SEGGER/JLink/JLinkExe"
+PRG_CFG = $(TARGET).elf
+PRG_CMD = openocd -f at32f415.cfg -c "program $(BUILD_DIR)/$(TARGET).elf verify reset exit"
 else
 JLK =jlink
+PRG_CFG = $(TARGET).jlink
+PRG_CMD = $(VERBOSE)$(JLK) -device CORTEX-M4 -if SWD -speed auto -CommanderScript $<
 endif
 
 #######################################
@@ -191,9 +195,9 @@ all: $(BUILD_DIR) $(BUILD_DIR)/$(TARGET).elf size
 
 bin: $(BUILD_DIR)/$(TARGET).bin
 
-program: $(BUILD_DIR)/$(TARGET).jlink
-	$(VERBOSE)$(JLK) -device AT32F415CBT7 -if SWD -speed auto -CommanderScript $<
-#openocd -f at32f415.cfg -c "program $(BUILD_DIR)/$(TARGET).elf verify reset exit"
+program: all $(BUILD_DIR)/$(PRG_CFG)
+	$(PRG_CMD)
+	
 
 $(BUILD_DIR)/$(TARGET).jlink: $(BUILD_DIR)/$(TARGET).bin
 	@echo "Creating Jlink configuration file"

@@ -94,6 +94,16 @@ static int codecCmd(int argc, char **argv)
         return CLI_OK;
     }
 
+    if( !strcmp("enable", argv[1])){
+        codec->Enable();   
+        return CLI_OK;
+    }
+
+    if( !strcmp("disable", argv[1])){
+        codec->Disable(); 
+        return CLI_OK;
+    }
+
     if( !strcmp("scan", argv[1])){
         printf("\n   ");
         
@@ -101,16 +111,16 @@ static int codecCmd(int argc, char **argv)
             printf("%02X ", i);
         }           
         
-        uint8_t count;
+        uint8_t dummy;
         
         for(int i = 0; i < 128; i++){
             if( (i & 15) == 0) 
                 printf("\n%02X ", i & 0xF0);
             
-            if(i2c_master_transmit(&hi2cx, (i << 1), &count, 1, 1000) != I2C_OK){
-                printf("-- ");
-            }else{
+            if(i2c_master_transmit(&hi2cx, (i << 1), &dummy, 1, 1000) == I2C_OK){
                 printf("%02X ", i << 1); // print 8bit address
+            }else{
+                printf("-- ");
             }
             
             delay_ms(1);
@@ -159,7 +169,7 @@ static int resetCmd(int argc, char **argv)
 cli_command_t cli_cmds [] = {
     {"help", ((int (*)(int, char**))CLI_Commands)},
     //{"hid", hidCmd},
-    {"codec", codecCmd},
+    {"cdc", codecCmd},
     {"reset", resetCmd},
     {"mclk", audioCmd},
     {"freq", audioCmd},
@@ -428,7 +438,10 @@ void i2c_lowlevel_init(i2c_handle_type* hi2c)
 
 uint32_t I2C_Master_Write(uint8_t device, const uint8_t* data, uint32_t len)
 {
-    if(i2c_master_transmit(&hi2cx, device, (uint8_t*)data, len, 1000) != I2C_OK){
+    i2c_status_type res = i2c_master_transmit(&hi2cx, device, (uint8_t*)data, len, 1000);
+
+    if(res != I2C_OK){
+        printf("%s : Error %u\n", __func__, res);
         return 0;
     }
 
@@ -437,7 +450,10 @@ uint32_t I2C_Master_Write(uint8_t device, const uint8_t* data, uint32_t len)
 
 uint32_t I2C_Master_Read(uint8_t device, uint8_t* data, uint32_t len)
 {
-    if(i2c_master_receive(&hi2cx, device, data, len, 1000) != I2C_OK){
+    i2c_status_type res = i2c_master_receive(&hi2cx, device, data, len, 1000);
+
+    if(res != I2C_OK){
+        printf("%s : Error %u\n", __func__, res);
         return 0;
     }
 

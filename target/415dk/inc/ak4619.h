@@ -34,7 +34,40 @@
 #define AK4619_PWRMGM_PMAD1   16
 #define AK4619_PWRMGM_PMAD2   32
 
+#define AK4619_AUDFORM1_TDM   (1 << 2)
+#define AK4619_AUDFORM1_DSL24 (0 << 2)
+#define AK4619_AUDFORM1_DSL20 (1 << 2)
+#define AK4619_AUDFORM1_DSL16 (2 << 2)
+#define AK4619_AUDFORM1_DSL32 (3 << 2)
 
+#define AK4619_AUDFORM2_SLOT    (1 << 4)
+#define AK4619_AUDFORM2_DIDL24  (0 << 2)
+#define AK4619_AUDFORM2_DIDL20  (1 << 2)
+#define AK4619_AUDFORM2_DIDL16  (2 << 2)
+#define AK4619_AUDFORM2_DIDL32  (3 << 2)
+#define AK4619_AUDFORM2_DODL24  (0 << 0)
+#define AK4619_AUDFORM2_DODL20  (1 << 0)
+#define AK4619_AUDFORM2_DODL16  (2 << 0)
+
+#define AK4619_SYSCLKSET_256FS  (0 << 4)
+#define AK4619_SYSCLKSET_256FS_96K  (1 << 4)
+#define AK4619_SYSCLKSET_384FS  (2 << 4)
+#define AK4619_SYSCLKSET_512FS  (3 << 4)
+#define AK4619_SYSCLKSET_128FS  (4 << 4)
+
+#define AK4619_DACMUTFLT_DA1SL   (1 << 0)
+#define AK4619_DACMUTFLT_DA1SD   (1 << 1)
+#define AK4619_DACMUTFLT_DA2SL   (1 << 2)
+#define AK4619_DACMUTFLT_DA2SD   (1 << 3)
+#define AK4619_DACMUTFLT_DA1MUTE (1 << 4)
+#define AK4619_DACMUTFLT_DA2MUTE (1 << 5)
+#define AK4619_DACMUTFLT_ATTSPDA (1 << 7)
+
+// DAC multiplexer selections
+#define AK4619_SEL_SDIN1    0
+#define AK4619_SEL_SDIN2    1
+#define AK4619_SEL_SDOUT1   2
+#define AK4619_SEL_SDOUT2   3
 
 uint8_t ak4619_Init (void);
 uint8_t ak4619_Config (uint8_t DevID, uint8_t Mode);

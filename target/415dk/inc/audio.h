@@ -58,9 +58,11 @@ extern "C" {
 #define I2S2_DT_ADDRESS                  (&(SPI2->dt))
 
 #define SPK_TX_FIFO_SIZE                 (1024 * 4)
+#define CDC_MAX_VOL                      15
 
 enum {
-    CDC_NODEV = 0,
+    CDC_DEV_DAI = 0,
+    CDC_DEV_MCLK,
     CDC_DEV_ADC1,
     CDC_DEV_ADC2,
     CDC_DEV_ADC3,
@@ -70,10 +72,26 @@ enum {
     CDC_DEV_DAC2,
     CDC_DEV_DAC3,
     CDC_DEV_DAC4,
+    CDC_DEV_ALL
 };
 
 enum {
-    CDC_CFG_MCLK = 1
+    CDC_CFG_GET_MCLK = 1,
+    CDC_CFG_DAI_SLOT_16BIT,
+    CDC_CFG_DAI_SLOT_24BIT,
+    CDC_CFG_DAI_SLOT_32BIT,
+    CDC_CFG_DAI_WORD_16BIT,
+    CDC_CFG_DAI_ŴORD_24BIT,
+};
+
+enum {
+    CDC_MCLK_PLL = 0,
+    CDC_MCLK_32FS,
+    CDC_MCLK_48FS,
+    CDC_MCLK_64FS,
+    CDC_MCLK_128FS,
+    CDC_MCLK_256FS,
+    CDC_MCLK_512FS
 };
 
 

@@ -152,13 +152,14 @@ void audio_set_mic_volume(uint16_t volume)
 
 /**
   * @brief  audio codec set speaker volume
-  * @param  volume: the new volume
+  * @param  volume: the new volume [0-100]
   * @retval none
   */
 void audio_set_spk_volume(uint16_t volume)
 {
     printf("%s :%d\n", __func__, volume);
-    audio_driver.codec->Volume(0, (volume * 15) / 100);
+    //audio_driver.codec->Volume(CDC_DEV_DAC1, (volume * 15) / 100);
+    //audio_driver.codec->Volume(CDC_DEV_DAC2, (volume * 15) / 100);
 }
 
 
@@ -372,7 +373,7 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     i2s_default_para_init(&i2s_init_struct);
     i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
     i2s_init_struct.data_channel_format = format;
-    if(audio->codec->Config(CDC_NODEV, CDC_CFG_MCLK)){
+    if(audio->codec->Config(CDC_DEV_MCLK, CDC_CFG_GET_MCLK)){
         i2s_init_struct.mclk_output_enable = TRUE;
         gpio_init_struct.gpio_pins = I2S1_MCK_PIN;
         gpio_init_struct.gpio_mode = GPIO_MODE_MUX;
@@ -645,8 +646,9 @@ void DMA1_Channel3_IRQHandler(void)
         case 2:
         if (audio_driver.spk.wtotal >= audio_driver.spk.rtotal + SPK_BUFFER_SIZE)
         {
-            while (1)
-                ; // should not happen;
+            //while (1) ; // should not happen;
+            // TODO: Fix buffer overflow
+            audio_driver.mic.stage = 0;
         }
         if (audio_driver.spk.rtotal >= audio_driver.spk.wtotal)
         {
