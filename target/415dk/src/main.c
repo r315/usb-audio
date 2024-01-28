@@ -37,17 +37,9 @@
 //#include "tas2563.h"
 //#include "max98374.h"
 #include "ak4619.h"
+#include "amux.h"
 
-
-/* usb global struct define */
-void usb_clock48m_select(usb_clk48_s clk_s);
-void usb_gpio_config(void);
-void usb_low_power_wakeup_config(void);
-
-void serial_init(void);
-uint32_t serial_write(const uint8_t*, uint32_t);
-uint32_t serial_read(uint8_t*, uint32_t);
-
+#define MUX_I2C_ADDR 4
 
 static uint8_t user_button_state;
 static const audio_codec_t *codec;
@@ -58,6 +50,15 @@ static otg_core_type otg_core_struct;
 #ifdef __AUDIO_HID_CLASS_H
 ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
 #endif
+
+/* usb global struct define */
+void usb_clock48m_select(usb_clk48_s clk_s);
+void usb_gpio_config(void);
+void usb_low_power_wakeup_config(void);
+
+void serial_init(void);
+uint32_t serial_write(const uint8_t*, uint32_t);
+uint32_t serial_read(uint8_t*, uint32_t);
 
 #if ENABLE_CLI
 static int codecCmd(int argc, char **argv) 
@@ -157,6 +158,10 @@ static int audioCmd(int argc, char **argv)
         }
     }
     
+    if(!strcmp("disable", argv[0])){
+        audio_deinit();
+        usbd_disconnect(&otg_core_struct);
+    }
     return CLI_OK;
 }
 
@@ -166,6 +171,113 @@ static int resetCmd(int argc, char **argv)
     return CLI_OK;
 }
 
+static i2c_status_type readMux(i2c_handle_type *handle, uint32_t addr, uint8_t *buf, uint32_t count)
+{
+    if(i2c_master_transmit(handle, addr, buf, 1, 1000) == I2C_OK){
+        if(i2c_master_receive(handle, addr, buf, count, 1000) != I2C_OK){
+            printf("Failed to read");
+        }else{
+            for(int i = 0; i < count; i ++){
+                if( (i & 15) == 0) 
+                    printf("\n%02X: ", i & 0xF0);                
+                printf("%02X ", buf[i]);
+            }        
+        }
+        putchar('\n');
+        return I2C_OK;
+    }
+
+    printf("Failed to write reg address\n");
+
+    return I2C_ERR_ACKFAIL;   
+}
+
+
+static int muxCmd(int argc, char **argv)
+{
+    static uint8_t mux_addr = MUX_I2C_ADDR;
+    uint32_t count = 128;
+    uint32_t value;
+    uint8_t regs_buf[count] __attribute__ ((aligned (4)));
+
+    if( !strcmp("regs", argv[1])){
+        regs_buf[0] = 0;
+        if(readMux(&hi2cx, mux_addr, regs_buf, count) == I2C_OK)
+            return CLI_OK;
+    }
+
+    if( !strcmp("wr", argv[1])){
+        if(CLI_Ha2i(argv[2], &value)){
+            regs_buf[0] = value;
+            if(CLI_Ha2i(argv[3], &value)){
+                regs_buf[1] = value;
+                if(i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 2, 1000) == I2C_OK){
+                    return CLI_OK;
+                }
+            }
+        }
+    }
+
+    if( !strcmp("rr", argv[1])){
+        if(CLI_Ha2i(argv[2], (uint32_t*)&regs_buf)){
+            if(CLI_Ha2i(argv[3], &count)){
+                if(readMux(&hi2cx, mux_addr, regs_buf, count) == I2C_OK)
+                return CLI_OK;
+            }
+        }
+    }
+
+    /**
+     * mute <all, 0-31 1|0>
+    */
+    if(!strcmp("mute", argv[1])){
+        if(!strcmp("all", argv[2])){
+            regs_buf[0] = AMUX_CFG_REG;
+            regs_buf[1] = AMUX_CFG_MUTE_ALL;
+            i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 2, 1000);
+            return CLI_OK;
+        }
+
+        if(CLI_Ha2i(argv[2], &value)){
+            regs_buf[0] = (value & (AMUX_MAX_SLOTS - 1)) / 8;
+            if(i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 1, 1000) == I2C_OK){
+                if(i2c_master_receive(&hi2cx, mux_addr, &regs_buf[1], 1, 1000) == I2C_OK){
+                    if(argv[3][0] == '1')
+                        regs_buf[1] |= (1 << (value & 7));
+                    else
+                        regs_buf[1] &= ~(1 << (value & 7));
+                    if(i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 2, 1000) == I2C_OK){
+                        return CLI_OK;
+                    }
+                }
+            }
+        }
+    }
+
+    if( !strcmp("reset", argv[1])){
+        regs_buf[0] = AMUX_CFG_REG;
+        regs_buf[1] = AMUX_CFG_RESET;
+        i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 2, 1000);
+        return CLI_OK;
+    }
+
+    if( !strcmp("addr", argv[1])){
+        if(CLI_Ha2i(argv[2], &value)){
+            mux_addr = value;
+            return CLI_OK;
+        }
+    }
+
+    if( !strcmp("regs-count", argv[1])){
+        if(CLI_Ia2i(argv[2], (int32_t*)&value)){
+            count = value;
+            return CLI_OK;
+        }
+    }
+
+    return CLI_BAD_PARAM;
+}
+
 cli_command_t cli_cmds [] = {
     {"help", ((int (*)(int, char**))CLI_Commands)},
     //{"hid", hidCmd},
@@ -173,6 +285,8 @@ cli_command_t cli_cmds [] = {
     {"reset", resetCmd},
     {"mclk", audioCmd},
     {"freq", audioCmd},
+    {"disable", audioCmd},
+    {"mux", muxCmd},
 };
 #endif
 

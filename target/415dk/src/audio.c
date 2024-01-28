@@ -298,9 +298,10 @@ uint32_t audio_dequeue_data(uint8_t *buffer)
     }
 
     if (audio_driver.mic.wtotal <= audio_driver.mic.rtotal)
-    { // should not happen
-        while (1)
-            ;
+    {   
+        // while (1); // should not happen
+        // TODO: Fix buffer overflow
+        audio_driver.mic.stage = 0;
     }
     audio_driver.mic.rtotal += len / 2;
     audio_driver.mic.delta += len / 2;
@@ -600,6 +601,30 @@ audio_status_t audio_init(const audio_codec_t *codec)
 }
 
 /**
+  * @brief  audio codec init
+  * @param  none
+  * @retval error status
+  */
+audio_status_t audio_deinit(void)
+{
+    gpio_init_type gpio_init_struct;
+    bus_i2s_reset();
+    spi_i2s_reset(SPI1);
+    spi_i2s_reset(SPI2);
+
+    gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MODERATE;
+    gpio_init_struct.gpio_mode = GPIO_MODE_INPUT;
+    gpio_init_struct.gpio_pull = GPIO_PULL_NONE;
+    gpio_init_struct.gpio_pins = I2S1_WS_PIN | I2S1_SD_PIN | I2S1_CK_PIN;
+    gpio_init(I2S1_GPIO, &gpio_init_struct);
+
+    gpio_init_struct.gpio_pins = I2S2_WS_PIN | I2S2_SD_PIN | I2S2_CK_PIN;
+    gpio_init(I2S2_GPIO, &gpio_init_struct);
+    
+    return AUDIO_OK;
+}
+
+/**
   * @brief  audio codec loop
   * @param  none
   * @retval none
@@ -648,7 +673,7 @@ void DMA1_Channel3_IRQHandler(void)
         {
             //while (1) ; // should not happen;
             // TODO: Fix buffer overflow
-            audio_driver.mic.stage = 0;
+            audio_driver.spk.stage = 0;
         }
         if (audio_driver.spk.rtotal >= audio_driver.spk.wtotal)
         {
