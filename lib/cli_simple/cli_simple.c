@@ -461,10 +461,13 @@ cli_result_t CLI_HandleLine (void)
 
    CliArgc = CLI_GetArguments(CliLineBuffer, CliArgv);
 
-   const cli_command_t *Cmd = CLI_GetCommand(CliArgv[0]);
-
-   if(Cmd != NULL){
-      Res = Cmd->exec(CliArgc, (char**)CliArgv);
+   if(CliArgc > CLI_CMD_MAX_ARGS){
+      Res = CLI_BAD_PARAM;
+   }else{
+      const cli_command_t *Cmd = CLI_GetCommand(CliArgv[0]);
+      if(Cmd != NULL){
+         Res = Cmd->exec(CliArgc, (char**)CliArgv);
+      }
    }
 
    switch(Res){
