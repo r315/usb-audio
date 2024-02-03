@@ -82,6 +82,8 @@ enum {
     CDC_CFG_DAI_SLOT_32BIT,
     CDC_CFG_DAI_WORD_16BIT,
     CDC_CFG_DAI_ŴORD_24BIT,
+    CDC_CFG_DAI_I2S,
+    CDC_CFG_DAI_TDM,
 };
 
 enum {

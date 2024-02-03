@@ -63,6 +63,18 @@ uint32_t serial_read(uint8_t*, uint32_t);
 #if ENABLE_CLI
 static int codecCmd(int argc, char **argv) 
 {
+    if( !strcmp("help", argv[1])){
+        printf("\tvol\n");
+        printf("\trr <reg>\n");
+        printf("\twr <reg> <val>\n");
+        printf("\tinit\n");
+        printf("\tenable\n");
+        printf("\tdisable\n");
+        printf("\ttdm\n");
+        printf("\ti2s\n");
+        printf("\tscan\n");
+        return CLI_OK;
+    }
     if( !strcmp("vol", argv[1])){
         int32_t val;
         if(CLI_Ia2i(argv[2], &val)){
@@ -102,6 +114,16 @@ static int codecCmd(int argc, char **argv)
 
     if( !strcmp("disable", argv[1])){
         codec->Disable(); 
+        return CLI_OK;
+    }
+
+    if( !strcmp("tdm", argv[1])){
+        codec->Config(CDC_DEV_DAI, CDC_CFG_DAI_TDM);
+        return CLI_OK;
+    }
+
+    if( !strcmp("i2s", argv[1])){
+        codec->Config(CDC_DEV_DAI, CDC_CFG_DAI_I2S);
         return CLI_OK;
     }
 
@@ -160,7 +182,7 @@ static int audioCmd(int argc, char **argv)
     
     if(!strcmp("disable", argv[0])){
         audio_deinit();
-        usbd_disconnect(&otg_core_struct);
+        usbd_disconnect(&otg_core_struct.dev);
     }
     return CLI_OK;
 }

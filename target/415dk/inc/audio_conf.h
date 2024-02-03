@@ -57,16 +57,15 @@ extern "C" {
 #define AUDIO_BITW_16                    16
 #define AUDIO_BITW_32                    32
 
-#define AUDIO_MIC_CHANEL_NUM            2
-#define AUDIO_MIC_DEFAULT_BITW          AUDIO_BITW_16
-
-#define AUDIO_SPK_CHANEL_NUM            2
-#define AUDIO_SPK_DEFAULT_BITW          AUDIO_BITW_16
-
-
 #define AUDIO_SUPPORT_MAX_FREQ           (AUDIO_SUPPORT_FREQ_48K ? 48 : 16)
 #define AUDIO_DEFAULT_FREQ               AT32_AUDIO_FREQ_16K
 #define AUDIO_DEFAULT_BITW               AUDIO_BITW_16
+
+#define AUDIO_MIC_CHANEL_NUM            2
+#define AUDIO_MIC_DEFAULT_BITW          AUDIO_DEFAULT_BITW
+
+#define AUDIO_SPK_CHANEL_NUM            2
+#define AUDIO_SPK_DEFAULT_BITW          AUDIO_DEFAULT_BITW
 
 #define AUDIO_MODE_MASTER               0
 #define AUDIO_MODE_SLAVE                1

@@ -92,6 +92,22 @@ uint8_t ak4619_Config (uint8_t DevID, uint8_t Cfg)
                 case CDC_CFG_DAI_SLOT_16BIT:
                 case CDC_CFG_DAI_SLOT_24BIT:
                 case CDC_CFG_DAI_SLOT_32BIT:
+                case CDC_CFG_DAI_I2S:
+                    ak4619_write_reg(AK4619_AUDFORM1_REG, AK4619_AUDFORM1_DSL16);
+                    ak4619_write_reg(AK4619_AUDFORM2_REG, AK4619_AUDFORM2_DODL16 | AK4619_AUDFORM2_DIDL16);
+                    break;
+
+                case CDC_CFG_DAI_TDM:
+                    ak4619_write_reg(AK4619_AUDFORM1_REG, 
+                                    AK4619_AUDFORM1_TDM | 
+                                    AK4619_AUDFORM1_DCF_TDM_MSB |
+                                    AK4619_AUDFORM1_DSL16);
+
+                    ak4619_write_reg(AK4619_AUDFORM2_REG,
+                                    AK4619_AUDFORM2_SLOT | 
+                                    AK4619_AUDFORM2_DODL16 | 
+                                    AK4619_AUDFORM2_DIDL16);
+                    break;
                 default: break;
             }
             break;
@@ -111,6 +127,8 @@ uint8_t ak4619_Config (uint8_t DevID, uint8_t Cfg)
 
         case CDC_DEV_MCLK:
             return CDC_MCLK_256FS;
+
+       
     }
 
     return 0;

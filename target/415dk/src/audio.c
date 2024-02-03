@@ -338,7 +338,7 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     if(audio->bitw == AUDIO_BITW_16){
         format = I2S_DATA_16BIT_CHANNEL_32BIT;
     }else if(audio->bitw == AUDIO_BITW_32){    
-        format = I2S_DATA_24BIT_CHANNEL_32BIT;
+        format = I2S_DATA_32BIT_CHANNEL_32BIT;
     }else{
         return AUDIO_ERROR_BITW;
     }
@@ -372,8 +372,11 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     /* Config TX I2S1 */
     spi_i2s_reset(SPI1);
     i2s_default_para_init(&i2s_init_struct);
-    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
-    i2s_init_struct.data_channel_format = format;
+    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
+    i2s_init_struct.data_channel_format = format;    
+    i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
+    i2s_init_struct.clock_polarity = I2S_CLOCK_POLARITY_LOW;
+    i2s_init_struct.operation_mode = (audio->mode == AUDIO_MODE_MASTER) ? I2S_MODE_MASTER_TX : I2S_MODE_SLAVE_TX;
     if(audio->codec->Config(CDC_DEV_MCLK, CDC_CFG_GET_MCLK)){
         i2s_init_struct.mclk_output_enable = TRUE;
         gpio_init_struct.gpio_pins = I2S1_MCK_PIN;
@@ -384,15 +387,12 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     }else{
         i2s_init_struct.mclk_output_enable = FALSE;
     }
-    i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
-    i2s_init_struct.clock_polarity = I2S_CLOCK_POLARITY_LOW;
-    i2s_init_struct.operation_mode = (audio->mode == AUDIO_MODE_MASTER) ? I2S_MODE_MASTER_TX : I2S_MODE_SLAVE_TX;
     i2s_init(SPI1, &i2s_init_struct);
 
     /* Config RX I2S2 */
     spi_i2s_reset(SPI2);
     i2s_default_para_init(&i2s_init_struct);
-    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
+    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
     i2s_init_struct.data_channel_format = format;
     i2s_init_struct.mclk_output_enable = FALSE;
     i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
