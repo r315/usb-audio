@@ -184,7 +184,8 @@ PRG_CMD = openocd -f at32f415.cfg -c "program $(BUILD_DIR)/$(TARGET).elf verify 
 else
 JLK =jlink
 PRG_CFG = $(TARGET).jlink
-PRG_CMD = $(VERBOSE)$(JLK) -device CORTEX-M4 -if SWD -speed auto -CommanderScript $<
+PRG_CMD = $(VERBOSE)$(JLK) -device $(DEVICE) -if SWD -speed auto -CommanderScript $(BUILD_DIR)/$(PRG_CFG)
+#-device CORTEX-M4
 endif
 
 #######################################
@@ -201,7 +202,7 @@ program: all $(BUILD_DIR)/$(PRG_CFG)
 
 $(BUILD_DIR)/$(TARGET).jlink: $(BUILD_DIR)/$(TARGET).bin
 	@echo "Creating Jlink configuration file"
-	@echo "loadfile $< 0x00000000" > $@
+	@echo "loadfile $< 0x08000000" > $@
 	@echo "r" >> $@
 	@echo "q" >> $@
 #######################################

@@ -31,7 +31,7 @@
 #include "audio_desc.h"
 
 #define MIC_BUFFER_SIZE   1024
-#define SPK_BUFFER_SIZE   8192
+#define SPK_BUFFER_SIZE   1024
 #define DMA_BUFFER_SIZE   288
 
 static audio_driver_t audio_driver;
@@ -44,7 +44,7 @@ static void bus_i2s_reset(void);
 static audio_status_t bus_i2s_init(audio_driver_t *audio);
 
 static uint8_t dummy_Init (void){ return 1; }
-static uint8_t    dummy_Config (uint8_t DevID, uint8_t Mode) {return 0;}
+static uint8_t dummy_Config (uint8_t DevID, uint8_t Mode) {return 0;}
 static void    dummy_SampleRate (uint32_t Rate){}
 static void    dummy_Enable (void) {}
 static void    dummy_Disable (void) {}
@@ -269,6 +269,7 @@ uint32_t audio_dequeue_data(uint8_t *buffer)
         }
         return len;
     }
+
     switch (audio_driver.mic.adj_stage)
     {
         case 0:
@@ -303,6 +304,7 @@ uint32_t audio_dequeue_data(uint8_t *buffer)
         // TODO: Fix buffer overflow
         audio_driver.mic.stage = 0;
     }
+
     audio_driver.mic.rtotal += len / 2;
     audio_driver.mic.delta += len / 2;
 
@@ -635,7 +637,8 @@ audio_status_t audio_loop(void)
 }
 
 /**
- * @brief  this function handles dma1 channel3 interrupt.
+ * @brief  This dma handler is called when block of data was transferred
+ * from memory to I2S peripheral.
  * @param  none
  * @retval none
  */
@@ -778,6 +781,7 @@ void DMA1_Channel4_IRQHandler(void)
                     audio_driver.mic.wtotal -= 0x80000000;
                 }
             }
+            
             if (audio_driver.mic.wtotal >= audio_driver.mic.rtotal + MIC_BUFFER_SIZE)
             {
                 audio_driver.mic.delta = audio_driver.mic.wtotal = audio_driver.mic.rtotal = 0;
