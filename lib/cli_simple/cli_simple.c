@@ -481,6 +481,10 @@ cli_result_t CLI_HandleLine (void)
       case CLI_BAD_PARAM:
          puts("Invalid parameter");
          break;
+
+      case CLI_MISSING_ARGS:
+         puts("Missing parameter");
+         break;
       
       default:
          break;

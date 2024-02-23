@@ -16,6 +16,7 @@ typedef enum cli_result_e
    CLI_OK = 0,
    CLI_LINE_READ,
    CLI_BAD_PARAM,
+   CLI_MISSING_ARGS,
    CLI_EXIT,
    CLI_CMD_NOT_FOUND
 }cli_result_t;
