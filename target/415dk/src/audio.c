@@ -374,7 +374,8 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     /* Config TX I2S1 */
     spi_i2s_reset(SPI1);
     i2s_default_para_init(&i2s_init_struct);
-    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
+    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
+    //i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
     i2s_init_struct.data_channel_format = format;    
     i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
     i2s_init_struct.clock_polarity = I2S_CLOCK_POLARITY_LOW;
@@ -394,7 +395,8 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     /* Config RX I2S2 */
     spi_i2s_reset(SPI2);
     i2s_default_para_init(&i2s_init_struct);
-    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
+    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
+    //i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
     i2s_init_struct.data_channel_format = format;
     i2s_init_struct.mclk_output_enable = FALSE;
     i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;

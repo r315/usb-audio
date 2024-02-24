@@ -74,7 +74,7 @@ uint8_t ak4619_Init (void){
     }
 
     // 16bit slot and 16bit word DAI default
-    ak4619_write_reg(AK4619_AUDFORM1_REG, AK4619_AUDFORM1_DSL16);
+    ak4619_write_reg(AK4619_AUDFORM1_REG, AK4619_AUDFORM1_DSL16 | AK4619_AUDFORM1_DCF_I2S_MSB);
     ak4619_write_reg(AK4619_AUDFORM2_REG, AK4619_AUDFORM2_DIDL16 | AK4619_AUDFORM2_DODL16);
     
     // Default MCLK = 256FS
