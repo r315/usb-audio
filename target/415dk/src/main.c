@@ -193,6 +193,9 @@ static int resetCmd(int argc, char **argv)
     return CLI_OK;
 }
 
+/**
+ * Note: Index of register to be read is sent on buf[0]
+*/
 static i2c_status_type readMux(i2c_handle_type *handle, uint32_t addr, uint8_t *buf, uint32_t count)
 {
     if(i2c_master_transmit(handle, addr, buf, 1, 1000) == I2C_OK){
@@ -214,6 +217,26 @@ static i2c_status_type readMux(i2c_handle_type *handle, uint32_t addr, uint8_t *
     return I2C_ERR_ACKFAIL;   
 }
 
+/**
+ * Parse slot name in format "cxsy"
+ * x 1-8
+ * y 1-4
+ * 
+ * return slot index 0-31
+*/
+static uint8_t parseSlot(char *name)
+{
+    uint8_t channel;
+    uint8_t slot;
+
+    channel = name[1] - '0' - 1;
+    slot = name[3] - '0' - 1;
+
+    channel &= 7;
+    slot &= 3;
+    
+    return (channel << 2) + slot;
+}
 
 static int muxCmd(int argc, char **argv)
 {
@@ -221,6 +244,16 @@ static int muxCmd(int argc, char **argv)
     uint32_t count = 128;
     uint32_t value;
     uint8_t regs_buf[count] __attribute__ ((aligned (4)));
+
+    if( !strcmp("help", argv[1])){
+        printf("\tregs\n");
+        printf("\trr <reg>\n");
+        printf("\twr <reg> <val>\n");
+        printf("\tmute <all | name> <1|0>, Name cxsy\n");
+        printf("\treset\n");        
+        printf("\troute <in name> <out name> <1|0>\n");
+        return CLI_OK;
+    }
 
     if( !strcmp("regs", argv[1])){
         regs_buf[0] = 0;
@@ -250,7 +283,7 @@ static int muxCmd(int argc, char **argv)
     }
 
     /**
-     * mute <all, 0-31 1|0>
+     * mute <all, cxsy 1|0>
     */
     if(!strcmp("mute", argv[1])){
         if(!strcmp("all", argv[2])){
@@ -260,20 +293,20 @@ static int muxCmd(int argc, char **argv)
             return CLI_OK;
         }
 
-        if(CLI_Ha2i(argv[2], &value)){
-            regs_buf[0] = (value & (AMUX_MAX_SLOTS - 1)) / 8;
-            if(i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 1, 1000) == I2C_OK){
-                if(i2c_master_receive(&hi2cx, mux_addr, &regs_buf[1], 1, 1000) == I2C_OK){
-                    if(argv[3][0] == '1')
-                        regs_buf[1] |= (1 << (value & 7));
-                    else
-                        regs_buf[1] &= ~(1 << (value & 7));
-                    if(i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 2, 1000) == I2C_OK){
-                        return CLI_OK;
-                    }
+        uint8_t slot = parseSlot(argv[2]);
+
+        regs_buf[0] = slot / 8;
+        if(i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 1, 1000) == I2C_OK){
+            if(i2c_master_receive(&hi2cx, mux_addr, &regs_buf[1], 1, 1000) == I2C_OK){
+                if(argv[3][0] == '1')
+                    regs_buf[1] |= (1 << (slot & 7));
+                else
+                    regs_buf[1] &= ~(1 << (slot & 7));
+                if(i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 2, 1000) == I2C_OK){
+                    return CLI_OK;
                 }
             }
-        }
+        }    
     }
 
     if( !strcmp("reset", argv[1])){
@@ -290,11 +323,36 @@ static int muxCmd(int argc, char **argv)
         }
     }
 
-    if( !strcmp("regs-count", argv[1])){
-        if(CLI_Ia2i(argv[2], (int32_t*)&value)){
-            count = value;
-            return CLI_OK;
+    /**
+     * route <cxsy> <cxsy> 1|0
+    */
+    if( !strcmp("route", argv[1])){
+
+        if(argc < 5){
+            return CLI_MISSING_ARGS;
         }
+
+        uint8_t in_slot = parseSlot(argv[2]);
+        uint8_t out_slot = parseSlot(argv[3]);
+        CLI_Ha2i(argv[4], &value);
+
+        uint8_t reg_offset = (in_slot << 2) + (out_slot >> 3);
+        reg_offset += 0x10;
+        regs_buf[0] = reg_offset;
+
+        readMux(&hi2cx, mux_addr, regs_buf, 1);
+
+        if(value){
+            regs_buf[1] = regs_buf[0] | (1 << (out_slot & 7));
+        }else{
+            regs_buf[1] = regs_buf[0] & ~(1 << (out_slot & 7));
+        }
+
+        regs_buf[0] = reg_offset;
+
+        i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 2, 1000);
+
+        return CLI_OK;
     }
 
     return CLI_BAD_PARAM;
