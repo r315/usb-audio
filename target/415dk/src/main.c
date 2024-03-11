@@ -39,7 +39,7 @@
 #include "ak4619.h"
 #include "amux.h"
 
-#define MUX_I2C_ADDR 4
+#define MUX_I2C_ADDR (0x14 << 1)
 
 static uint8_t user_button_state;
 static const audio_codec_t *codec;
@@ -141,7 +141,7 @@ static int codecCmd(int argc, char **argv)
                 printf("\n%02X ", i & 0xF0);
             
             if(i2c_master_transmit(&hi2cx, (i << 1), &dummy, 1, 1000) == I2C_OK){
-                printf("%02X ", i << 1); // print 8bit address
+                printf("%02X ", i);
             }else{
                 printf("-- ");
             }
