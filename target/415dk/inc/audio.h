@@ -96,6 +96,19 @@ enum {
     CDC_MCLK_512FS
 };
 
+enum {
+    CDC_SR_8K = 8000,
+    CDC_SR_16K = 16000,
+    CDC_SR_22K = 22000,
+    CDC_SR_24K = 24000,
+    CDC_SR_32K = 32000,
+    CDC_SR_44K = 44000,
+    CDC_SR_48K = 48000,
+    CDC_SR_88K = 88000,
+    CDC_SR_96K = 96000,
+    CDC_SR_192K = 192000
+};
+
 
 typedef struct audio_channel_s 
 {

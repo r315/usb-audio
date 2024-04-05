@@ -34,12 +34,21 @@
 #include "audio.h"
 #include "cli_simple.h"
 #include "i2c_application.h"
-//#include "tas2563.h"
+#include "tas2563.h"
 //#include "max98374.h"
 #include "ak4619.h"
 #include "amux.h"
 
-#define MUX_I2C_ADDR (0x14 << 1)
+typedef struct {
+    const char *name;
+    const audio_codec_t *cdc;
+}cdc_list_t;
+
+static const cdc_list_t codecs [] = {
+    {"null", NULL},
+    {"ak4619", &ak4619},
+    {"tas2563", &tas2563}
+};
 
 static uint8_t user_button_state;
 static const audio_codec_t *codec;
@@ -73,6 +82,7 @@ static int codecCmd(int argc, char **argv)
         printf("\ttdm\n");
         printf("\ti2s\n");
         printf("\tscan\n");
+        printf("\tselect\n");
         return CLI_OK;
     }
     if( !strcmp("vol", argv[1])){
@@ -153,6 +163,22 @@ static int codecCmd(int argc, char **argv)
         return CLI_OK;
     }
 
+    if( !strcmp("select", argv[1])){
+        if(argc < 3){
+            printf("Available codecs:\n");
+            for(uint8_t i = 0; i < sizeof(codecs)/sizeof(cdc_list_t); i++){
+                printf("\t%s %c\n", codecs[i].name, (codecs[i].cdc == codec) ? '*' : ' ');
+            }
+        }else{            
+            for(uint8_t idx = 0; idx < sizeof(codecs)/sizeof(cdc_list_t); idx++){
+                if(!strcmp(codecs[idx].name, argv[2])){
+                    codec = codecs[idx].cdc;
+                }
+            }
+        }
+        return CLI_OK;
+    }
+
     return CLI_BAD_PARAM;
 }
 
@@ -217,31 +243,10 @@ static i2c_status_type readMux(i2c_handle_type *handle, uint32_t addr, uint8_t *
     return I2C_ERR_ACKFAIL;   
 }
 
-/**
- * Parse slot name in format "cxsy"
- * x 1-8
- * y 1-4
- * 
- * return slot index 0-31
-*/
-static uint8_t parseSlot(char *name)
-{
-    uint8_t channel;
-    uint8_t slot;
-
-    channel = name[1] - '0' - 1;
-    slot = name[3] - '0' - 1;
-
-    channel &= 7;
-    slot &= 3;
-    
-    return (channel << 2) + slot;
-}
-
 static int muxCmd(int argc, char **argv)
 {
-    static uint8_t mux_addr = MUX_I2C_ADDR;
-    uint32_t count = 128;
+    static uint8_t mux_addr = AMUX_I2C_ADDR;
+    uint32_t count = 16 + 128;
     uint32_t value;
     uint8_t regs_buf[count] __attribute__ ((aligned (4)));
 
@@ -287,32 +292,16 @@ static int muxCmd(int argc, char **argv)
     */
     if(!strcmp("mute", argv[1])){
         if(!strcmp("all", argv[2])){
-            regs_buf[0] = AMUX_CFG_REG;
-            regs_buf[1] = AMUX_CFG_MUTE_ALL;
-            i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 2, 1000);
+            amux_MuteAll();
             return CLI_OK;
         }
 
-        uint8_t slot = parseSlot(argv[2]);
-
-        regs_buf[0] = slot / 8;
-        if(i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 1, 1000) == I2C_OK){
-            if(i2c_master_receive(&hi2cx, mux_addr, &regs_buf[1], 1, 1000) == I2C_OK){
-                if(argv[3][0] == '1')
-                    regs_buf[1] |= (1 << (slot & 7));
-                else
-                    regs_buf[1] &= ~(1 << (slot & 7));
-                if(i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 2, 1000) == I2C_OK){
-                    return CLI_OK;
-                }
-            }
-        }    
+        amux_Mute(argv[2][1] - '0', argv[2][3] - '0', argv[3][0] - '0');
+        return CLI_OK;
     }
 
-    if( !strcmp("reset", argv[1])){
-        regs_buf[0] = AMUX_CFG_REG;
-        regs_buf[1] = AMUX_CFG_RESET;
-        i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 2, 1000);
+    if( !strcmp("init", argv[1])){
+        amux_Init();
         return CLI_OK;
     }
 
@@ -330,27 +319,11 @@ static int muxCmd(int argc, char **argv)
 
         if(argc < 5){
             return CLI_MISSING_ARGS;
-        }
+        }        
 
-        uint8_t in_slot = parseSlot(argv[2]);
-        uint8_t out_slot = parseSlot(argv[3]);
-        CLI_Ha2i(argv[4], &value);
-
-        uint8_t reg_offset = (in_slot << 2) + (out_slot >> 3);
-        reg_offset += 0x10;
-        regs_buf[0] = reg_offset;
-
-        readMux(&hi2cx, mux_addr, regs_buf, 1);
-
-        if(value){
-            regs_buf[1] = regs_buf[0] | (1 << (out_slot & 7));
-        }else{
-            regs_buf[1] = regs_buf[0] & ~(1 << (out_slot & 7));
-        }
-
-        regs_buf[0] = reg_offset;
-
-        i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 2, 1000);
+        amux_Route(argv[2][1] - '0', argv[2][3] - '0', 
+                   argv[3][1] - '0', argv[3][3] - '0', 
+                  (argv[4][0] == '1') ? 1 : 0);
 
         return CLI_OK;
     }
@@ -405,10 +378,8 @@ int main(void)
   i2c_config(&hi2cx);
 
   /* audio init */
-  codec = &ak4619;
-  //codec = &max98374;
-  //codec = &tas2563;
-  //codec = NULL;
+  
+  codec = NULL;
   printf("%d\n", audio_init(codec));
 
   user_button_state = 0;

@@ -33,6 +33,9 @@ $(CMSIS_PATH)/Device/ARTERY/AT32F4xx/inc \
 $(LIB_PATH)/usb-at/usb_drivers/inc \
 $(LIB_PATH)/usb-at/usbd_class/audio \
 $(LIB_PATH)/cli_simple \
+$(DRIVERS_PATH)/ak4619 \
+$(DRIVERS_PATH)/tas2563 \
+$(DRIVERS_PATH)/amux \
 
 AS_INCLUDES =\
 
@@ -67,7 +70,9 @@ $(TARGET_PATH)/src/at32f415_clock.c \
 $(TARGET_PATH)/src/i2c_application.c \
 $(TARGET_PATH)/src/main.c \
 $(TARGET_PATH)/src/audio.c \
-$(TARGET_PATH)/src/ak4619.c \
+$(DRIVERS_PATH)/ak4619/ak4619.c \
+$(DRIVERS_PATH)/tas2563/tas2563.c \
+$(DRIVERS_PATH)/amux/amux.c \
 
 
 CPP_SOURCES = \

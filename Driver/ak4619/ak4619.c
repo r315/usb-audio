@@ -28,8 +28,11 @@ const audio_codec_t ak4619 = {
 
 static uint8_t ak4619_write_reg(uint16_t reg, uint8_t value)
 {
-    reg = (value << 8 ) | reg;
-    return I2C_Master_Write(AK4619_ADDR, (const uint8_t*)&reg, 2);
+    uint8_t data[2];
+    data[0] = reg;
+    data[1] = value;
+
+    return I2C_Master_Write(AK4619_ADDR, (const uint8_t*)&data, 2);
 }
 
 static uint8_t ak4619_read_reg(uint16_t reg, uint8_t *value)
