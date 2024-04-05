@@ -85,6 +85,28 @@ static int codecCmd(int argc, char **argv)
         printf("\tselect\n");
         return CLI_OK;
     }
+
+    if( !strcmp("select", argv[1])){
+        if(argc < 3){
+            printf("Available codecs:\n");
+            for(uint8_t i = 0; i < sizeof(codecs)/sizeof(cdc_list_t); i++){
+                printf("\t%s %c\n", codecs[i].name, (codecs[i].cdc == codec) ? '*' : ' ');
+            }
+        }else{            
+            for(uint8_t idx = 0; idx < sizeof(codecs)/sizeof(cdc_list_t); idx++){
+                if(!strcmp(codecs[idx].name, argv[2])){
+                    codec = codecs[idx].cdc;
+                }
+            }
+        }
+        return CLI_OK;
+    }
+
+    if(codec == NULL){
+        printf("No codec selected\n");
+        return CLI_OK;
+    }
+
     if( !strcmp("vol", argv[1])){
         int32_t val;
         if(CLI_Ia2i(argv[2], &val)){
@@ -113,7 +135,8 @@ static int codecCmd(int argc, char **argv)
     }
 
     if( !strcmp("init", argv[1])){
-        printf("%d\n", codec->Init());   
+        audio_deinit();
+        printf("%d\n", audio_init(codec));
         return CLI_OK;
     }
 
@@ -160,22 +183,6 @@ static int codecCmd(int argc, char **argv)
         }
         putchar('\n');
 
-        return CLI_OK;
-    }
-
-    if( !strcmp("select", argv[1])){
-        if(argc < 3){
-            printf("Available codecs:\n");
-            for(uint8_t i = 0; i < sizeof(codecs)/sizeof(cdc_list_t); i++){
-                printf("\t%s %c\n", codecs[i].name, (codecs[i].cdc == codec) ? '*' : ' ');
-            }
-        }else{            
-            for(uint8_t idx = 0; idx < sizeof(codecs)/sizeof(cdc_list_t); idx++){
-                if(!strcmp(codecs[idx].name, argv[2])){
-                    codec = codecs[idx].cdc;
-                }
-            }
-        }
         return CLI_OK;
     }
 

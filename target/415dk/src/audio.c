@@ -577,11 +577,14 @@ void audio_cfg_mclk(uint32_t freq, uint32_t enable)
 audio_status_t audio_init(const audio_codec_t *codec)
 {
     audio_status_t res;
-    audio_driver.codec = (codec != NULL) ? codec : &dummy_codec;
 
-    audio_driver.freq = AUDIO_DEFAULT_FREQ;
-    audio_driver.bitw = AUDIO_DEFAULT_BITW;
-    audio_driver.mode = AUDIO_DEFAULT_MODE;
+    if(audio_driver.codec == NULL){
+        audio_driver.freq = AUDIO_DEFAULT_FREQ;
+        audio_driver.bitw = AUDIO_DEFAULT_BITW;
+        audio_driver.mode = AUDIO_DEFAULT_MODE;
+    }
+
+    audio_driver.codec = (codec != NULL) ? codec : &dummy_codec;
 
     memset16(spk_buffer, 0, SPK_BUFFER_SIZE);
     memset16(mic_buffer, 0, MIC_BUFFER_SIZE);
