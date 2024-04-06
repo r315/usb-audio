@@ -183,12 +183,12 @@ void ak4619_Disable (void)
 
 static void ak4619_dac_volume(uint8_t reg, uint8_t Volume)
 {
-    if(Volume > CDC_MAX_VOL)
+    if(Volume > 100)
     {
         return;
     }
 
-    Volume = (Volume * 255) / CDC_MAX_VOL;
+    Volume = (Volume * 255) / 100;
 
     ak4619_write_reg(reg, 0xFF - Volume);
 }
@@ -204,6 +204,7 @@ static void ak4619_adc_gain(uint8_t reg, uint8_t Volume)
 
     ak4619_write_reg(reg, Volume);
 }
+
 
 void ak4619_Volume (uint8_t DevID, uint8_t Volume)
 {

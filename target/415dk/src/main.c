@@ -386,7 +386,7 @@ int main(void)
 
   /* audio init */
   
-  codec = NULL;
+  codec = &ak4619; //NULL;
   printf("%d\n", audio_init(codec));
 
   user_button_state = 0;

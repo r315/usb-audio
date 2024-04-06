@@ -158,8 +158,8 @@ void audio_set_mic_volume(uint16_t volume)
 void audio_set_spk_volume(uint16_t volume)
 {
     printf("%s :%d\n", __func__, volume);
-    //audio_driver.codec->Volume(CDC_DEV_DAC1, (volume * 15) / 100);
-    //audio_driver.codec->Volume(CDC_DEV_DAC2, (volume * 15) / 100);
+    audio_driver.codec->Volume(CDC_DEV_DAC1, volume);
+    audio_driver.codec->Volume(CDC_DEV_DAC2, volume);
 }
 
 
