@@ -15,7 +15,7 @@
 
 #define AMUX_MAX_SLOTS          32
 
-#define AMUX_GET_SLOT(cx,sy)    (((cx & 7) << 2) + (sy & 3))
+#define AMUX_GET_SLOT(cx,sy)    ((((cx) & 7) << 2) + ((sy) & 3))
 
 uint8_t amux_Init(void);
 uint8_t amux_Route(uint8_t src_ch, uint8_t src_sl, uint8_t dst_ch, uint8_t dst_sl, uint8_t en);
