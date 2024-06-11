@@ -14,11 +14,13 @@ extern "C" {
 typedef enum cli_result_e
 {
    CLI_OK = 0,
+   CLI_OK_LF,
    CLI_LINE_READ,
+   CLI_CMD_NOT_FOUND,
    CLI_BAD_PARAM,
    CLI_MISSING_ARGS,
-   CLI_EXIT,
-   CLI_CMD_NOT_FOUND
+   CLI_ERROR,
+   CLI_EXIT
 }cli_result_t;
 
 typedef int (*cli_func) (int argc, char **argv);
@@ -38,8 +40,9 @@ typedef struct cli_history_s
 }cli_history_t;
 
 void CLI_Init (const char *prompt);
-cli_result_t CLI_HandleLine (void);
 cli_result_t CLI_ReadLine (void);
+cli_result_t CLI_HandleLine (void);
+cli_result_t CLI_ProcessLine (uint8_t *line);
 void CLI_RegisterCommand (const cli_command_t *Commands, uint8_t Count);
 int CLI_Commands(void);
 int CLI_History(void);
