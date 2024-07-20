@@ -32,7 +32,7 @@ $(CMSIS_PATH)/Core/Include \
 $(CMSIS_PATH)/Device/ARTERY/AT32F4xx/inc \
 $(LIB_PATH)/usb-at/usb_drivers/inc \
 $(LIB_PATH)/usb-at/usbd_class/audio \
-$(LIB_PATH)/cli_simple \
+$(LIB_PATH)/cli-simple \
 $(DRIVERS_PATH)/ak4619 \
 $(DRIVERS_PATH)/tas2563 \
 $(DRIVERS_PATH)/amux \
@@ -97,8 +97,8 @@ endif
 ifeq ($(FEATURE_CLI),yes)
 C_DEFS +=ENABLE_CLI
 C_SOURCES +=$(TARGET_PATH)/src/415dk_serial.c \
-$(LIB_PATH)/cli_simple/cli_simple.c \
-$(LIB_PATH)/cli_simple/syscalls.c 
+$(LIB_PATH)/cli-simple/cli_simple.c \
+$(LIB_PATH)/cli-simple/syscalls.c 
 endif
 
 #######################################

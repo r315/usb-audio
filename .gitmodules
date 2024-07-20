@@ -1,0 +1,3 @@
+[submodule "lib/cli-simple"]
+	path = lib/cli-simple
+	url = https://github.com/r315/cli-simple.git
