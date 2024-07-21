@@ -60,6 +60,11 @@ void BOARD_LCD_Init(void);
 uint32_t I2C_Master_Write(uint8_t, const uint8_t*, uint32_t);
 uint32_t I2C_Master_Read(uint8_t, uint8_t*, uint32_t);
 
+void serial_init(void);
+uint32_t serial_available(void);
+uint32_t serial_read(uint8_t *data, uint32_t len);
+uint32_t serial_write(const uint8_t *buf, uint32_t len);
+
 #ifdef __cplusplus
 }
 #endif

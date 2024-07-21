@@ -1,5 +1,13 @@
 #include <sys/times.h>
 #include "board.h"
+#include "cli_simple.h"
+
+static stdout_ops_t stdout_ops_serial = {
+    .init = serial_init,
+    .available = serial_available,
+    .read = serial_read,
+    .write = serial_write
+};
 
 #if (USE_TIMER_SYSTICK == 1)
 #else
@@ -35,6 +43,7 @@ void board_init(void)
 
 	SysTick_Config((SystemCoreClock / 1000) - 1); // config 1000us
 
+    redirect_stdout(&stdout_ops_serial);
    	//LED1_PIN_INIT;
 }
 
