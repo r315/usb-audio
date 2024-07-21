@@ -386,10 +386,20 @@ int main(void)
   hi2cx.i2cx = I2Cx_PORT;
   i2c_config(&hi2cx);
 
+  codec = NULL;
+
   /* audio init */
-  
-  codec = &ak4619; //NULL;
-  printf("%d\n", audio_init(codec));
+  for(uint8_t idx = 0; idx < sizeof(codecs)/sizeof(cdc_list_t); idx++){    
+     const cdc_list_t *pcdc = &codecs[idx];
+     if(pcdc->cdc){
+        uint8_t res = pcdc->cdc->Init();
+        if(res){
+            printf("%d\n", audio_init(pcdc->cdc));
+            codec = pcdc->cdc;
+            break;
+        }
+     }
+  }  
 
   user_button_state = 0;
 
