@@ -45,7 +45,7 @@ typedef struct {
 }cdc_list_t;
 
 static const cdc_list_t codecs [] = {
-    {"null", NULL},
+    {"none", NULL},
     {"ak4619", &ak4619},
     {"tas2563", &tas2563}
 };
@@ -65,14 +65,10 @@ void usb_clock48m_select(usb_clk48_s clk_s);
 void usb_gpio_config(void);
 void usb_low_power_wakeup_config(void);
 
-void serial_init(void);
-uint32_t serial_write(const uint8_t*, uint32_t);
-uint32_t serial_read(uint8_t*, uint32_t);
-
 #if ENABLE_CLI
 static int codecCmd(int argc, char **argv) 
 {
-    if( !strcmp("help", argv[1])){
+    if( !strcmp("help", argv[1]) || argc < 2){
         printf("\tvol\n");
         printf("\trr <reg>\n");
         printf("\twr <reg> <val>\n");
@@ -99,6 +95,32 @@ static int codecCmd(int argc, char **argv)
                 }
             }
         }
+        return CLI_OK;
+    }
+
+    if( !strcmp("scan", argv[1])){
+        printf("\n   ");
+        
+        for(int i = 0; i < 16; i++){
+            printf("%02X ", i);
+        }           
+        
+        uint8_t dummy;
+        
+        for(int i = 0; i < 128; i++){
+            if( (i & 15) == 0) 
+                printf("\n%02X ", i & 0xF0);
+            
+            if(i2c_master_transmit(&hi2cx, (i << 1), &dummy, 1, 1000) == I2C_OK){
+                printf("%02X ", i);
+            }else{
+                printf("-- ");
+            }
+            
+            delay_ms(1);
+        }
+        putchar('\n');
+
         return CLI_OK;
     }
 
@@ -158,33 +180,7 @@ static int codecCmd(int argc, char **argv)
     if( !strcmp("i2s", argv[1])){
         codec->Config(CDC_DEV_DAI, CDC_CFG_DAI_I2S);
         return CLI_OK;
-    }
-
-    if( !strcmp("scan", argv[1])){
-        printf("\n   ");
-        
-        for(int i = 0; i < 16; i++){
-            printf("%02X ", i);
-        }           
-        
-        uint8_t dummy;
-        
-        for(int i = 0; i < 128; i++){
-            if( (i & 15) == 0) 
-                printf("\n%02X ", i & 0xF0);
-            
-            if(i2c_master_transmit(&hi2cx, (i << 1), &dummy, 1, 1000) == I2C_OK){
-                printf("%02X ", i);
-            }else{
-                printf("-- ");
-            }
-            
-            delay_ms(1);
-        }
-        putchar('\n');
-
-        return CLI_OK;
-    }
+    }   
 
     return CLI_BAD_PARAM;
 }
@@ -226,6 +222,12 @@ static int resetCmd(int argc, char **argv)
     return CLI_OK;
 }
 
+static int clearCmd(int argc, char **argv)
+{
+    CLI_Clear();
+    return CLI_OK;
+}
+
 /**
  * Note: Index of register to be read is sent on buf[0]
 */
@@ -257,7 +259,7 @@ static int muxCmd(int argc, char **argv)
     uint32_t value;
     uint8_t regs_buf[count] __attribute__ ((aligned (4)));
 
-    if( !strcmp("help", argv[1])){
+    if( !strcmp("help", argv[1]) || argc < 2){
         printf("\tregs\n");
         printf("\trr <reg>\n");
         printf("\twr <reg> <val>\n");
@@ -340,9 +342,9 @@ static int muxCmd(int argc, char **argv)
 
 cli_command_t cli_cmds [] = {
     {"help", ((int (*)(int, char**))CLI_Commands)},
-    //{"hid", hidCmd},
     {"cdc", codecCmd},
     {"reset", resetCmd},
+    {"clear", clearCmd},
     {"mclk", audioCmd},
     {"freq", audioCmd},
     {"disable", audioCmd},
@@ -431,7 +433,9 @@ int main(void)
     #ifndef USB_SOF_OUTPUT_ENABLE
     LED1_TOGGLE;
     #endif
+    
     delay_ms(50);
+
     #if ENABLE_CLI
     if(CLI_ReadLine()){
         CLI_HandleLine();
