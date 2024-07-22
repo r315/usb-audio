@@ -29,10 +29,18 @@
 #include "audio_conf.h"
 #include "audio.h"
 #include "audio_desc.h"
+#include "board.h"
 
-#define MIC_BUFFER_SIZE   1024
-#define SPK_BUFFER_SIZE   1024
-#define DMA_BUFFER_SIZE   288
+#define BUFFER_MAX_SIZE     1024
+#define MIC_BUFFER_SIZE     BUFFER_MAX_SIZE
+#define SPK_BUFFER_SIZE     BUFFER_MAX_SIZE
+#define DMA_BUFFER_SIZE     288
+
+typedef enum drvstate_e{
+    DRV_INIT = 0,
+    DRV_FILL_FIRST,
+    DRV_FILL_SECOND
+}drvsatate_t;
 
 static audio_driver_t audio_driver;
 static uint16_t spk_dma_buffer[DMA_BUFFER_SIZE];
@@ -208,35 +216,35 @@ uint8_t audio_spk_feedback(uint8_t *feedback)
   */
 void audio_enqueue_data(uint8_t *data, uint32_t len)
 {
-    uint16_t ulen = len / 2, i;
+    uint16_t i, ulen = len / 2; // half len for 16bit samples
     uint16_t *u16data = (uint16_t *)data;
 
     switch (audio_driver.spk.stage)
     {
-        case 0:
-        audio_driver.spk.woff = audio_driver.spk.roff = audio_driver.spk.buffer;
+        case DRV_INIT:
+        audio_driver.spk.woff = audio_driver.spk.roff = audio_driver.spk.queue_start;
         audio_driver.spk.wtotal = audio_driver.spk.rtotal = 0;
-        audio_driver.spk.stage = 1;
         audio_driver.spk.threshold = SPK_BUFFER_SIZE / 2;
+        audio_driver.spk.stage = DRV_FILL_FIRST;
         break;
 
-        case 1:
+        case DRV_FILL_FIRST:
         if (audio_driver.spk.wtotal >= SPK_BUFFER_SIZE / 2)
         {
-            audio_driver.spk.stage = 2;
+            audio_driver.spk.stage = DRV_FILL_SECOND;
         }
         break;
         
-        case 2:
+        case DRV_FILL_SECOND:
         break;
     }
   
     for (i = 0; i < ulen; ++i)
     {
         *(audio_driver.spk.woff++) = *u16data++;
-        if (audio_driver.spk.woff >= audio_driver.spk.end)
+        if (audio_driver.spk.woff >= audio_driver.spk.queue_end)
         {
-            audio_driver.spk.woff = audio_driver.spk.buffer;
+            audio_driver.spk.woff = audio_driver.spk.queue_start;
         }
     }
 
@@ -252,7 +260,7 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
 uint32_t audio_dequeue_data(uint8_t *buffer)
 {
     // copy_buff((uint16_t *)buffer, audio_codec.mic_buffer + audio_codec.mic_hf_status, audio_codec.mic_rx_size);
-    uint16_t len = audio_driver.mic.size << 1;
+    uint16_t len = audio_driver.mic.nsamples << 1;
     uint16_t i;
     uint16_t *u16buf = (uint16_t *)buffer;
 
@@ -293,8 +301,8 @@ uint32_t audio_dequeue_data(uint8_t *buffer)
     for (i = 0; i < len / 2; ++i){
         *u16buf++ = *(audio_driver.mic.roff++);
 
-        if (audio_driver.mic.roff >= audio_driver.mic.end){
-            audio_driver.mic.roff = audio_driver.mic.buffer;
+        if (audio_driver.mic.roff >= audio_driver.mic.queue_end){
+            audio_driver.mic.roff = audio_driver.mic.queue_start;
         }
     }
 
@@ -353,29 +361,30 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
 
     audio->spk.freq = audio->freq;
 
-    audio->spk.size = (audio->freq / 1000) * (audio->bitw / 8) * AUDIO_SPK_CHANEL_NUM / 2;
-    audio->mic.size = (audio->freq / 1000) * (audio->bitw / 8) * AUDIO_MIC_CHANEL_NUM / 2;
+    audio->spk.nsamples = (audio->freq / 1000) * (audio->bitw / 8) * AUDIO_SPK_CHANEL_NUM / 2; // number of samples per milisecond
+    audio->mic.nsamples = (audio->freq / 1000) * (audio->bitw / 8) * AUDIO_MIC_CHANEL_NUM / 2;
 
-    audio->mic.end = audio->mic.woff = audio->mic.roff = audio->mic.buffer;
-    audio->spk.end = audio->spk.woff = audio->spk.roff = audio->spk.buffer;
+    audio->mic.queue_end = audio->mic.woff = audio->mic.roff = audio->mic.queue_start;
+    audio->spk.queue_end = audio->spk.woff = audio->spk.roff = audio->spk.queue_start;
 
-    while(audio->mic.end < audio->mic.buffer + MIC_BUFFER_SIZE){
-        audio->mic.end += audio->mic.size;
+    // Find pointer to queue end
+    while(audio->mic.queue_end < audio->mic.queue_start + MIC_BUFFER_SIZE){
+        audio->mic.queue_end += audio->mic.nsamples;
     }
-    audio->mic.end -= audio->mic.size;
+    audio->mic.queue_end -= audio->mic.nsamples;
 
-    while(audio->spk.end < audio->spk.buffer + SPK_BUFFER_SIZE){
-        audio->spk.end += audio->spk.size;
+    while(audio->spk.queue_end < audio->spk.queue_start + SPK_BUFFER_SIZE){
+        audio->spk.queue_end += audio->spk.nsamples;
     }
-    audio->spk.end -= audio->spk.size;
+    audio->spk.queue_end -= audio->spk.nsamples;
 
     gpio_default_para_init(&gpio_init_struct);
 
     /* Config TX I2S1 */
     spi_i2s_reset(SPI1);
     i2s_default_para_init(&i2s_init_struct);
-    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
-    //i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
+    //i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
+    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
     i2s_init_struct.data_channel_format = format;    
     i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
     i2s_init_struct.clock_polarity = I2S_CLOCK_POLARITY_LOW;
@@ -410,7 +419,7 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
 
     /* dma1 channel3: speaker i2s1 tx */
     dma_default_para_init(&dma_init_struct);
-    dma_init_struct.buffer_size = audio->spk.size << 1;
+    dma_init_struct.buffer_size = audio->spk.nsamples << 1;   // use double buffering
     dma_init_struct.direction = DMA_DIR_MEMORY_TO_PERIPHERAL;
     dma_init_struct.memory_base_addr = (uint32_t)audio->spk.dma_buffer;
     dma_init_struct.memory_data_width = DMA_MEMORY_DATA_WIDTH_HALFWORD;
@@ -427,7 +436,7 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
 
     /* dma1 channel4: microphone i2s2 rx */
     dma_default_para_init(&dma_init_struct);
-    dma_init_struct.buffer_size = audio->mic.size << 1;
+    dma_init_struct.buffer_size = audio->mic.nsamples << 1;
     dma_init_struct.direction = DMA_DIR_PERIPHERAL_TO_MEMORY;
     dma_init_struct.memory_base_addr = (uint32_t)audio->mic.dma_buffer;
     dma_init_struct.memory_data_width = DMA_MEMORY_DATA_WIDTH_HALFWORD;
@@ -516,8 +525,9 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
 }
 
 /**
-  * @brief  Config PA3 to output mclk clock
-  * @param  none
+  * @brief  Config PA3 to output mclk using TMR2
+  * @param  freq    Desired mclk frequency
+  * @param  enable  Enable mclk output
   * @retval none
   */
 void audio_cfg_mclk(uint32_t freq, uint32_t enable)
@@ -589,10 +599,12 @@ audio_status_t audio_init(const audio_codec_t *codec)
     memset16(spk_buffer, 0, SPK_BUFFER_SIZE);
     memset16(mic_buffer, 0, MIC_BUFFER_SIZE);
 
-    audio_driver.spk.buffer = spk_buffer;
-    audio_driver.mic.buffer = mic_buffer;
+    audio_driver.spk.queue_start = spk_buffer;
+    audio_driver.mic.queue_start = mic_buffer;
     audio_driver.mic.dma_buffer = mic_dma_buffer;
     audio_driver.spk.dma_buffer = spk_dma_buffer;
+
+    audio_driver.spk.stage = DRV_INIT;
 
     res = bus_i2s_init(&audio_driver);
 
@@ -638,30 +650,34 @@ audio_status_t audio_deinit(void)
   */
 audio_status_t audio_loop(void)
 {
+    delay_ms(10);
     return AUDIO_OK;
 }
 
 /**
- * @brief  This dma handler is called when block of data was transferred
- * from memory to I2S peripheral.
+ * @brief  This dma handler is called when dma has reach half transfer or 
+ * ended the transfer from memory to I2S peripheral.
  * @param  none
  * @retval none
  */
 void DMA1_Channel3_IRQHandler(void)
 {
-    uint16_t half_size = audio_driver.spk.size;
+    audio_channel_t *ach = &audio_driver.spk;
+    uint16_t half_size = ach->nsamples;  // nsamples is half buffer on dma transfer
     uint16_t *pdst;
 
     if (dma_flag_get(DMA1_HDT3_FLAG) == SET)
     {
         // copy_buff(audio_codec.spk_buffer, audio_codec.spk_tx_fifo + audio_codec.r_pos, half_size);
-        pdst = spk_dma_buffer;
+        LED1_ON;
+        pdst = ach->dma_buffer;
         dma_flag_clear(DMA1_HDT3_FLAG);
     }
     else if (dma_flag_get(DMA1_FDT3_FLAG) == SET)
     {
         // copy_buff(&audio_codec.spk_buffer[half_size], audio_codec.spk_tx_fifo + audio_codec.r_pos, half_size);
-        pdst = spk_dma_buffer + half_size;
+        LED1_OFF;
+        pdst = ach->dma_buffer + half_size;
         dma_flag_clear(DMA1_FDT3_FLAG);
     }else{
         // it should not get here
@@ -669,55 +685,56 @@ void DMA1_Channel3_IRQHandler(void)
         return;
     }
 
-    switch (audio_driver.spk.stage)
+    switch (ach->stage)
     {
-        case 0:
-        case 1:
+        case DRV_INIT:
+        case DRV_FILL_FIRST:
         memset16(pdst, 0, half_size);
         break;
         
-        case 2:
-        if (audio_driver.spk.wtotal >= audio_driver.spk.rtotal + SPK_BUFFER_SIZE)
+        case DRV_FILL_SECOND:
+        if (ach->wtotal >= ach->rtotal + SPK_BUFFER_SIZE)
         {
-            //while (1) ; // should not happen;
-            // TODO: Fix buffer overflow
-            audio_driver.spk.stage = 0;
+            // Somehow buffer overflow, should not happen;
+            //SW_Reset();
+            ach->stage = DRV_INIT;
+            return;
         }
-        if (audio_driver.spk.rtotal >= audio_driver.spk.wtotal)
-        {
-            audio_driver.spk.stage = 0;
-            audio_driver.spk.woff = audio_driver.spk.roff = audio_driver.spk.buffer;
-            audio_driver.spk.rtotal = audio_driver.spk.wtotal = 0;
+
+        if (ach->rtotal >= ach->wtotal)
+        {          
+            ach->stage = DRV_INIT;
         }
         else
         {
-            memcpy16(pdst, audio_driver.spk.roff, half_size);
+            memcpy16(pdst, ach->roff, half_size);
 
-            audio_driver.spk.roff += half_size;
-            audio_driver.spk.rtotal += half_size;
+            ach->roff += half_size;
+            ach->rtotal += half_size;
 
-            if (audio_driver.spk.roff >= audio_driver.spk.end)
+            if (ach->roff >= ach->queue_end)
             {
-                audio_driver.spk.roff = audio_driver.spk.buffer;
+                ach->roff = ach->queue_start;
             }
-            if (++audio_driver.spk.calc == 256)
+            if (++ach->calc == 256)
             {
-                uint16_t delta = audio_driver.spk.wtotal - audio_driver.spk.rtotal;
-                audio_driver.spk.calc = 0;
-                if (delta < audio_driver.spk.threshold - half_size)
+                ach->calc = 0;
+                uint16_t delta = ach->wtotal - ach->rtotal;
+
+                if (delta < ach->threshold - half_size)
                 {
-                    audio_driver.spk.threshold -= half_size;
-                    audio_driver.spk.freq += audio_driver.freq / 1024;
+                    ach->threshold -= half_size;
+                    ach->freq += audio_driver.freq / SPK_BUFFER_SIZE;
                 }
-                else if (delta > audio_driver.spk.threshold + half_size)
+                else if (delta > ach->threshold + half_size)
                 {
-                    audio_driver.spk.threshold += half_size;
-                    audio_driver.spk.freq -= audio_driver.freq / 1024;
+                    ach->threshold += half_size;
+                    ach->freq -= audio_driver.freq / SPK_BUFFER_SIZE;
                 }
-                if (audio_driver.spk.rtotal > 0x20000000)
+                if (ach->rtotal > 0x20000000)
                 {
-                    audio_driver.spk.rtotal -= 0x10000000;
-                    audio_driver.spk.wtotal -= 0x10000000;
+                    ach->rtotal -= 0x10000000;
+                    ach->wtotal -= 0x10000000;
                 }
             }
         }
@@ -733,7 +750,7 @@ void DMA1_Channel3_IRQHandler(void)
 void DMA1_Channel4_IRQHandler(void)
 {
     uint16_t *psrc;
-    uint16_t len = audio_driver.mic.size << 1;
+    uint16_t len = audio_driver.mic.nsamples << 1;
 
     if (dma_flag_get(DMA1_HDT4_FLAG) == SET)
     {
@@ -742,7 +759,7 @@ void DMA1_Channel4_IRQHandler(void)
     }
     else if (dma_flag_get(DMA1_FDT4_FLAG) == SET)
     {
-        psrc = mic_dma_buffer + audio_driver.mic.size;
+        psrc = mic_dma_buffer + audio_driver.mic.nsamples;
         dma_flag_clear(DMA1_FDT4_FLAG);
     }else{
         DMA1->clr = DMA1->sts;
@@ -754,15 +771,15 @@ void DMA1_Channel4_IRQHandler(void)
         memcpy(audio_driver.mic.woff, psrc, len);
         audio_driver.mic.woff += len / 2;
         audio_driver.mic.wtotal += len / 2;
-        if (audio_driver.mic.woff >= audio_driver.mic.end)
+        if (audio_driver.mic.woff >= audio_driver.mic.queue_end)
         {
-            audio_driver.mic.woff = audio_driver.mic.buffer;
+            audio_driver.mic.woff = audio_driver.mic.queue_start;
         }
         if (audio_driver.mic.stage == 2)
         {
             if (1024 == ++audio_driver.mic.calc)
             {
-                uint32_t size_estimate = 1024 * audio_driver.mic.size;
+                uint32_t size_estimate = 1024 * audio_driver.mic.nsamples;
                 audio_driver.mic.calc = 0;
                 if (audio_driver.mic.delta > size_estimate)
                 {
@@ -790,7 +807,7 @@ void DMA1_Channel4_IRQHandler(void)
             if (audio_driver.mic.wtotal >= audio_driver.mic.rtotal + MIC_BUFFER_SIZE)
             {
                 audio_driver.mic.delta = audio_driver.mic.wtotal = audio_driver.mic.rtotal = 0;
-                audio_driver.mic.woff = audio_driver.mic.roff = audio_driver.mic.buffer;
+                audio_driver.mic.woff = audio_driver.mic.roff = audio_driver.mic.queue_start;
                 audio_driver.mic.stage = 0;
                 audio_driver.mic.adj_stage = 0;
                 audio_driver.mic.adj_count = 0;

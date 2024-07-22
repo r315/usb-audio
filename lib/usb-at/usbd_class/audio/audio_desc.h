@@ -200,7 +200,7 @@ extern "C" {
 #define AUDIO_SPK_CHR                    AUDIO_SPK_CHANEL_NUM
 #define AUDIO_SPK_BITW                   (AUDIO_SPK_DEFAULT_BITW)
 
-#define AUDIO_BINTERVAL_TIME              0x01
+#define AUDIO_BINTERVAL_TIME              0x01  // 1ms
 
 
 #define USBD_AUDIO_CONFIG_DESC_SIZE       ( 0x12 + AUDIO_INTERFACE_LEN + \

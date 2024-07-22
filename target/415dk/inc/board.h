@@ -19,17 +19,13 @@ extern "C" {
 #define BOARD_415DK
 #endif
 
-
-#define LCD_IO_SET(port, pinmask) port->BSRE = pinmask
-#define LCD_IO_RESET(port, pinmask) port->BRE = pinmask
-
 #define LED1_PIN_INIT \
         CRM->apb2en_bit.gpioaen = 1; \
-        GPIOA->cfghr |= (6 << 0)
-        
+        GPIOA->cfghr_bit.iomc8 = 2; \
+        GPIOA->cfghr_bit.iofc8 = 0;
 
-#define LED1_OFF        GPIOA->SCR = (1 << 8)
-#define LED1_ON         GPIOA->CLR = (1 << 8)
+#define LED1_OFF        GPIOA->scr = (1 << 8)
+#define LED1_ON         GPIOA->clr = (1 << 8)
 #define LED1_TOGGLE     GPIOA->odt = GPIOA->idt ^ (1 << 8)
 
 #define DBG_PIN_INIT    LED1_PIN_INIT

@@ -352,16 +352,6 @@ cli_command_t cli_cmds [] = {
 };
 #endif
 
-static int at32_button_press(void)
-{
-    if(user_button_state){
-        user_button_state = 0;
-        return USER_BUTTON;
-    }
-
-    return 0;
-}
-
 /**
   * @brief  main function.
   * @param  none
@@ -430,21 +420,6 @@ int main(void)
   while(1)
   {
     audio_loop();
-
-    if(at32_button_press() == USER_BUTTON)
-    {
-      #ifdef __AUDIO_HID_CLASS_H
-      report_buf[0] = HID_REPORT_ID_5;
-      report_buf[1] = (~report_buf[1]) & 0x1;
-      audio_hid_class_send_report(&otg_core_struct.dev, report_buf, USBD_AUHID_IN_MAXPACKET_SIZE);
-      #endif
-    }
-
-    #ifndef USB_SOF_OUTPUT_ENABLE
-    LED1_TOGGLE;
-    #endif
-    
-    delay_ms(50);
 
     #if ENABLE_CLI
     if(CLI_ReadLine()){

@@ -44,7 +44,8 @@ void board_init(void)
 	SysTick_Config((SystemCoreClock / 1000) - 1); // config 1000us
 
     redirect_stdout(&stdout_ops_serial);
-   	//LED1_PIN_INIT;
+   	
+    LED1_PIN_INIT;
 }
 
 void SW_Reset(void){

@@ -113,11 +113,11 @@ enum {
 typedef struct audio_channel_s 
 {
     uint32_t freq;
-    uint16_t *buffer;
+    uint16_t *queue_start;
     uint16_t *roff;
     uint16_t *woff;
-    uint16_t *end;
-    uint32_t size;
+    uint16_t *queue_end;
+    uint32_t nsamples;
     uint32_t wtotal;
     uint32_t rtotal;
     uint32_t delta;
