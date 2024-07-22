@@ -78,7 +78,9 @@ void serial_init(void){
    
     USART1->ctrl3_bit.dmaren = TRUE;
     dma_channel_enable(DMA1_CHANNEL5, TRUE);
-#else
+#endif
+
+#if !UART_ENABLE_RX_DMA || UART_ENABLE_TX_FIFO
     NVIC_SetPriority(USART1_IRQn, 10);
     NVIC_EnableIRQ(USART1_IRQn);
 #endif
