@@ -228,6 +228,38 @@ static int clearCmd(int argc, char **argv)
     return CLI_OK;
 }
 
+static int trimCmd(int argc, char **argv)
+{
+    int32_t val;
+    crm_clocks_freq_type clocks;
+
+    if(argc < 2){
+      printf("Usage: trim [trim] [cal]\n");
+      printf("\t cal, 0-255\n");
+      printf("\t trim, 0-63\n\n");
+
+      crm_clocks_freq_get(&clocks);
+      printf("SCLK: %dHz\n", clocks.sclk_freq);
+      printf("HICKCAL: %d\n", CRM->ctrl_bit.hickcal);
+      printf("HICKTRIM: %d\n", CRM->ctrl_bit.hicktrim);
+      return CLI_OK;
+    }
+
+    if(CLI_Ia2i(argv[1], &val)){
+        val &= 0x3F;
+        CRM->ctrl_bit.hicktrim = val;
+    }
+
+    if(CLI_Ia2i(argv[2], &val)){
+        val &= 0xFF;
+        CRM->misc1_bit.hickcal_key = 0x5a;
+        CRM->ctrl_bit.hickcal = val;
+    }
+
+    return CLI_OK;
+}
+
+
 /**
  * Note: Index of register to be read is sent on buf[0]
 */
@@ -349,6 +381,7 @@ cli_command_t cli_cmds [] = {
     {"freq", audioCmd},
     {"disable", audioCmd},
     {"mux", muxCmd},
+    {"trim", trimCmd},
 };
 #endif
 
