@@ -60,12 +60,14 @@ uint8_t amux_MuteAll(void)
 
 uint8_t amux_Mute(uint8_t ch, uint8_t sl, uint8_t mute)
 {
-    uint8_t slot_reg = AMUX_GET_SLOT(ch - 1, sl - 1) / 8;
+    uint8_t dsp_slot = AMUX_GET_SLOT(ch - 1, sl - 1);
+    uint8_t slot_reg = dsp_slot / 8;
+    uint8_t slot_mask = (1 << (dsp_slot & 7));
     uint8_t mute_data;
 
     amux_ReadReg(slot_reg, &mute_data);
 
-    mute_data = (mute == 0) ? mute_data & ~(1 << (slot_reg & 7)) : mute_data | (1 << (slot_reg & 7));
+    mute_data = (mute == 0) ? mute_data & ~slot_mask : mute_data | slot_mask;
 
     return amux_WriteReg(slot_reg, mute_data);
 }
