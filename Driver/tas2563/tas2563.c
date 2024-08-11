@@ -26,26 +26,34 @@ const audio_codec_t tas2563 = {
     tas2563_ReadReg
 };
 
+/**
+ * returns 0 on fail, 2 if successful
+ */
 static uint8_t tas2563_WriteReg (uint16_t Register, uint8_t Value)
 {
     uint8_t Data[2];
     Data[0] = Register;
     Data[1] = Value;
 
-    return I2C_Master_Write (TAS2563_I2C_ADDR, (const uint8_t*)&Data, 2) == 0;
+    return I2C_Master_Write (TAS2563_I2C_ADDR, (const uint8_t*)&Data, 2);
 }
 
+/**
+ * return 0 on fail, 1 on success
+ */
 static uint8_t tas2563_ReadReg (uint16_t Register, uint8_t *Value)
 {
    //return I2C_Mem_Read (TAS2563_I2C_ADDR, Register, Val, 1);
    if(I2C_Master_Write(TAS2563_I2C_ADDR, (const uint8_t*)&Register, 1) != 1)
         return 1;
 
-    return I2C_Master_Read(TAS2563_I2C_ADDR, Value, 1) == 0;
+    return I2C_Master_Read(TAS2563_I2C_ADDR, Value, 1);
 }
 
 uint8_t tas2563_Init (void)
 {
+   uint8_t Retries;
+   uint8_t RegValue;
    // Change to page 0
 
    // Verify if DAC is present by trying to set page
@@ -55,17 +63,32 @@ uint8_t tas2563_Init (void)
       return 0;
    }
 
-   // Reset
+   // Software reset. Bit is self clearing
 
    tas2563_WriteReg (TAS2563_SW_RESET_REG, 1);
+
+   Retries = 100;
+   
+   while(Retries--)
+   {
+      if( tas2563_ReadReg (TAS2563_SW_RESET_REG, &RegValue) == 0)
+      {
+         break;
+      }
+   }
+
+   if(Retries == 0){
+      // Timeout on reset
+      return 0;
+   }
 
    // Disable global address
 
    tas2563_WriteReg (TAS2563_MISC_CFG2_REG, 0x20);  
 
-   // Default to 16kHz, frame start at rising edge of FS and disable AUTO_RATE
+   // Default to 16kHz, frame start at falling edge of FS
    
-   tas2563_WriteReg (TAS2563_TDM_CFG0_REG, 0x02);
+   tas2563_WriteReg (TAS2563_TDM_CFG0_REG, 0x03);
 
    // Boost passthrough
 
@@ -79,8 +102,11 @@ uint8_t tas2563_Init (void)
 
    tas2563_WriteReg (TAS2563_BOP_CFG0_REG, 0x0);
 
+   // Disable PDM
 
-   //tas2563_WriteReg ();
+   tas2563_WriteReg (TAS2563_PDM_CFG0_REG, 0x1);
+
+   tas2563_Enable ();
 
    return 1;
 }
