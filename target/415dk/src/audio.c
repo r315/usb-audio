@@ -53,28 +53,6 @@ static uint16_t mic_buffer[MIC_BUFFER_SIZE];
 static void bus_i2s_reset(void);
 static audio_status_t bus_i2s_init(audio_driver_t *audio);
 
-static uint8_t dummy_Init (void){ return 1; }
-static uint8_t dummy_Config (uint8_t DevID, uint8_t Mode) {return 0;}
-static void    dummy_SampleRate (uint32_t Rate){}
-static void    dummy_Enable (void) {}
-static void    dummy_Disable (void) {}
-static void    dummy_Volume (uint8_t DevID, uint8_t Volume){}
-static void    dummy_Mute (uint8_t DevID, uint8_t Mode) {}
-static uint8_t dummy_writeReg (uint16_t reg, uint8_t val) {return 1;}
-static uint8_t dummy_readReg (uint16_t reg, uint8_t *val) {return 1;}
-
-static const audio_codec_t dummy_codec = {
-    dummy_Init,
-    dummy_Config,
-    dummy_SampleRate,
-    dummy_Enable,
-    dummy_Disable,
-    dummy_Volume,
-    dummy_Mute,
-    dummy_writeReg,
-    dummy_readReg
-};
-
 static void memset16(uint16_t *buffer, uint32_t set, uint32_t len)
 {
     while(len--){
@@ -592,13 +570,17 @@ audio_status_t audio_init(const audio_codec_t *codec)
 {
     audio_status_t res;
 
+    if(!codec){
+        return AUDIO_ERROR_CODEC;
+    }
+
     if(audio_driver.codec == NULL){
         audio_driver.freq = AUDIO_DEFAULT_FREQ;
         audio_driver.bitw = AUDIO_DEFAULT_BITW;
         audio_driver.mode = AUDIO_DEFAULT_MODE;
     }
 
-    audio_driver.codec = (codec != NULL) ? codec : &dummy_codec;
+    audio_driver.codec = codec;
 
     memset16(spk_buffer, 0, SPK_BUFFER_SIZE);
     memset16(mic_buffer, 0, MIC_BUFFER_SIZE);

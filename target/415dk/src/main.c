@@ -44,12 +44,6 @@ typedef struct {
     const audio_codec_t *cdc;
 }cdc_list_t;
 
-static const cdc_list_t codecs [] = {
-    {"none", NULL},
-    {"ak4619", &ak4619},
-    {"tas2563", &tas2563}
-};
-
 static uint8_t user_button_state;
 static const audio_codec_t *codec;
 
@@ -64,6 +58,34 @@ ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
 void usb_clock48m_select(usb_clk48_s clk_s);
 void usb_gpio_config(void);
 void usb_low_power_wakeup_config(void);
+
+static uint8_t dummy_Init (void){ return 0; }// fail init to allow scan for other
+static uint8_t dummy_Config (uint8_t DevID, uint8_t Mode) { return (DevID == CDC_CFG_GET_MCLK) ? CDC_MCLK_256FS : 0;}
+static void    dummy_SampleRate (uint32_t Rate){}
+static void    dummy_Enable (void) {}
+static void    dummy_Disable (void) {}
+static void    dummy_Volume (uint8_t DevID, uint8_t Volume){}
+static void    dummy_Mute (uint8_t DevID, uint8_t Mode) {}
+static uint8_t dummy_writeReg (uint16_t reg, uint8_t val) {return 1;}
+static uint8_t dummy_readReg (uint16_t reg, uint8_t *val) {return 1;}
+
+static const audio_codec_t dummy_codec = {
+    dummy_Init,
+    dummy_Config,
+    dummy_SampleRate,
+    dummy_Enable,
+    dummy_Disable,
+    dummy_Volume,
+    dummy_Mute,
+    dummy_writeReg,
+    dummy_readReg
+};
+
+static const cdc_list_t codecs [] = {
+    {"none", &dummy_codec},
+    {"ak4619", &ak4619},
+    {"tas2563", &tas2563}
+};
 
 #if ENABLE_CLI
 static int codecCmd(int argc, char **argv) 
@@ -412,17 +434,23 @@ int main(void)
   codec = NULL;
 
   /* audio init */
+  printf("\n\n");
+  uint8_t found_idx = 0;
   for(uint8_t idx = 0; idx < sizeof(codecs)/sizeof(cdc_list_t); idx++){    
      const cdc_list_t *pcdc = &codecs[idx];
      if(pcdc->cdc){
         uint8_t res = pcdc->cdc->Init();
         if(res){
-            printf("%d\n", audio_init(pcdc->cdc));
-            codec = pcdc->cdc;
-            break;
+            printf("Found codec: %s\n", pcdc->name);
+            if(found_idx == 0){
+                found_idx = idx; // here idx should never be zero
+            }
         }
      }
-  }  
+  }
+
+  codec = codecs[found_idx].cdc;
+  printf("Using codec: %s :%d\n\n", codecs[found_idx].name, audio_init(codec));
 
   user_button_state = 0;
 
