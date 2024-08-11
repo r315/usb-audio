@@ -21,4 +21,5 @@ uint8_t amux_Init(void);
 uint8_t amux_Route(uint8_t src_ch, uint8_t src_sl, uint8_t dst_ch, uint8_t dst_sl, uint8_t en);
 uint8_t amux_MuteAll(void);
 uint8_t amux_Mute(uint8_t ch, uint8_t sl, uint8_t mute);
+uint8_t amux_Reset(void);
 #endif

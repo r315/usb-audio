@@ -58,6 +58,11 @@ uint8_t amux_MuteAll(void)
     return amux_WriteReg(AMUX_CFG_REG, AMUX_CFG_MUTE_ALL);
 }
 
+uint8_t amux_Reset(void)
+{
+    return amux_WriteReg(AMUX_CFG_REG, AMUX_CFG_RESET);
+}
+
 uint8_t amux_Mute(uint8_t ch, uint8_t sl, uint8_t mute)
 {
     uint8_t dsp_slot = AMUX_GET_SLOT(ch - 1, sl - 1);
