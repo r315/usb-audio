@@ -133,15 +133,20 @@ static int codecCmd(int argc, char **argv)
             if( (i & 15) == 0) 
                 printf("\n%02X ", i & 0xF0);
             
-            if(i2c_master_transmit(&hi2cx, (i << 1), &dummy, 1, 1000) == I2C_OK){
-                printf("%02X ", i);
+            if(i >= 3 && i <= 0x77){ // default range from i2cdetect
+                if(i2c_master_transmit(&hi2cx, (i << 1), &dummy, 1, 1000) == I2C_OK){
+                    printf("%02X ", i);
+                }else{
+                    printf("-- ");
+                }                
+                delay_ms(1);
             }else{
-                printf("-- ");
+               printf("   "); 
             }
-            
-            delay_ms(1);
         }
         putchar('\n');
+
+        i2c_config(&hi2cx);
 
         return CLI_OK;
     }
@@ -261,7 +266,7 @@ static int trimCmd(int argc, char **argv)
       printf("\t trim, 0-63\n\n");
 
       crm_clocks_freq_get(&clocks);
-      printf("SCLK: %dHz\n", clocks.sclk_freq);
+      printf("SCLK: %luHz\n", clocks.sclk_freq);
       printf("HICKCAL: %d\n", CRM->ctrl_bit.hickcal);
       printf("HICKTRIM: %d\n", CRM->ctrl_bit.hicktrim);
       return CLI_OK;
