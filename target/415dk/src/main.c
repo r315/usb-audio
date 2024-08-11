@@ -290,10 +290,10 @@ static int trimCmd(int argc, char **argv)
 /**
  * Note: Index of register to be read is sent on buf[0]
 */
-static i2c_status_type readMux(i2c_handle_type *handle, uint32_t addr, uint8_t *buf, uint32_t count)
+static i2c_status_type readMux(i2c_handle_type *handle, uint8_t *buf, uint32_t count)
 {
-    if(i2c_master_transmit(handle, addr, buf, 1, 1000) == I2C_OK){
-        if(i2c_master_receive(handle, addr, buf, count, 1000) != I2C_OK){
+    if(i2c_master_transmit(handle, AMUX_I2C_ADDR, buf, 1, 1000) == I2C_OK){
+        if(i2c_master_receive(handle, AMUX_I2C_ADDR, buf, count, 1000) != I2C_OK){
             printf("Failed to read");
         }else{
             for(int i = 0; i < count; i ++){
@@ -313,24 +313,23 @@ static i2c_status_type readMux(i2c_handle_type *handle, uint32_t addr, uint8_t *
 
 static int muxCmd(int argc, char **argv)
 {
-    static uint8_t mux_addr = AMUX_I2C_ADDR;
     uint32_t count = 16 + 128;
     uint32_t value;
     uint8_t regs_buf[count] __attribute__ ((aligned (4)));
 
     if( !strcmp("help", argv[1]) || argc < 2){
         printf("\tregs\n");
+        printf("\treset\n");
         printf("\trr <reg>\n");
         printf("\twr <reg> <val>\n");
         printf("\tmute <all | name> <1|0>, Name cxsy\n");
-        printf("\treset\n");        
         printf("\troute <in name> <out name> <1|0>\n");
         return CLI_OK;
     }
 
     if( !strcmp("regs", argv[1])){
         regs_buf[0] = 0;
-        if(readMux(&hi2cx, mux_addr, regs_buf, count) == I2C_OK)
+        if(readMux(&hi2cx, regs_buf, count) == I2C_OK)
             return CLI_OK;
     }
 
@@ -339,7 +338,7 @@ static int muxCmd(int argc, char **argv)
             regs_buf[0] = value;
             if(CLI_Ha2i(argv[3], &value)){
                 regs_buf[1] = value;
-                if(i2c_master_transmit(&hi2cx, mux_addr, regs_buf, 2, 1000) == I2C_OK){
+                if(i2c_master_transmit(&hi2cx, AMUX_I2C_ADDR, regs_buf, 2, 1000) == I2C_OK){
                     return CLI_OK;
                 }
             }
@@ -348,10 +347,11 @@ static int muxCmd(int argc, char **argv)
 
     if( !strcmp("rr", argv[1])){
         if(CLI_Ha2i(argv[2], (uint32_t*)&regs_buf)){
-            if(CLI_Ha2i(argv[3], &count)){
-                if(readMux(&hi2cx, mux_addr, regs_buf, count) == I2C_OK)
-                return CLI_OK;
+            if(!CLI_Ha2i(argv[3], &count)){
+                count = 1;
             }
+            if(readMux(&hi2cx, regs_buf, count) == I2C_OK)
+                return CLI_OK;
         }
     }
 
@@ -373,11 +373,9 @@ static int muxCmd(int argc, char **argv)
         return CLI_OK;
     }
 
-    if( !strcmp("addr", argv[1])){
-        if(CLI_Ha2i(argv[2], &value)){
-            mux_addr = value;
-            return CLI_OK;
-        }
+    if(!strcmp("reset", argv[1])){
+        amux_Reset();
+        return CLI_OK;
     }
 
     /**
