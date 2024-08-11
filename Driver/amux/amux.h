@@ -7,6 +7,7 @@
 
 #define AMUX_MUTE_REG           0
 #define AMUX_CFG_REG            4
+#define AMUX_MCLK_PHA_REG       5
 #define AMUX_ROUTE_REG          16
 
 

@@ -394,6 +394,18 @@ static int muxCmd(int argc, char **argv)
         return CLI_OK;
     }
 
+    if( !strcmp("mclk_pha", argv[1])){
+        if(CLI_Ia2i(argv[2], (int32_t*)&value)){
+            uint8_t pha, dut;
+            pha = value & 15;
+            dut = (pha + 8) & 15;
+            regs_buf[0] = AMUX_MCLK_PHA_REG;
+            regs_buf[1] = (pha << 4) | dut;
+            i2c_master_transmit(&hi2cx, AMUX_I2C_ADDR, regs_buf, 2, 1000);
+            return CLI_OK;
+        }
+    }
+
     return CLI_BAD_PARAM;
 }
 
