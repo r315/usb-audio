@@ -289,24 +289,26 @@ static int trimCmd(int argc, char **argv)
     return CLI_OK;
 }
 
-
+static void dump_buf(uint8_t *buf, uint32_t count)
+{
+    for(int i = 0; i < count; i ++){
+        if( (i & 15) == 0) 
+            printf("\n%02X: ", i & 0xF0);                
+        printf("%02X ", buf[i]);
+    }
+    putchar('\n');
+}
 /**
  * Note: Index of register to be read is sent on buf[0]
 */
 static i2c_status_type readMux(i2c_handle_type *handle, uint8_t *buf, uint32_t count)
 {
-    if(i2c_master_transmit(handle, AMUX_I2C_ADDR, buf, 1, 1000) == I2C_OK){
-        if(i2c_master_receive(handle, AMUX_I2C_ADDR, buf, count, 1000) != I2C_OK){
+    if(i2c_master_transmit(handle, AMUX_I2C_ADDR << 1, buf, 1, 1000) == I2C_OK){
+        if(i2c_master_receive(handle, AMUX_I2C_ADDR << 1, buf, count, 1000) != I2C_OK){
             printf("Failed to read");
         }else{
-            for(int i = 0; i < count; i ++){
-                if( (i & 15) == 0) 
-                    printf("\n%02X: ", i & 0xF0);                
-                printf("%02X ", buf[i]);
-            }        
+            return I2C_OK;
         }
-        putchar('\n');
-        return I2C_OK;
     }
 
     printf("Failed to write reg address\n");
@@ -332,8 +334,16 @@ static int muxCmd(int argc, char **argv)
 
     if( !strcmp("regs", argv[1])){
         regs_buf[0] = 0;
-        if(readMux(&hi2cx, regs_buf, count) == I2C_OK)
+        if(readMux(&hi2cx, regs_buf, count) == I2C_OK){
+            dump_buf(regs_buf, count);
             return CLI_OK;
+        }
+    }
+
+    if( !strcmp("ver", argv[1])){        
+        amux_GetVer(regs_buf);
+        printf("v%d.%d.%d", regs_buf[0], regs_buf[1], regs_buf[2]);
+        return CLI_OK_LF;
     }
 
     if( !strcmp("wr", argv[1])){
@@ -341,7 +351,7 @@ static int muxCmd(int argc, char **argv)
             regs_buf[0] = value;
             if(CLI_Ha2i(argv[3], &value)){
                 regs_buf[1] = value;
-                if(i2c_master_transmit(&hi2cx, AMUX_I2C_ADDR, regs_buf, 2, 1000) == I2C_OK){
+                if(i2c_master_transmit(&hi2cx, AMUX_I2C_ADDR << 1, regs_buf, 2, 1000) == I2C_OK){
                     return CLI_OK;
                 }
             }
@@ -353,8 +363,10 @@ static int muxCmd(int argc, char **argv)
             if(!CLI_Ha2i(argv[3], &count)){
                 count = 1;
             }
-            if(readMux(&hi2cx, regs_buf, count) == I2C_OK)
+            if(readMux(&hi2cx, regs_buf, count) == I2C_OK){
+                dump_buf(regs_buf, count);
                 return CLI_OK;
+            }
         }
     }
 
@@ -372,8 +384,8 @@ static int muxCmd(int argc, char **argv)
     }
 
     if( !strcmp("init", argv[1])){
-        amux_Init();
-        return CLI_OK;
+        printf("%s", amux_Init() ? "ok" : "fail");
+        return CLI_OK_LF;
     }
 
     if(!strcmp("reset", argv[1])){
@@ -399,12 +411,7 @@ static int muxCmd(int argc, char **argv)
 
     if( !strcmp("mclk_pha", argv[1])){
         if(CLI_Ia2i(argv[2], (int32_t*)&value)){
-            uint8_t pha, dut;
-            pha = value & 15;
-            dut = (pha + 8) & 15;
-            regs_buf[0] = AMUX_MCLK_PHA_REG;
-            regs_buf[1] = (pha << 4) | dut;
-            i2c_master_transmit(&hi2cx, AMUX_I2C_ADDR, regs_buf, 2, 1000);
+            amux_MclkPha(value);
             return CLI_OK;
         }
     }
