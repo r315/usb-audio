@@ -96,9 +96,9 @@ uint8_t tas2563_Init (uint8_t addr)
 
    tas2563_WriteReg (TAS2563_MISC_CFG2_REG, 0x20);  
 
-   // Default to 16kHz, frame start at falling edge of FS
+   // Default to 16kHz, frame start at rising edge of WS
    
-   tas2563_WriteReg (TAS2563_TDM_CFG0_REG, 0x03);
+   tas2563_WriteReg (TAS2563_TDM_CFG0_REG, 0x02);
 
    // Boost passthrough
 
@@ -115,6 +115,12 @@ uint8_t tas2563_Init (uint8_t addr)
    // Disable PDM
 
    tas2563_WriteReg (TAS2563_PDM_CFG0_REG, 0x1);
+
+   // Slot is automatically selected with i2c address,
+   // for now force mono right channel based on i2c address.
+   // This will be fixed on revB to be auto
+   if(addr != TAS2563_I2C_ADDR0)
+      tas2563_WriteReg (TAS2563_TDM_CFG2_REG, 0x6A);
 
    tas2563_Enable ();
 
