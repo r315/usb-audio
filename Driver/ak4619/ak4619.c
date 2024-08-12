@@ -11,6 +11,7 @@
 #define DAC2L_EN     (1 << 6)
 #define DAC2R_EN     (1 << 7)
 
+static uint8_t ak4619_i2c_addr;
 static uint8_t ak4619_write_reg(uint16_t, uint8_t);
 static uint8_t ak4619_read_reg(uint16_t, uint8_t*);
 
@@ -32,15 +33,20 @@ static uint8_t ak4619_write_reg(uint16_t reg, uint8_t value)
     data[0] = reg;
     data[1] = value;
 
-    return I2C_Master_Write(AK4619_ADDR, (const uint8_t*)&data, 2);
+    return I2C_Master_Write(ak4619_i2c_addr, (const uint8_t*)&data, 2);
 }
 
 static uint8_t ak4619_read_reg(uint16_t reg, uint8_t *value)
 {
-    if(I2C_Master_Write(AK4619_ADDR, (const uint8_t*)&reg, 1) != 1)
+    if(I2C_Master_Write(ak4619_i2c_addr, (const uint8_t*)&reg, 1) != 1)
         return 1;
 
-    return I2C_Master_Read(AK4619_ADDR, value, 1);
+    return I2C_Master_Read(ak4619_i2c_addr, value, 1);
+}
+
+static void ak4619_set_i2c_addr(uint8_t addr)
+{
+    ak4619_i2c_addr = addr << 1;
 }
 
 static void ak4619_dac_mux(uint8_t dac, uint8_t sel)
@@ -59,9 +65,13 @@ static void ak4619_dac_mux(uint8_t dac, uint8_t sel)
 }
 
 
-uint8_t ak4619_Init (void){
+uint8_t ak4619_Init (uint8_t addr){
 
-    uint8_t res = ak4619_write_reg(AK4619_PWRMGM_REG, 0);  // Reset device
+    uint8_t res;
+    
+    ak4619_set_i2c_addr(addr);
+
+    res = ak4619_write_reg(AK4619_PWRMGM_REG, 0);  // Reset device
 
     if (!res){
         // Fail / not present
@@ -128,10 +138,15 @@ uint8_t ak4619_Config (uint8_t DevID, uint8_t Cfg)
             }
         break;
 
-        case CDC_DEV_MCLK:
+        case CDC_GET_MCLK:
             return CDC_MCLK_256FS;
 
-       
+        case CDC_CFG_ADDR:
+            ak4619_set_i2c_addr(Cfg);
+            break;
+
+        case CDC_GET_ADDR:
+            return ak4619_i2c_addr >> 1;
     }
 
     return 0;

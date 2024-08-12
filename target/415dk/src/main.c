@@ -42,6 +42,7 @@
 typedef struct {
     const char *name;
     const audio_codec_t *cdc;
+    uint8_t i2c_addr;
 }cdc_list_t;
 
 static uint8_t user_button_state;
@@ -59,8 +60,8 @@ void usb_clock48m_select(usb_clk48_s clk_s);
 void usb_gpio_config(void);
 void usb_low_power_wakeup_config(void);
 
-static uint8_t dummy_Init (void){ return 0; }// fail init to allow scan for other
-static uint8_t dummy_Config (uint8_t DevID, uint8_t Mode) { return (DevID == CDC_CFG_GET_MCLK) ? CDC_MCLK_256FS : 0;}
+static uint8_t dummy_Init (uint8_t addr){ return 0; }// fail init to allow scan for other
+static uint8_t dummy_Config (uint8_t DevID, uint8_t Mode) { return (DevID == CDC_GET_MCLK) ? CDC_MCLK_256FS : 0;}
 static void    dummy_SampleRate (uint32_t Rate){}
 static void    dummy_Enable (void) {}
 static void    dummy_Disable (void) {}
@@ -82,9 +83,10 @@ static const audio_codec_t dummy_codec = {
 };
 
 static const cdc_list_t codecs [] = {
-    {"none", &dummy_codec},
-    {"ak4619", &ak4619},
-    {"tas2563", &tas2563}
+    {"none", &dummy_codec, 0},
+    {"ak4619", &ak4619, AK4619_I2C_ADDR},
+    {"tas2563", &tas2563, TAS2563_I2C_ADDR0},
+    {"tas2563", &tas2563, TAS2563_I2C_ADDR3}
 };
 
 #if ENABLE_CLI
@@ -107,14 +109,15 @@ static int codecCmd(int argc, char **argv)
     if( !strcmp("select", argv[1])){
         if(argc < 3){
             printf("Available codecs:\n");
+            uint8_t addr = codec->Config(CDC_GET_ADDR, 0);
             for(uint8_t i = 0; i < sizeof(codecs)/sizeof(cdc_list_t); i++){
-                printf("\t%s %c\n", codecs[i].name, (codecs[i].cdc == codec) ? '*' : ' ');
+                printf("\t%d [%c] %s (%X)\n", i, (codecs[i].i2c_addr == addr) ? '*' : ' ', codecs[i].name, codecs[i].i2c_addr);
             }
-        }else{            
-            for(uint8_t idx = 0; idx < sizeof(codecs)/sizeof(cdc_list_t); idx++){
-                if(!strcmp(codecs[idx].name, argv[2])){
-                    codec = codecs[idx].cdc;
-                }
+        }else{
+            int32_t val;
+            if(CLI_Ia2i(argv[2], &val)){
+                codec = codecs[val].cdc;
+                codec->Config(CDC_CFG_ADDR, codecs[val].i2c_addr);
             }
         }
         return CLI_OK;
@@ -454,7 +457,7 @@ int main(void)
   for(uint8_t idx = 0; idx < sizeof(codecs)/sizeof(cdc_list_t); idx++){    
      const cdc_list_t *pcdc = &codecs[idx];
      if(pcdc->cdc){
-        uint8_t res = pcdc->cdc->Init();
+        uint8_t res = pcdc->cdc->Init(pcdc->i2c_addr);
         if(res){
             printf("Found codec: %s\n", pcdc->name);
             if(found_idx == 0){

@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "audio.h"
 
-#define AK4619_ADDR           0x20  // 8-bit
+#define AK4619_I2C_ADDR       0x10  // 7-bit, 0x10 + CAD pin
 #define AK4619_ALT_ADDR       AK4619_ALT_ADDR + 2
 
 #define AK4619_PWRMGM_REG     0x00
@@ -77,7 +77,7 @@
 #define AK4619_SEL_SDOUT1   2
 #define AK4619_SEL_SDOUT2   3
 
-uint8_t ak4619_Init (void);
+uint8_t ak4619_Init (uint8_t Addr);
 uint8_t ak4619_Config (uint8_t DevID, uint8_t Mode);
 void    ak4619_SampleRate (uint32_t Rate);
 void    ak4619_Enable (void);

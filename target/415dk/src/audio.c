@@ -598,7 +598,9 @@ audio_status_t audio_init(const audio_codec_t *codec)
         return res;
     }
 
-    if(!audio_driver.codec->Init()){
+    uint8_t cdc_addr = audio_driver.codec->Config(CDC_GET_ADDR, 0);
+
+    if(!audio_driver.codec->Init(cdc_addr)){
         return AUDIO_ERROR_CODEC;
     }
 

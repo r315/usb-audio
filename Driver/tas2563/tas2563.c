@@ -11,6 +11,7 @@
 #define DAC2L_EN     (1 << 6)
 #define DAC2R_EN     (1 << 7)
 
+static uint8_t tas2563_i2c_addr;
 static uint8_t tas2563_WriteReg(uint16_t, uint8_t);
 static uint8_t tas2563_ReadReg(uint16_t, uint8_t*);
 
@@ -35,7 +36,7 @@ static uint8_t tas2563_WriteReg (uint16_t Register, uint8_t Value)
     Data[0] = Register;
     Data[1] = Value;
 
-    return I2C_Master_Write (TAS2563_I2C_ADDR, (const uint8_t*)&Data, 2);
+    return I2C_Master_Write (tas2563_i2c_addr, (const uint8_t*)&Data, 2);
 }
 
 /**
@@ -43,17 +44,26 @@ static uint8_t tas2563_WriteReg (uint16_t Register, uint8_t Value)
  */
 static uint8_t tas2563_ReadReg (uint16_t Register, uint8_t *Value)
 {
-   //return I2C_Mem_Read (TAS2563_I2C_ADDR, Register, Val, 1);
-   if(I2C_Master_Write(TAS2563_I2C_ADDR, (const uint8_t*)&Register, 1) != 1)
+   //return I2C_Mem_Read (tas2563_i2c_addr, Register, Val, 1);
+   if(I2C_Master_Write(tas2563_i2c_addr, (const uint8_t*)&Register, 1) != 1)
         return 1;
 
-    return I2C_Master_Read(TAS2563_I2C_ADDR, Value, 1);
+    return I2C_Master_Read(tas2563_i2c_addr, Value, 1);
 }
 
-uint8_t tas2563_Init (void)
+static void tas2563_set_i2c_addr(uint8_t addr)
+{
+    tas2563_i2c_addr = addr << 1;
+}
+
+uint8_t tas2563_Init (uint8_t addr)
 {
    uint8_t Retries;
    uint8_t RegValue;
+
+
+   tas2563_set_i2c_addr(addr);
+
    // Change to page 0
 
    // Verify if DAC is present by trying to set page
@@ -137,8 +147,18 @@ uint8_t tas2563_Config (uint8_t DevID, uint8_t Cfg)
 {
    switch(DevID)
    {
+      case CDC_CFG_ADDR:
+        tas2563_set_i2c_addr(Cfg);
+        break;
+
+      case CDC_GET_ADDR:
+        return tas2563_i2c_addr >> 1;        
+
+      case CDC_GET_MCLK: 
+        return 1;
+
       case CDC_DEV_DAI:
-      case CDC_DEV_DAC1:        
+      case CDC_DEV_DAC1:
       break;
    }
 

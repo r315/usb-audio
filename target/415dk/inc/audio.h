@@ -62,7 +62,6 @@ extern "C" {
 
 enum {
     CDC_DEV_DAI = 0,
-    CDC_DEV_MCLK,
     CDC_DEV_ADC1,
     CDC_DEV_ADC2,
     CDC_DEV_ADC3,
@@ -76,7 +75,7 @@ enum {
 };
 
 enum {
-    CDC_CFG_GET_MCLK = 1,
+    CDC_GET_MCLK = 1,
     CDC_CFG_DAI_SLOT_16BIT,
     CDC_CFG_DAI_SLOT_24BIT,
     CDC_CFG_DAI_SLOT_32BIT,
@@ -84,6 +83,8 @@ enum {
     CDC_CFG_DAI_ŴORD_24BIT,
     CDC_CFG_DAI_I2S,
     CDC_CFG_DAI_TDM,
+    CDC_CFG_ADDR,
+    CDC_GET_ADDR,
 };
 
 enum {
@@ -134,7 +135,7 @@ typedef struct audio_channel_s
 
 typedef struct audio_codec_s
 {
-   uint8_t (*Init) (void);
+   uint8_t (*Init) (uint8_t Addr);
    uint8_t (*Config) (uint8_t DevID, uint8_t Mode);
    void    (*SampleRate) (uint32_t Rate);
    void    (*Enable) (void);
@@ -142,7 +143,7 @@ typedef struct audio_codec_s
    void    (*Volume) (uint8_t DevID, uint8_t Volume);
    void    (*Mute) (uint8_t DevID, uint8_t Mode);
    uint8_t (*WriteReg) (uint16_t Register, uint8_t Val);
-   uint8_t (*ReadReg) (uint16_t Register, uint8_t *dst);
+   uint8_t (*ReadReg) (uint16_t Register, uint8_t *Dst);
 }audio_codec_t;
 
 typedef struct audio_driver_s

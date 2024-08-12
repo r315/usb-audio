@@ -4,8 +4,11 @@
 #include <stdint.h>
 #include "audio.h"
 
-#define TAS2563_I2C_ADDR_GLOBAL        (0x48 << 1)
-#define TAS2563_I2C_ADDR               (0x4C << 1)
+#define TAS2563_I2C_ADDR_GLOBAL         0x48   // 7-bit, 
+#define TAS2563_I2C_ADDR0               0x4C
+#define TAS2563_I2C_ADDR1               0x4D
+#define TAS2563_I2C_ADDR2               0x4E
+#define TAS2563_I2C_ADDR3               0x4F
 
 /* Register Address Map */
 
@@ -81,7 +84,7 @@
 // DAC Interface functions
 // =============================================================================
 
-extern uint8_t tas2563_Init (void);
+extern uint8_t tas2563_Init (uint8_t Addr);
 extern uint8_t tas2563_Config (uint8_t DevID, uint8_t Mode);
 extern void tas2563_SampleRate (uint32_t Rate);
 extern void tas2563_Enable (void);
