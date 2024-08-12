@@ -185,7 +185,7 @@ void tas2563_Volume (uint8_t DevID, uint8_t Volume)
 {
    uint8_t RegVal;
 
-   if (Volume > 15)
+   if (Volume > 100)
    {
       return;
    }
@@ -204,9 +204,9 @@ void tas2563_Volume (uint8_t DevID, uint8_t Volume)
 
    // Map Volume to AMP_LEVEL [1:0x1C]
 
-   Volume = (Volume * 0x1C ) / 15;
+   Volume = (Volume * 0x1C ) / 100;
 
-   RegVal = (RegVal & 0xC1) | Volume << 1;
+   RegVal = (RegVal & 0xC1) | (Volume << 1);
 
    tas2563_WriteReg(TAS2563_PB_CFG1_REG, RegVal);  
 }
