@@ -23,9 +23,9 @@
 #define AMUX_GET_SLOT(cx,sy)    ((((cx) & 7) << 2) + ((sy) & 3)) // This assumes that each channel has only 4 slots
 
 uint8_t amux_Init(void);
-uint8_t amux_Route(uint8_t src_ch, uint8_t src_sl, uint8_t dst_ch, uint8_t dst_sl, uint8_t en);
+uint8_t amux_Route(uint8_t src, uint8_t dst, uint8_t en);
 uint8_t amux_MuteAll(void);
-uint8_t amux_Mute(uint8_t ch, uint8_t sl, uint8_t mute);
+uint8_t amux_Mute(uint8_t slot, uint8_t mute);
 uint8_t amux_Reset(void);
 uint8_t amux_GetVer(uint8_t *buf);
 uint8_t amux_MclkPha(uint8_t pha);

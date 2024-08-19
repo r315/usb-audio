@@ -330,7 +330,7 @@ static int muxCmd(int argc, char **argv)
         printf("\trr <reg>\n");
         printf("\twr <reg> <val>\n");
         printf("\tmute <all | name> <1|0>, Name cxsy\n");
-        printf("\troute <in name> <out name> <1|0>\n");
+        printf("\troute <scr> <dst> <1|0>, src/dst slot 1-32\n");
         return CLI_OK;
     }
 
@@ -373,7 +373,7 @@ static int muxCmd(int argc, char **argv)
     }
 
     /**
-     * mute <all, cxsy 1|0>
+     * mute <all, 0-31, 1|0>
     */
     if(!strcmp("mute", argv[1])){
         if(!strcmp("all", argv[2])){
@@ -381,7 +381,10 @@ static int muxCmd(int argc, char **argv)
             return CLI_OK;
         }
 
-        amux_Mute(argv[2][1] - '0', argv[2][3] - '0', argv[3][0] - '0');
+        if(CLI_Ia2i(argv[2], (int32_t*)&value)){
+            amux_Mute(value, argv[3][0] - '0');
+        }
+
         return CLI_OK;
     }
 
@@ -402,13 +405,16 @@ static int muxCmd(int argc, char **argv)
 
         if(argc < 5){
             return CLI_MISSING_ARGS;
-        }        
+        }
 
-        amux_Route(argv[2][1] - '0', argv[2][3] - '0', 
-                   argv[3][1] - '0', argv[3][3] - '0', 
-                  (argv[4][0] == '1') ? 1 : 0);
+        int32_t src, dst;
 
-        return CLI_OK;
+        if(CLI_Ia2i(argv[2], &src)){
+            if(CLI_Ia2i(argv[3], &dst)){
+                amux_Route(src, dst, (argv[4][0] == '1') ? 1 : 0);
+                return CLI_OK;
+            }
+        }
     }
 
     if( !strcmp("mclk_pha", argv[1])){

@@ -54,17 +54,19 @@ uint8_t amux_Init(void)
 }
 
 /**
- * \param src_ch source channel 1-8
- * \param src_sl source slot 1-4
+ * \param src source slot 0-31
+ * \param dst destination slot 0-31
  * 
 */
-uint8_t amux_Route(uint8_t src_ch, uint8_t src_sl, uint8_t dst_ch, uint8_t dst_sl, uint8_t en)
+uint8_t amux_Route(uint8_t src, uint8_t dst, uint8_t en)
 {
     uint8_t reg_data;
-    uint8_t in_slot = AMUX_GET_SLOT(src_ch - 1, src_sl - 1);
-    uint8_t out_slot = AMUX_GET_SLOT(dst_ch - 1, dst_sl - 1);
 
-    uint8_t reg_offset = (in_slot << 2) + (out_slot >> 3);
+    if(src > 31 || dst > 31){
+        return 0;
+    }
+  
+    uint8_t reg_offset = (src << 2) + (dst >> 3);
     reg_offset += 0x10;
     
     if(!amux_ReadReg(reg_offset, &reg_data)){
@@ -72,9 +74,9 @@ uint8_t amux_Route(uint8_t src_ch, uint8_t src_sl, uint8_t dst_ch, uint8_t dst_s
     }
 
     if(en){
-        reg_data |= (1 << (out_slot & 7));
+        reg_data |= (1 << (dst & 7));
     }else{
-        reg_data &= ~(1 << (out_slot & 7));
+        reg_data &= ~(1 << (dst & 7));
     }
 
     return amux_WriteReg(reg_offset, reg_data);
@@ -99,12 +101,16 @@ uint8_t amux_Reset(void)
 
 /**
  * Mutes a single slot
+ * \param slot slot to be muted 0-31
  */
-uint8_t amux_Mute(uint8_t ch, uint8_t sl, uint8_t mute)
+uint8_t amux_Mute(uint8_t slot, uint8_t mute)
 {
-    uint8_t dsp_slot = AMUX_GET_SLOT(ch - 1, sl - 1);
-    uint8_t slot_reg = dsp_slot / 8;
-    uint8_t slot_mask = (1 << (dsp_slot & 7));
+    if(slot > 31){
+        return 0;
+    }
+
+    uint8_t slot_reg = slot / 8;
+    uint8_t slot_mask = (1 << (slot & 7));
     uint8_t mute_data;
 
     if(!amux_ReadReg(slot_reg, &mute_data)){
