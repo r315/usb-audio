@@ -116,11 +116,10 @@ uint8_t tas2563_Init (uint8_t addr)
 
    tas2563_WriteReg (TAS2563_PDM_CFG0_REG, 0x1);
 
-   // Slot is automatically selected with i2c address,
-   // for now force mono right channel based on i2c address.
-   // This will be fixed on revB to be auto
-   if(addr != TAS2563_I2C_ADDR0)
-      tas2563_WriteReg (TAS2563_TDM_CFG2_REG, 0x6A);
+      
+   // Configure slot based on i2c address,
+   // slot length to 32bit and word length to 16bit
+   tas2563_WriteReg (TAS2563_TDM_CFG2_REG, 0x2);
 
    tas2563_Enable ();
 

@@ -86,6 +86,8 @@ static const cdc_list_t codecs [] = {
     {"none", &dummy_codec, 0},
     {"ak4619", &ak4619, AK4619_I2C_ADDR},
     {"tas2563", &tas2563, TAS2563_I2C_ADDR0},
+    {"tas2563", &tas2563, TAS2563_I2C_ADDR1},
+    {"tas2563", &tas2563, TAS2563_I2C_ADDR2},
     {"tas2563", &tas2563, TAS2563_I2C_ADDR3}
 };
 
