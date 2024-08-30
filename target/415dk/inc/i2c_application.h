@@ -176,6 +176,8 @@ void            i2c_err_irq_handler       (i2c_handle_type* hi2c);
 void            i2c_dma_tx_irq_handler    (i2c_handle_type* hi2c);
 void            i2c_dma_rx_irq_handler    (i2c_handle_type* hi2c);
 
+i2c_status_type i2c_master_scan_addr      (i2c_handle_type *hi2c, uint16_t address, uint32_t timeout);
+
 /**
   * @}
   */

@@ -5,7 +5,7 @@
 #include "audio.h"
 
 #define AK4619_I2C_ADDR       0x10  // 7-bit, 0x10 + CAD pin
-#define AK4619_ALT_ADDR       AK4619_ALT_ADDR + 2
+#define AK4619_ALT_ADDR       AK4619_I2C_ADDR + 1
 
 #define AK4619_PWRMGM_REG     0x00
 #define AK4619_AUDFORM1_REG   0x01
@@ -24,7 +24,7 @@
 #define AK4619_DAC1RVOL_REG   0x0F
 #define AK4619_DAC2LVOL_REG   0x10
 #define AK4619_DAC2RVOL_REG   0x11
-#define AK4619_DACDIN_REG     0x12 
+#define AK4619_DACDIN_REG     0x12
 #define AK4619_DACDEEM_REG    0x13
 #define AK4619_DACMUTFLT_REG  0x14
 

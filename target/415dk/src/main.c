@@ -92,7 +92,7 @@ static const cdc_list_t codecs [] = {
 };
 
 #if ENABLE_CLI
-static int codecCmd(int argc, char **argv) 
+static int codecCmd(int argc, char **argv)
 {
     if( !strcmp("help", argv[1]) || argc < 2){
         printf("\tvol\n");
@@ -111,7 +111,7 @@ static int codecCmd(int argc, char **argv)
     if( !strcmp("select", argv[1])){
         if(argc < 3){
             printf("Available codecs:\n");
-            uint8_t addr = codec->Config(CDC_GET_ADDR, 0);
+            uint8_t addr = codec->Config(CDC_GET_I2C_ADDR, 0);
             for(uint8_t i = 0; i < sizeof(codecs)/sizeof(cdc_list_t); i++){
                 printf("\t%d [%c] %s (%X)\n", i, (codecs[i].i2c_addr == addr) ? '*' : ' ', codecs[i].name, codecs[i].i2c_addr);
             }
@@ -119,7 +119,8 @@ static int codecCmd(int argc, char **argv)
             int32_t val;
             if(CLI_Ia2i(argv[2], &val)){
                 codec = codecs[val].cdc;
-                codec->Config(CDC_CFG_ADDR, codecs[val].i2c_addr);
+                codec->Config(CDC_SET_I2C_ADDR, codecs[val].i2c_addr);
+                audio_set_codec(codec);
             }
         }
         return CLI_OK;
@@ -127,26 +128,24 @@ static int codecCmd(int argc, char **argv)
 
     if( !strcmp("scan", argv[1])){
         printf("\n   ");
-        
+
         for(int i = 0; i < 16; i++){
             printf("%02X ", i);
-        }           
-        
-        uint8_t dummy;
-        
+        }
+
         for(int i = 0; i < 128; i++){
-            if( (i & 15) == 0) 
+            if( (i & 15) == 0)
                 printf("\n%02X ", i & 0xF0);
-            
+
             if(i >= 3 && i <= 0x77){ // default range from i2cdetect
-                if(i2c_master_transmit(&hi2cx, (i << 1), &dummy, 1, 1000) == I2C_OK){
+                if(i2c_master_scan_addr(&hi2cx, (i << 1), 1000) == I2C_OK){
                     printf("%02X ", i);
                 }else{
                     printf("-- ");
-                }                
+                }
                 delay_ms(1);
             }else{
-               printf("   "); 
+               printf("   ");
             }
         }
         putchar('\n');
@@ -165,16 +164,18 @@ static int codecCmd(int argc, char **argv)
         int32_t val;
         if(CLI_Ia2i(argv[2], &val)){
             audio_set_spk_volume(val);
-        }        
+        }else{
+            printf("%d\n", audio_get_spk_volume());
+        }
         return CLI_OK;
     }
-  
+
     if( !strcmp("rr", argv[1])){
         uint32_t val;
         if(CLI_Ha2i(argv[2], &val)){
             codec->ReadReg(val, (uint8_t*)&val);
             printf("%02X\n", (uint8_t)val);
-        }        
+        }
         return CLI_OK;
     }
 
@@ -184,7 +185,7 @@ static int codecCmd(int argc, char **argv)
             if(CLI_Ha2i(argv[3], &val2)){
                 codec->WriteReg(val, val2);
             }
-        }        
+        }
         return CLI_OK;
     }
 
@@ -195,12 +196,12 @@ static int codecCmd(int argc, char **argv)
     }
 
     if( !strcmp("enable", argv[1])){
-        codec->Enable();   
+        codec->Enable();
         return CLI_OK;
     }
 
     if( !strcmp("disable", argv[1])){
-        codec->Disable(); 
+        codec->Disable();
         return CLI_OK;
     }
 
@@ -212,7 +213,7 @@ static int codecCmd(int argc, char **argv)
     if( !strcmp("i2s", argv[1])){
         codec->Config(CDC_DEV_DAI, CDC_CFG_DAI_I2S);
         return CLI_OK;
-    }   
+    }
 
     return CLI_BAD_PARAM;
 }
@@ -240,7 +241,7 @@ static int audioCmd(int argc, char **argv)
             audio_set_freq(val);
         }
     }
-    
+
     if(!strcmp("disable", argv[0])){
         audio_deinit();
         usbd_disconnect(&otg_core_struct.dev);
@@ -294,8 +295,8 @@ static int trimCmd(int argc, char **argv)
 static void dump_buf(uint8_t *buf, uint32_t count)
 {
     for(int i = 0; i < count; i ++){
-        if( (i & 15) == 0) 
-            printf("\n%02X: ", i & 0xF0);                
+        if( (i & 15) == 0)
+            printf("\n%02X: ", i & 0xF0);
         printf("%02X ", buf[i]);
     }
     putchar('\n');
@@ -315,7 +316,7 @@ static i2c_status_type readMux(i2c_handle_type *handle, uint8_t *buf, uint32_t c
 
     printf("Failed to write reg address\n");
 
-    return I2C_ERR_ACKFAIL;   
+    return I2C_ERR_ACKFAIL;
 }
 
 static int muxCmd(int argc, char **argv)
@@ -342,7 +343,7 @@ static int muxCmd(int argc, char **argv)
         }
     }
 
-    if( !strcmp("ver", argv[1])){        
+    if( !strcmp("ver", argv[1])){
         amux_GetVer(regs_buf);
         printf("v%d.%d.%d", regs_buf[0], regs_buf[1], regs_buf[2]);
         return CLI_OK_LF;
@@ -362,9 +363,8 @@ static int muxCmd(int argc, char **argv)
 
     if( !strcmp("rr", argv[1])){
         if(CLI_Ha2i(argv[2], (uint32_t*)&regs_buf)){
-            if(!CLI_Ha2i(argv[3], &count)){
-                count = 1;
-            }
+            count = 1;
+            CLI_Ha2i(argv[3], &count);
             if(readMux(&hi2cx, regs_buf, count) == I2C_OK){
                 dump_buf(regs_buf, count);
                 return CLI_OK;
@@ -458,7 +458,7 @@ int main(void)
 
   CLI_Init("Audio >");
   CLI_RegisterCommand(cli_cmds, sizeof(cli_cmds) / sizeof(cli_command_t));
-#endif  
+#endif
 
   /* i2c init */
   hi2cx.i2cx = I2Cx_PORT;
@@ -469,7 +469,7 @@ int main(void)
   /* audio init */
   printf("\n\n");
   uint8_t found_idx = 0;
-  for(uint8_t idx = 0; idx < sizeof(codecs)/sizeof(cdc_list_t); idx++){    
+  for(uint8_t idx = 0; idx < sizeof(codecs)/sizeof(cdc_list_t); idx++){
      const cdc_list_t *pcdc = &codecs[idx];
      if(pcdc->cdc){
         uint8_t res = pcdc->cdc->Init(pcdc->i2c_addr);
@@ -693,7 +693,7 @@ void i2c_lowlevel_init(i2c_handle_type* hi2c)
 
 uint32_t I2C_Master_Write(uint8_t device, const uint8_t* data, uint32_t len)
 {
-    i2c_status_type res = i2c_master_transmit(&hi2cx, device, (uint8_t*)data, len, 1000);
+    i2c_status_type res = i2c_master_transmit(&hi2cx, device << 1, (uint8_t*)data, len, 1000);
 
     if(res != I2C_OK){
         printf("%s : Error %u\n", __func__, res);
@@ -705,7 +705,7 @@ uint32_t I2C_Master_Write(uint8_t device, const uint8_t* data, uint32_t len)
 
 uint32_t I2C_Master_Read(uint8_t device, uint8_t* data, uint32_t len)
 {
-    i2c_status_type res = i2c_master_receive(&hi2cx, device, data, len, 1000);
+    i2c_status_type res = i2c_master_receive(&hi2cx, device << 1, data, len, 1000);
 
     if(res != I2C_OK){
         printf("%s : Error %u\n", __func__, res);

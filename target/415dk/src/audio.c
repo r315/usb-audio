@@ -69,7 +69,7 @@ static void memcpy16(uint16_t *dst, uint16_t *src, uint32_t len)
 
 /**
   * @brief  audio codec modify freq
-  * @param  freq: freq 
+  * @param  freq: freq
   * @retval none
   */
 void audio_set_freq(uint32_t freq)
@@ -78,7 +78,7 @@ void audio_set_freq(uint32_t freq)
     {
         audio_driver.freq = freq;
         audio_driver.codec->Disable();
-        bus_i2s_reset();        
+        bus_i2s_reset();
         bus_i2s_init(&audio_driver);
         audio_driver.codec->SampleRate(freq);
     }
@@ -136,7 +136,14 @@ void audio_set_spk_mute(uint8_t mute)
 void audio_set_mic_volume(uint16_t volume)
 {
     printf("%s :%d\n", __func__, volume);
+    audio_driver.mic.volume = volume;
 }
+
+uint8_t audio_get_mic_volume(void)
+{
+    return audio_driver.mic.volume;
+}
+
 
 /**
   * @brief  audio codec set speaker volume
@@ -146,10 +153,15 @@ void audio_set_mic_volume(uint16_t volume)
 void audio_set_spk_volume(uint16_t volume)
 {
     printf("%s :%d\n", __func__, volume);
+    audio_driver.spk.volume = volume;
     audio_driver.codec->Volume(CDC_DEV_DAC1, volume);
     audio_driver.codec->Volume(CDC_DEV_DAC2, volume);
 }
 
+uint8_t audio_get_spk_volume(void)
+{
+    return audio_driver.spk.volume;
+}
 
 /**
   * @brief  audio codec speaker alt setting config
@@ -187,9 +199,18 @@ uint8_t audio_spk_feedback(uint8_t *feedback)
     return 3;
 }
 
+void audio_set_codec(const audio_codec_t *codec)
+{
+    if(!codec){
+        return;
+    }
+
+    audio_driver.codec = codec;
+}
+
 /**
   * @brief  callback from audio_class to write codec speaker write fifo
-  * 
+  *
   * @param  data: data buffer
   * @param  len: data length
   * @retval none
@@ -214,11 +235,11 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
             audio_driver.spk.stage = DRV_FILL_SECOND;
         }
         break;
-        
+
         case DRV_FILL_SECOND:
         break;
     }
-  
+
     for (i = 0; i < ulen; ++i)
     {
         *(audio_driver.spk.woff++) = *u16data++;
@@ -233,7 +254,7 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
 
 /**
   * @brief  callback from audio_class to get codec microphone data
-  * 
+  *
   * @param  data: data buffer
   * @retval data len
   */
@@ -287,7 +308,7 @@ uint32_t audio_dequeue_data(uint8_t *buffer)
     }
 
     if (audio_driver.mic.wtotal <= audio_driver.mic.rtotal)
-    {   
+    {
         // while (1); // should not happen
         // TODO: Fix buffer overflow
         audio_driver.mic.stage = 0;
@@ -309,7 +330,7 @@ static void bus_i2s_reset(void)
     i2s_enable(SPI1, FALSE);
     i2s_enable(SPI2, FALSE);
     dma_channel_enable(DMA1_CHANNEL3, FALSE);
-    dma_channel_enable(DMA1_CHANNEL4, FALSE); 
+    dma_channel_enable(DMA1_CHANNEL4, FALSE);
 }
 
 /**
@@ -327,7 +348,7 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
 
     if(audio->bitw == AUDIO_BITW_16){
         format = I2S_DATA_16BIT_CHANNEL_32BIT;
-    }else if(audio->bitw == AUDIO_BITW_32){    
+    }else if(audio->bitw == AUDIO_BITW_32){
         format = I2S_DATA_32BIT_CHANNEL_32BIT;
     }else{
         return AUDIO_ERROR_BITW;
@@ -367,12 +388,11 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     i2s_default_para_init(&i2s_init_struct);
     i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
     //i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
-    i2s_init_struct.data_channel_format = format;    
+    i2s_init_struct.data_channel_format = format;
     i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
     i2s_init_struct.clock_polarity = I2S_CLOCK_POLARITY_LOW;
     i2s_init_struct.operation_mode = (audio->mode == AUDIO_MODE_MASTER) ? I2S_MODE_MASTER_TX : I2S_MODE_SLAVE_TX;
-    if(audio->codec->Config(CDC_DEV_MCLK, CDC_CFG_GET_MCLK)){
-        i2s_init_struct.mclk_output_enable = TRUE;
+    if(audio->codec->Config(CDC_GET_MCLK, 0)){
         gpio_init_struct.gpio_pins = I2S1_MCK_PIN;
         gpio_init_struct.gpio_mode = GPIO_MODE_MUX;
         gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MAXIMUM;
@@ -431,7 +451,7 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     dma_init(DMA1_CHANNEL4, &dma_init_struct);
     dma_interrupt_enable(DMA1_CHANNEL4, DMA_FDT_INT, TRUE);
     dma_interrupt_enable(DMA1_CHANNEL4, DMA_HDT_INT, TRUE);
-    nvic_irq_enable(DMA1_Channel4_IRQn, 2, 0);   
+    nvic_irq_enable(DMA1_Channel4_IRQn, 2, 0);
 
     /* Config gpio's */
     if(audio->mode == AUDIO_MODE_MASTER){
@@ -527,7 +547,7 @@ void audio_cfg_mclk(uint32_t freq, uint32_t enable)
         crm_periph_reset(CRM_TMR2_PERIPH_CLOCK, TRUE);
         return;
     }
-    
+
     crm_clocks_freq_get(&clocks);
 
     prescaler_value = (uint16_t)(clocks.apb1_freq / freq) - 1;
@@ -598,11 +618,14 @@ audio_status_t audio_init(const audio_codec_t *codec)
         return res;
     }
 
-    uint8_t cdc_addr = audio_driver.codec->Config(CDC_GET_ADDR, 0);
+    uint8_t cdc_addr = audio_driver.codec->Config(CDC_GET_I2C_ADDR, 0);
 
     if(!audio_driver.codec->Init(cdc_addr)){
         return AUDIO_ERROR_CODEC;
     }
+
+    audio_set_spk_volume(60);
+    audio_set_mic_volume(60);
 
     return AUDIO_OK;
 }
@@ -627,7 +650,7 @@ audio_status_t audio_deinit(void)
 
     gpio_init_struct.gpio_pins = I2S2_WS_PIN | I2S2_SD_PIN | I2S2_CK_PIN;
     gpio_init(I2S2_GPIO, &gpio_init_struct);
-    
+
     return AUDIO_OK;
 }
 
@@ -643,7 +666,7 @@ audio_status_t audio_loop(void)
 }
 
 /**
- * @brief  This dma handler is called when dma has reach half transfer or 
+ * @brief  This dma handler is called when dma has reach half transfer or
  * ended the transfer from memory to I2S peripheral.
  * @param  none
  * @retval none
@@ -679,7 +702,7 @@ void DMA1_Channel3_IRQHandler(void)
         case DRV_FILL_FIRST:
         memset16(pdst, 0, half_size);
         break;
-        
+
         case DRV_FILL_SECOND:
         if (ach->wtotal >= ach->rtotal + SPK_BUFFER_SIZE)
         {
@@ -690,7 +713,7 @@ void DMA1_Channel3_IRQHandler(void)
         }
 
         if (ach->rtotal >= ach->wtotal)
-        {          
+        {
             ach->stage = DRV_INIT;
         }
         else
@@ -791,7 +814,7 @@ void DMA1_Channel4_IRQHandler(void)
                     audio_driver.mic.wtotal -= 0x80000000;
                 }
             }
-            
+
             if (audio_driver.mic.wtotal >= audio_driver.mic.rtotal + MIC_BUFFER_SIZE)
             {
                 audio_driver.mic.delta = audio_driver.mic.wtotal = audio_driver.mic.rtotal = 0;

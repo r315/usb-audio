@@ -53,7 +53,12 @@ static uint8_t tas2563_ReadReg (uint16_t Register, uint8_t *Value)
 
 static void tas2563_set_i2c_addr(uint8_t addr)
 {
-    tas2563_i2c_addr = addr << 1;
+    if(addr < TAS2563_I2C_ADDR0 || addr > TAS2563_I2C_ADDR3){
+        if(tas2563_i2c_addr == 0)
+            addr = TAS2563_I2C_ADDR0;
+        return;
+    }
+    tas2563_i2c_addr = addr;
 }
 
 uint8_t tas2563_Init (uint8_t addr)
@@ -78,7 +83,7 @@ uint8_t tas2563_Init (uint8_t addr)
    tas2563_WriteReg (TAS2563_SW_RESET_REG, 1);
 
    Retries = 100;
-   
+
    while(Retries--)
    {
       if( tas2563_ReadReg (TAS2563_SW_RESET_REG, &RegValue) == 0)
@@ -94,10 +99,10 @@ uint8_t tas2563_Init (uint8_t addr)
 
    // Disable global address
 
-   tas2563_WriteReg (TAS2563_MISC_CFG2_REG, 0x20);  
+   tas2563_WriteReg (TAS2563_MISC_CFG2_REG, 0x20);
 
    // Default to 16kHz, frame start at rising edge of WS
-   
+
    tas2563_WriteReg (TAS2563_TDM_CFG0_REG, 0x02);
 
    // Boost passthrough
@@ -116,7 +121,7 @@ uint8_t tas2563_Init (uint8_t addr)
 
    tas2563_WriteReg (TAS2563_PDM_CFG0_REG, 0x1);
 
-      
+
    // Configure slot based on i2c address,
    // slot length to 32bit and word length to 16bit
    tas2563_WriteReg (TAS2563_TDM_CFG2_REG, 0x2);
@@ -152,14 +157,14 @@ uint8_t tas2563_Config (uint8_t DevID, uint8_t Cfg)
 {
    switch(DevID)
    {
-      case CDC_CFG_ADDR:
+      case CDC_SET_I2C_ADDR:
         tas2563_set_i2c_addr(Cfg);
         break;
 
-      case CDC_GET_ADDR:
-        return tas2563_i2c_addr >> 1;        
+      case CDC_GET_I2C_ADDR:
+        return tas2563_i2c_addr >> 1;
 
-      case CDC_GET_MCLK: 
+      case CDC_GET_MCLK:
         return 1;
 
       case CDC_DEV_DAI:
@@ -180,9 +185,9 @@ void tas2563_Mute (uint8_t DevID, uint8_t Mute)
 
    // Set mute mode
 
-   RegVal = (Mute) ? RegVal | 1 : RegVal & 0xFC;   
+   RegVal = (Mute) ? RegVal | 1 : RegVal & 0xFC;
 
-   tas2563_WriteReg(TAS2563_PWR_CTL_REG, RegVal);  
+   tas2563_WriteReg(TAS2563_PWR_CTL_REG, RegVal);
 }
 
 
@@ -213,20 +218,20 @@ void tas2563_Volume (uint8_t DevID, uint8_t Volume)
 
    RegVal = (RegVal & 0xC1) | (Volume << 1);
 
-   tas2563_WriteReg(TAS2563_PB_CFG1_REG, RegVal);  
+   tas2563_WriteReg(TAS2563_PB_CFG1_REG, RegVal);
 }
 
 void tas2563_SampleRate (uint32_t Rate)
 {
     uint8_t RegVal;
-    
+
     switch(Rate)
     {
         case CDC_SR_8K:
             Rate = 0;
             break;
 
-        case CDC_SR_16K: 
+        case CDC_SR_16K:
             Rate = 1;
             break;
 
@@ -235,7 +240,7 @@ void tas2563_SampleRate (uint32_t Rate)
             Rate = 2;
             break;
 
-        case CDC_SR_32K: 
+        case CDC_SR_32K:
             Rate = 3;
             break;
 

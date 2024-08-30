@@ -11,7 +11,7 @@
 #define DAC2L_EN     (1 << 6)
 #define DAC2R_EN     (1 << 7)
 
-static uint8_t ak4619_i2c_addr;
+static uint8_t ak4619_i2c_addr = 0;
 static uint8_t ak4619_write_reg(uint16_t, uint8_t);
 static uint8_t ak4619_read_reg(uint16_t, uint8_t*);
 
@@ -46,7 +46,13 @@ static uint8_t ak4619_read_reg(uint16_t reg, uint8_t *value)
 
 static void ak4619_set_i2c_addr(uint8_t addr)
 {
-    ak4619_i2c_addr = addr << 1;
+    if(addr != AK4619_I2C_ADDR && addr != AK4619_ALT_ADDR){
+        if(ak4619_i2c_addr == 0)
+            addr = AK4619_I2C_ADDR;
+        return;
+    }
+
+    ak4619_i2c_addr = addr;
 }
 
 static void ak4619_dac_mux(uint8_t dac, uint8_t sel)
@@ -68,7 +74,7 @@ static void ak4619_dac_mux(uint8_t dac, uint8_t sel)
 uint8_t ak4619_Init (uint8_t addr){
 
     uint8_t res;
-    
+
     ak4619_set_i2c_addr(addr);
 
     res = ak4619_write_reg(AK4619_PWRMGM_REG, 0);  // Reset device
@@ -77,23 +83,23 @@ uint8_t ak4619_Init (uint8_t addr){
         // Fail / not present
         return 0;
     }
-    
-    delay_ms(100);
+
+    //delay_ms(100);
     res = ak4619_write_reg(AK4619_PWRMGM_REG, AK4619_PWRMGM_RST); // Set RST bit enables device
 
     if(!res){
-         // Fail / 
+         // Fail /
         return 0;
     }
 
-    // 16bit slot and 16bit word DAI default
-    ak4619_write_reg(AK4619_AUDFORM1_REG, AK4619_AUDFORM1_DSL16 | AK4619_AUDFORM1_DCF_I2S_MSB);
-    ak4619_write_reg(AK4619_AUDFORM2_REG, AK4619_AUDFORM2_DIDL16 | AK4619_AUDFORM2_DODL16);
-    
+    ak4619_Config(CDC_DEV_DAI, CDC_CFG_DAI_TDM);
+
     // Default MCLK = 256FS
     ak4619_write_reg(AK4619_SYSCLKSET_REG, AK4619_SYSCLKSET_256FS);
 
-    return 1; 
+    ak4619_Enable();
+
+    return 1;
 }
 
 uint8_t ak4619_Config (uint8_t DevID, uint8_t Cfg)
@@ -111,14 +117,14 @@ uint8_t ak4619_Config (uint8_t DevID, uint8_t Cfg)
                     break;
 
                 case CDC_CFG_DAI_TDM:
-                    ak4619_write_reg(AK4619_AUDFORM1_REG, 
-                                    AK4619_AUDFORM1_TDM | 
+                    ak4619_write_reg(AK4619_AUDFORM1_REG,
+                                    AK4619_AUDFORM1_TDM |
                                     AK4619_AUDFORM1_DCF_TDM_MSB |
                                     AK4619_AUDFORM1_DSL16);
 
                     ak4619_write_reg(AK4619_AUDFORM2_REG,
-                                    AK4619_AUDFORM2_SLOT | 
-                                    AK4619_AUDFORM2_DODL16 | 
+                                    AK4619_AUDFORM2_SLOT |
+                                    AK4619_AUDFORM2_DODL16 |
                                     AK4619_AUDFORM2_DIDL16);
                     break;
                 default: break;
@@ -133,7 +139,7 @@ uint8_t ak4619_Config (uint8_t DevID, uint8_t Cfg)
                 case AK4619_SEL_SDIN1:  ak4619_dac_mux(0, Cfg); break;
                 case AK4619_SEL_SDIN2:  ak4619_dac_mux(1, Cfg); break;
                 case AK4619_SEL_SDOUT1: ak4619_dac_mux(2, Cfg); break;
-                case AK4619_SEL_SDOUT2: ak4619_dac_mux(3, Cfg); break;              
+                case AK4619_SEL_SDOUT2: ak4619_dac_mux(3, Cfg); break;
                 default: break;
             }
         break;
@@ -141,12 +147,12 @@ uint8_t ak4619_Config (uint8_t DevID, uint8_t Cfg)
         case CDC_GET_MCLK:
             return CDC_MCLK_256FS;
 
-        case CDC_CFG_ADDR:
+        case CDC_SET_I2C_ADDR:
             ak4619_set_i2c_addr(Cfg);
             break;
 
-        case CDC_GET_ADDR:
-            return ak4619_i2c_addr >> 1;
+        case CDC_GET_I2C_ADDR:
+            return ak4619_i2c_addr;
     }
 
     return 0;
@@ -154,14 +160,14 @@ uint8_t ak4619_Config (uint8_t DevID, uint8_t Cfg)
 
 void ak4619_SampleRate (uint32_t Rate)
 {
-    // Set by MCLK    
+    // Set by MCLK
 }
 
-void ak4619_Enable (void) 
+void ak4619_Enable (void)
 {
     #if 0
     uint8_t value;
-    
+
     if(!ak4619_read_reg(AK4619_PWRMGM_REG, &value)){
         return;
     }
@@ -170,16 +176,16 @@ void ak4619_Enable (void)
 
     ak4619_write_reg(AK4619_PWRMGM_REG, value);
     #else
-    ak4619_write_reg(AK4619_PWRMGM_REG, 
-            AK4619_PWRMGM_PMDA1 | 
-            AK4619_PWRMGM_PMDA2 | 
+    ak4619_write_reg(AK4619_PWRMGM_REG,
+            AK4619_PWRMGM_PMDA1 |
+            AK4619_PWRMGM_PMDA2 |
             AK4619_PWRMGM_PMAD1 |
             AK4619_PWRMGM_PMAD2 |
             AK4619_PWRMGM_RST );
     #endif
 }
 
-void ak4619_Disable (void) 
+void ak4619_Disable (void)
 {
     #if 0
     uint8_t value;
@@ -208,14 +214,15 @@ static void ak4619_dac_volume(uint8_t reg, uint8_t Volume)
     ak4619_write_reg(reg, 0xFF - Volume);
 }
 
+// TODO: Check adc gain register range
 static void ak4619_adc_gain(uint8_t reg, uint8_t Volume)
 {
-    if(Volume > CDC_MAX_VOL)
+    if(Volume > 100)
     {
         return;
     }
 
-    Volume = (Volume * 11) / CDC_MAX_VOL;
+    Volume = (Volume * 255) / 100;
 
     ak4619_write_reg(reg, Volume);
 }
@@ -229,7 +236,7 @@ void ak4619_Volume (uint8_t DevID, uint8_t Volume)
         case CDC_DEV_ADC2: ak4619_adc_gain(AK4619_ADC1RVOL_REG, Volume); break;
         case CDC_DEV_ADC3: ak4619_adc_gain(AK4619_ADC2LVOL_REG, Volume); break;
         case CDC_DEV_ADC4: ak4619_adc_gain(AK4619_ADC2RVOL_REG, Volume); break;
-        
+
         case CDC_DEV_DAC1: ak4619_dac_volume(AK4619_DAC1LVOL_REG, Volume); break;
         case CDC_DEV_DAC2: ak4619_dac_volume(AK4619_DAC1RVOL_REG, Volume); break;
         case CDC_DEV_DAC3: ak4619_dac_volume(AK4619_DAC2LVOL_REG, Volume); break;
@@ -238,28 +245,28 @@ void ak4619_Volume (uint8_t DevID, uint8_t Volume)
     }
 }
 
-void ak4619_Mute (uint8_t DevID, uint8_t Mute) 
+void ak4619_Mute (uint8_t DevID, uint8_t Mute)
 {
     uint8_t regVal;
-    
+
     ak4619_read_reg(AK4619_DACMUTFLT_REG, &regVal);
 
     switch(DevID){
         case CDC_DEV_DAC1:
         case CDC_DEV_DAC2:
             if(Mute){
-               regVal |= AK4619_DACMUTFLT_DA1MUTE; 
+               regVal |= AK4619_DACMUTFLT_DA1MUTE;
             }else{
-                regVal &= ~AK4619_DACMUTFLT_DA1MUTE; 
+                regVal &= ~AK4619_DACMUTFLT_DA1MUTE;
             }
             break;
 
         case CDC_DEV_DAC3:
         case CDC_DEV_DAC4:
             if(Mute){
-               regVal |= AK4619_DACMUTFLT_DA2MUTE; 
+               regVal |= AK4619_DACMUTFLT_DA2MUTE;
             }else{
-                regVal &= ~AK4619_DACMUTFLT_DA2MUTE; 
+                regVal &= ~AK4619_DACMUTFLT_DA2MUTE;
             }
             break;
 

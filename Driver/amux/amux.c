@@ -6,10 +6,10 @@
 */
 static uint8_t amux_ReadReg(uint16_t Reg, uint8_t *Val)
 {
-    if(!I2C_Master_Write(AMUX_I2C_ADDR << 1, (const uint8_t*)&Reg, 1))
+    if(!I2C_Master_Write(AMUX_I2C_ADDR, (const uint8_t*)&Reg, 1))
         return 0;
 
-    return I2C_Master_Read(AMUX_I2C_ADDR << 1, Val, 1) > 0;
+    return I2C_Master_Read(AMUX_I2C_ADDR, Val, 1) > 0;
 }
 
 static uint8_t amux_WriteReg(uint16_t Reg, uint8_t Val)
@@ -18,21 +18,21 @@ static uint8_t amux_WriteReg(uint16_t Reg, uint8_t Val)
 
     data[0] = Reg;
     data[1] = Val;
-    
-    return I2C_Master_Write(AMUX_I2C_ADDR << 1, (const uint8_t*)data, 2) > 0;
+
+    return I2C_Master_Write(AMUX_I2C_ADDR, (const uint8_t*)data, 2) > 0;
 }
 
 static uint8_t amux_ReadRegN(uint16_t Reg, uint8_t *Buffer, uint8_t len)
 {
-    if(!I2C_Master_Write(AMUX_I2C_ADDR << 1, (const uint8_t*)&Reg, 1))
+    if(!I2C_Master_Write(AMUX_I2C_ADDR, (const uint8_t*)&Reg, 1))
         return 0;
 
-    return I2C_Master_Read(AMUX_I2C_ADDR << 1, Buffer, len);    
+    return I2C_Master_Read(AMUX_I2C_ADDR, Buffer, len);
 }
 
 /**
  * Init is a simple reset and check
- * for 'AM' 
+ * for 'AM' identifier
  */
 uint8_t amux_Init(void)
 {
@@ -54,9 +54,38 @@ uint8_t amux_Init(void)
 }
 
 /**
+ * Buffer must have at size of least 3 bytes
+ *
+ * \returns Buffer[0]  Major
+ *          Buffer[1]  Minor
+ *          Buffer[2]  Patch
+ */
+uint8_t amux_GetVer(uint8_t *Buffer)
+{
+    return amux_ReadRegN(AMUX_VER_REG, Buffer, 3);
+}
+
+
+/**
+ * If enabled on FPGA, returns if fs and blck
+ * signals are present
+ *
+ */
+uint8_t amux_GetStatus(void)
+{
+    uint8_t Status;
+
+    if(amux_ReadReg(AMUX_CTRL_REG, &Status)){
+        return 0;
+    }
+
+    return Status & (AMUX_CTRL_FS_ST | AMUX_CTRL_BCLK_ST);
+}
+
+/**
  * \param src source slot 0-31
  * \param dst destination slot 0-31
- * 
+ * \param en  1: enable 0: disabled
 */
 uint8_t amux_Route(uint8_t src, uint8_t dst, uint8_t en)
 {
@@ -65,10 +94,10 @@ uint8_t amux_Route(uint8_t src, uint8_t dst, uint8_t en)
     if(src > 31 || dst > 31){
         return 0;
     }
-  
+
     uint8_t reg_offset = (src << 2) + (dst >> 3);
     reg_offset += 0x10;
-    
+
     if(!amux_ReadReg(reg_offset, &reg_data)){
         return 0;
     }
@@ -87,7 +116,7 @@ uint8_t amux_Route(uint8_t src, uint8_t dst, uint8_t en)
  */
 uint8_t amux_MuteAll(void)
 {
-    return amux_WriteReg(AMUX_CTRL_REG, AMUX_CFG_MUTE_ALL);
+    return amux_WriteReg(AMUX_CTRL_REG, AMUX_CTRL_MUTE_ALL);
 }
 
 /**
@@ -96,12 +125,13 @@ uint8_t amux_MuteAll(void)
  */
 uint8_t amux_Reset(void)
 {
-    return amux_WriteReg(AMUX_CTRL_REG, AMUX_CFG_RESET);
+    return amux_WriteReg(AMUX_CTRL_REG, AMUX_CTRL_RESET);
 }
 
 /**
  * Mutes a single slot
- * \param slot slot to be muted 0-31
+ * \param slot  slot to be muted 0-31
+ * \param mute  1: Muted, 0: normal
  */
 uint8_t amux_Mute(uint8_t slot, uint8_t mute)
 {
@@ -123,20 +153,7 @@ uint8_t amux_Mute(uint8_t slot, uint8_t mute)
 }
 
 /**
- * Buffer must have at size of least 3 bytes
- * 
- * \returns Buffer[0]  Major
- *          Buffer[1]  Minor
- *          Buffer[2]  Patch
- */
-uint8_t amux_GetVer(uint8_t *Buffer)
-{
-    return amux_ReadRegN(AMUX_VER_REG, Buffer, 3);
-}
-
-/**
- * Controls PLL generated MCLK output
- * phase.
+ * Controls PLL generated MCLK output phase.
  * \param Pha   0-15
  */
 uint8_t amux_MclkPha(uint8_t Pha)
@@ -148,19 +165,14 @@ uint8_t amux_MclkPha(uint8_t Pha)
     return amux_WriteReg(AMUX_MCLK_PHA_REG, Pha);
 }
 
-
 /**
- * If enabled on FPGA, returns if fs and blck
- * signals are present
- * 
+ * Enable Limiter/agc on a given slot
+ *
+ * \param slot
+ * \param en     1: Active, 0:passthrough
  */
-uint8_t amux_GetStatus(void)
+uint8_t amux_agc(uint8_t slot, uint8_t en)
 {
-    uint8_t Status;
-
-    if(amux_ReadReg(AMUX_CTRL_REG, &Status)){
-        return 0;
-    }
-    
-    return Status & (AMUX_CTRL_FS_ST | AMUX_CTRL_BCLK_ST);
+    return 0;
 }
+

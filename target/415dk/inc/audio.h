@@ -58,9 +58,8 @@ extern "C" {
 #define I2S2_DT_ADDRESS                  (&(SPI2->dt))
 
 #define SPK_TX_FIFO_SIZE                 (1024 * 4)
-#define CDC_MAX_VOL                      15
 
-enum {
+enum cdc_cfg_e {
     CDC_DEV_DAI = 0,
     CDC_DEV_ADC1,
     CDC_DEV_ADC2,
@@ -71,33 +70,29 @@ enum {
     CDC_DEV_DAC2,
     CDC_DEV_DAC3,
     CDC_DEV_DAC4,
-    CDC_DEV_ALL
+    CDC_DEV_ALL,
+
+    CDC_CFG_DAI_I2S,
+    CDC_CFG_DAI_TDM,
+    CDC_SET_I2C_ADDR,
+    CDC_GET_I2C_ADDR,
+    CDC_GET_MCLK,
 };
 
-enum {
-    CDC_GET_MCLK = 1,
+enum cdc_cfg_val_e {
     CDC_CFG_DAI_SLOT_16BIT,
     CDC_CFG_DAI_SLOT_24BIT,
     CDC_CFG_DAI_SLOT_32BIT,
     CDC_CFG_DAI_WORD_16BIT,
-    CDC_CFG_DAI_ŴORD_24BIT,
-    CDC_CFG_DAI_I2S,
-    CDC_CFG_DAI_TDM,
-    CDC_CFG_ADDR,
-    CDC_GET_ADDR,
-};
+    //CDC_CFG_DAI_ŴORD_24BIT,
 
-enum {
-    CDC_MCLK_PLL = 0,
+    CDC_MCLK_PLL,
     CDC_MCLK_32FS,
     CDC_MCLK_48FS,
     CDC_MCLK_64FS,
     CDC_MCLK_128FS,
     CDC_MCLK_256FS,
-    CDC_MCLK_512FS
-};
-
-enum {
+    CDC_MCLK_512FS,
     CDC_SR_8K = 8000,
     CDC_SR_16K = 16000,
     CDC_SR_22K = 22000,
@@ -110,8 +105,7 @@ enum {
     CDC_SR_192K = 192000
 };
 
-
-typedef struct audio_channel_s 
+typedef struct audio_channel_s
 {
     uint32_t freq;
     uint16_t *queue_start;
@@ -125,7 +119,7 @@ typedef struct audio_channel_s
     uint16_t *dma_buffer;
     uint16_t threshold;
     uint16_t calc;
-    uint16_t volume;
+    uint8_t volume;
     uint8_t  stage;
     uint8_t  adj_stage;
     uint16_t adj_count;
@@ -175,6 +169,7 @@ audio_status_t audio_loop(void);
 audio_status_t audio_change_mode(uint32_t mode);
 void audio_cfg_mclk(uint32_t freq, uint32_t enable);
 void audio_set_freq(uint32_t freq);
+void audio_set_codec(const audio_codec_t *codec);
 
 void audio_enqueue_data(uint8_t *data, uint32_t len);
 uint32_t audio_dequeue_data(uint8_t *buffer);
@@ -184,7 +179,9 @@ void audio_mic_alt_setting(uint32_t alt_seting);
 void audio_set_mic_mute(uint8_t mute);
 void audio_set_spk_mute(uint8_t mute);
 void audio_set_mic_volume(uint16_t volume);
+uint8_t audio_get_mic_volume(void);
 void audio_set_spk_volume(uint16_t volume);
+uint8_t audio_get_spk_volume(void);
 void audio_set_mic_freq(uint32_t freq);
 void audio_set_spk_freq(uint32_t freq);
 
