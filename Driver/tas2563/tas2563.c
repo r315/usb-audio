@@ -162,7 +162,7 @@ uint8_t tas2563_Config (uint8_t DevID, uint8_t Cfg)
         break;
 
       case CDC_GET_I2C_ADDR:
-        return tas2563_i2c_addr >> 1;
+        return tas2563_i2c_addr;
 
       case CDC_GET_MCLK:
         return 1;
