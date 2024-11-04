@@ -59,6 +59,7 @@ ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
 void usb_clock48m_select(usb_clk48_s clk_s);
 void usb_gpio_config(void);
 void usb_low_power_wakeup_config(void);
+static void dump_buf(uint8_t *buf, uint32_t count);
 
 static uint8_t dummy_Init (uint8_t addr){ return 0; }// fail init to allow scan for other
 static uint8_t dummy_Config (uint8_t DevID, uint8_t Mode) { return (DevID == CDC_GET_MCLK) ? CDC_MCLK_256FS : 0;}
@@ -215,6 +216,19 @@ static int codecCmd(int argc, char **argv)
         return CLI_OK;
     }
 
+    if( !strcmp("regs", argv[1])){
+        uint8_t buf[32];
+        buf [0] = 0;
+        if(i2c_master_transmit(&hi2cx, 16 << 1, buf, 1, 1000) == I2C_OK){
+            if(i2c_master_receive(&hi2cx, 16 << 1, buf, 32, 1000) != I2C_OK){
+                printf("Failed to read");
+            }else{
+                return I2C_OK;
+            }
+        }
+        dump_buf(buf, 32);
+    }
+
     return CLI_BAD_PARAM;
 }
 
@@ -301,12 +315,50 @@ static void dump_buf(uint8_t *buf, uint32_t count)
     }
     putchar('\n');
 }
+#if 0
 /**
- * Note: Index of register to be read is sent on buf[0]
+ *
 */
-static i2c_status_type readMux(i2c_handle_type *handle, uint8_t *buf, uint32_t count)
+static i2c_status_type i2c_imm_read(i2c_handle_type *handle, uint8_t slv_addr, uint8_t *buf, uint32_t count, uint32_t timeout)
 {
-    if(i2c_master_transmit(handle, AMUX_I2C_ADDR << 1, buf, 1, 1000) == I2C_OK){
+    /* enable ack */
+    i2c_ack_enable(handle->i2cx, TRUE);
+
+    /* generate start condtion */
+    i2c_start_generate(handle->i2cx);
+
+    /* wait for the start flag to be set */
+    if(i2c_wait_flag(handle, I2C_STARTF_FLAG, I2C_EVENT_CHECK_NONE, timeout) != I2C_OK)
+    {
+        handle->error_code = I2C_ERR_START;
+
+        goto i2c_err;
+    }
+
+    /* send slave address */
+    i2c_7bit_address_send(handle->i2cx, slv_addr, I2C_DIRECTION_RECEIVE);
+
+    /* wait for the addr7 flag to be set */
+    if(i2c_wait_flag(handle, I2C_ADDR7F_FLAG, I2C_EVENT_CHECK_ACKFAIL, timeout) != I2C_OK)
+    {
+        handle->error_code = I2C_ERR_ADDR;
+
+        goto i2c_err;
+    }
+
+i2c_stop_generate(handle->i2cx);
+
+    return I2C_OK;
+
+i2c_err:
+    i2c_stop_generate(handle->i2cx);
+
+    return handle->error_code;
+}
+#endif
+static i2c_status_type readMux(i2c_handle_type *handle, uint8_t reg, uint8_t *buf, uint32_t count)
+{
+    if(i2c_master_transmit(handle, AMUX_I2C_ADDR << 1, &reg, 1, 1000) == I2C_OK){
         if(i2c_master_receive(handle, AMUX_I2C_ADDR << 1, buf, count, 1000) != I2C_OK){
             printf("Failed to read");
         }else{
@@ -321,7 +373,7 @@ static i2c_status_type readMux(i2c_handle_type *handle, uint8_t *buf, uint32_t c
 
 static int muxCmd(int argc, char **argv)
 {
-    uint32_t count = 16 + 128;
+    uint32_t count = 16 + 128 + 64;
     uint32_t value;
     uint8_t regs_buf[count] __attribute__ ((aligned (4)));
 
@@ -331,13 +383,12 @@ static int muxCmd(int argc, char **argv)
         printf("\trr <reg>\n");
         printf("\twr <reg> <val>\n");
         printf("\tmute <all | name> <1|0>, Name cxsy\n");
-        printf("\troute <scr> <dst> <1|0>, src/dst slot 1-32\n");
+        printf("\troute <scr> <dst> [enable], src/dst slot 1-32, enable <1|0>\n");
         return CLI_OK;
     }
 
     if( !strcmp("regs", argv[1])){
-        regs_buf[0] = 0;
-        if(readMux(&hi2cx, regs_buf, count) == I2C_OK){
+        if(readMux(&hi2cx, 0, regs_buf, count) == I2C_OK){
             dump_buf(regs_buf, count);
             return CLI_OK;
         }
@@ -365,7 +416,7 @@ static int muxCmd(int argc, char **argv)
         if(CLI_Ha2i(argv[2], (uint32_t*)&regs_buf)){
             count = 1;
             CLI_Ha2i(argv[3], &count);
-            if(readMux(&hi2cx, regs_buf, count) == I2C_OK){
+            if(readMux(&hi2cx, regs_buf[0], regs_buf, count) == I2C_OK){
                 dump_buf(regs_buf, count);
                 return CLI_OK;
             }
@@ -403,7 +454,7 @@ static int muxCmd(int argc, char **argv)
     */
     if( !strcmp("route", argv[1])){
 
-        if(argc < 5){
+        if(argc < 4){
             return CLI_MISSING_ARGS;
         }
 
@@ -411,7 +462,11 @@ static int muxCmd(int argc, char **argv)
 
         if(CLI_Ia2i(argv[2], &src)){
             if(CLI_Ia2i(argv[3], &dst)){
-                amux_Route(src, dst, (argv[4][0] == '1') ? 1 : 0);
+                if(argv[4]){
+                    amux_Route(src, dst, (argv[4][0] == '1') ? 1 : 0);
+                }else{
+                    printf("Route state: %d\n", amux_RouteState(src, dst));
+                }
                 return CLI_OK;
             }
         }
@@ -420,6 +475,34 @@ static int muxCmd(int argc, char **argv)
     if( !strcmp("mclk_pha", argv[1])){
         if(CLI_Ia2i(argv[2], (int32_t*)&value)){
             amux_MclkPha(value);
+            return CLI_OK;
+        }
+    }
+
+    if( !strcmp("att", argv[1])){
+        int32_t slot;
+        if(CLI_Ia2i(argv[2], &slot)){
+            if(CLI_Ha2i(argv[3], (int32_t*)&value)){
+                amux_att(slot & 0x1F, value);
+                return CLI_OK;
+            }
+        }
+    }
+
+    if( !strcmp("gain", argv[1])){
+        int32_t slot;
+        if(CLI_Ia2i(argv[2], &slot)){
+            if(CLI_Ha2i(argv[3], (int32_t*)&value)){
+                amux_gain(slot & 0x1F, value);
+                return CLI_OK;
+            }
+        }
+    }
+
+
+    if( !strcmp("agc", argv[1])){
+        if(CLI_Ia2i(argv[2], (int32_t*)&value)){
+            amux_agc(0, value);
             return CLI_OK;
         }
     }
