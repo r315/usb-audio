@@ -1,6 +1,7 @@
 #include <sys/times.h>
 #include "board.h"
 #include "cli_simple.h"
+#include "at32f415_clock.h"
 
 #if (USE_TIMER_SYSTICK == 1)
 #else
@@ -32,11 +33,14 @@ clock_t clock(void){
 void board_init(void)
 {
 	SystemInit();
+    system_clock_config();
 	system_core_clock_update();
 
-	SysTick_Config((SystemCoreClock / 1000) - 1); // config 1000us
+	SysTick_Config((SystemCoreClock / 1000) - 1);
 
     serial_init();
+
+    nvic_priority_group_config(NVIC_PRIORITY_GROUP_4);
 
     LED1_PIN_INIT;
 }

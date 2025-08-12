@@ -33,7 +33,6 @@ static volatile uint16_t tx_rd, tx_wr, rx_rd, rx_wr;
  * */
 void serial_init(void){
     crm_clocks_freq_type clocks;
-    crm_clocks_freq_get(&clocks);
     gpio_init_type gpio_init_struct;
 
     crm_periph_clock_enable(CRM_USART1_PERIPH_CLOCK, TRUE);
@@ -41,13 +40,16 @@ void serial_init(void){
     crm_periph_clock_enable(CRM_GPIOA_PERIPH_CLOCK, TRUE);
     crm_periph_reset(CRM_USART1_PERIPH_CLOCK, TRUE);
 
+    crm_clocks_freq_get(&clocks);
 
     USART1->ctrl1 = USART_CTRL1_VAL | RX_INT | TX_INT;
 
     USART1->baudr = clocks.apb2_freq / 115200;
 
     gpio_init_struct.gpio_mode           = GPIO_MODE_MUX;
+    gpio_init_struct.gpio_out_type       = GPIO_OUTPUT_PUSH_PULL;
     gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MODERATE;
+    gpio_init_struct.gpio_pull           = GPIO_PULL_NONE;
     gpio_init_struct.gpio_pins           = GPIO_PINS_9;
     gpio_init(GPIOA, &gpio_init_struct);
     gpio_init_struct.gpio_mode           = GPIO_MODE_INPUT;

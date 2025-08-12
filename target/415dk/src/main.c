@@ -25,7 +25,6 @@
 #include <string.h>
 #include <stdio.h>
 #include "board.h"
-#include "at32f415_clock.h"
 #include "usb_conf.h"
 #include "usb_core.h"
 #include "usbd_int.h"
@@ -584,9 +583,7 @@ int main(void)
 {
   board_init();
 
-  nvic_priority_group_config(NVIC_PRIORITY_GROUP_4);
 
-  system_clock_config();
 
 #if ENABLE_CLI
   CLI_Init("Audio >", &uart_ops);
