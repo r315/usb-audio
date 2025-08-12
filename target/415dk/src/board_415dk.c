@@ -2,13 +2,6 @@
 #include "board.h"
 #include "cli_simple.h"
 
-static stdout_ops_t stdout_ops_serial = {
-    .init = serial_init,
-    .available = serial_available,
-    .read = serial_read,
-    .write = serial_write
-};
-
 #if (USE_TIMER_SYSTICK == 1)
 #else
 static volatile uint32_t ticms;
@@ -37,14 +30,14 @@ clock_t clock(void){
 }
 
 void board_init(void)
-{	
+{
 	SystemInit();
-	system_core_clock_update(); 
+	system_core_clock_update();
 
 	SysTick_Config((SystemCoreClock / 1000) - 1); // config 1000us
 
-    redirect_stdout(&stdout_ops_serial);
-   	
+    serial_init();
+
     LED1_PIN_INIT;
 }
 

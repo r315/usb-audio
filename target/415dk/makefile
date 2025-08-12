@@ -6,9 +6,9 @@ TARGET =usb-audio
 #######################################
 # Features
 #######################################
-
-FEATURE_TFT_DISPLAY =yes
-FEATURE_CLI			=yes
+FEATURES +=ENABLE_CLI
+FEATURES +=ENABLE_CLI_COLOR
+#FEATURES +=ENABLE_AMUX
 
 #######################################
 # paths
@@ -70,9 +70,11 @@ $(TARGET_PATH)/src/at32f415_clock.c \
 $(TARGET_PATH)/src/i2c_application.c \
 $(TARGET_PATH)/src/main.c \
 $(TARGET_PATH)/src/audio.c \
+$(TARGET_PATH)/src/415dk_serial.c \
 $(DRIVERS_PATH)/ak4619/ak4619.c \
 $(DRIVERS_PATH)/tas2563/tas2563.c \
-$(DRIVERS_PATH)/amux/amux.c \
+$(LIB_PATH)/cli-simple/cli_simple.c \
+#$(DRIVERS_PATH)/amux/amux.c \
 
 
 CPP_SOURCES = \
@@ -89,17 +91,7 @@ C_DEFS +=\
 $(DEVICE) \
 BOARD_415DK \
 _USE_STDPERIPH_DRIVER \
-
-ifeq ($(FEATURE_TFT_DISPLAY),yes)
-C_DEFS +=ENABLE_TFT_DISPLAY
-endif
-
-ifeq ($(FEATURE_CLI),yes)
-C_DEFS +=ENABLE_CLI
-C_SOURCES +=$(TARGET_PATH)/src/415dk_serial.c \
-$(LIB_PATH)/cli-simple/cli_simple.c \
-$(LIB_PATH)/cli-simple/syscalls.c 
-endif
+$(FEATURES) \
 
 #######################################
 # CFLAGS
@@ -110,7 +102,7 @@ CPU =-mcpu=cortex-m4 -mthumb
 
 # fpu
 #at43f415 does not have FPU
-#FPU =-mfloat-abi=hard -mfpu=fpv4-sp-d16 
+#FPU =-mfloat-abi=hard -mfpu=fpv4-sp-d16
 #FPU =-mfloat-abi=soft
 
 # float-abi
@@ -122,7 +114,7 @@ MCU = $(CPU) $(FPU) $(FLOAT_ABI)
 ifdef RELEASE
 OPT   =-O2
 else
-OPT   =-Og -g -gdwarf-2 -Wall #-Wextra
+OPT   =-O0 -g -gdwarf-2 -Wall #-Wextra
 endif
 
 ifndef V
@@ -136,8 +128,8 @@ endif
 
 ASFLAGS  =$(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
 CFLAGS   =$(MCU) $(OPT) $(addprefix -D, $(C_DEFS)) $(addprefix -I, $(C_INCLUDES)) -std=gnu11 -fdata-sections -ffunction-sections #-fstack-usage
-CPPFLAGS =$(CPU) $(OPT) $(addprefix -D, $(C_DEFS)) $(addprefix -I, $(C_INCLUDES)) -fdata-sections -ffunction-sections -fno-unwind-tables -fno-exceptions -fno-rtti 
-LDFLAGS  =$(MCU) $(SPECS) -Wl,--gc-sections,-Map=$(BUILD_DIR)/$(TARGET).map,--cref
+CPPFLAGS =$(CPU) $(OPT) $(addprefix -D, $(C_DEFS)) $(addprefix -I, $(C_INCLUDES)) -fdata-sections -ffunction-sections -fno-unwind-tables -fno-exceptions -fno-rtti
+LDFLAGS  =$(MCU) $(SPECS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref,--gc-sections
 
 #######################################
 # Libraries
@@ -148,8 +140,8 @@ ifdef SEMIHOSTING
 SPECS =--specs=rdimon.specs
 LDLIBS =-nostartfiles -lc -lrdimon
 else
-SPECS=--specs=nosys.specs --specs=nano.specs
-#-nostdlib -lstd++ -lnosys -lm 
+SPECS=--specs=nano.specs #--specs=nosys.specs
+#-nostdlib -lstd++ -lnosys -lm
 LIBS =-lstdc++
 endif
 
@@ -203,7 +195,6 @@ bin: $(BUILD_DIR)/$(TARGET).bin
 
 program: all $(BUILD_DIR)/$(PRG_CFG)
 	$(PRG_CMD)
-	
 
 $(BUILD_DIR)/$(TARGET).jlink: $(BUILD_DIR)/$(TARGET).bin
 	@echo "Creating Jlink configuration file"
@@ -234,12 +225,12 @@ $(BUILD_DIR)/$(TARGET).elf: $(OBJECTS)
 
 $(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf
 	$(VERBOSE)$(HEX) $< $@
-	
+
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf
-	$(VERBOSE)$(BIN) $< $@	
-	
-$(BUILD_DIR): 
-	mkdir -p $@		
+	$(VERBOSE)$(BIN) $< $@
+
+$(BUILD_DIR):
+	mkdir -p $@
 
 size: $(BUILD_DIR)/$(TARGET).elf
 	@echo "--- Size ---"

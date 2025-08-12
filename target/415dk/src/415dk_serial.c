@@ -41,7 +41,7 @@ void serial_init(void){
     crm_periph_clock_enable(CRM_GPIOA_PERIPH_CLOCK, TRUE);
     crm_periph_reset(CRM_USART1_PERIPH_CLOCK, TRUE);
 
-   
+
     USART1->ctrl1 = USART_CTRL1_VAL | RX_INT | TX_INT;
 
     USART1->baudr = clocks.apb2_freq / 115200;
@@ -75,7 +75,7 @@ void serial_init(void){
     dma_init_struct.priority = DMA_PRIORITY_LOW;
     dma_init_struct.loop_mode_enable = TRUE;
     dma_init(DMA1_CHANNEL5, &dma_init_struct);
-   
+
     USART1->ctrl3_bit.dmaren = TRUE;
     dma_channel_enable(DMA1_CHANNEL5, TRUE);
 #endif
@@ -86,7 +86,7 @@ void serial_init(void){
 #endif
 }
 
-uint32_t serial_available(void){
+int serial_available(void){
 #if UART_ENABLE_RX_DMA
     uint16_t idx = UART_BUFFER_SIZE - DMA1_CHANNEL5->dtcnt;
     return (idx > rx_rd) ? idx - rx_rd : rx_rd - idx;
@@ -95,11 +95,11 @@ uint32_t serial_available(void){
 #endif
 }
 
-uint32_t serial_write(const uint8_t *buf, uint32_t len){
+int serial_write(const char *buf, int len){
 	usart_type *uart = USART1;
-    const uint8_t *end = buf + len;
+    const uint8_t *end = (uint8_t*)buf + len;
 
-	while(buf < end){
+	while((uint8_t*)buf < end){
         #if UART_ENABLE_TX_FIFO
         uint16_t size = (tx_wr > tx_rd) ? tx_wr - tx_rd : tx_rd - tx_wr;
 		if(UART_BUFFER_SIZE - size > 0){
@@ -114,10 +114,10 @@ uint32_t serial_write(const uint8_t *buf, uint32_t len){
         #else
         while(!(uart->sts & USART_TDC_FLAG)){
         }
-        uart->dt = *buf++;
+        uart->dt = *(uint8_t*)buf++;
         #endif
-	}	
-	
+	}
+
     #if UART_ENABLE_TX_FIFO
 	uart->ctrl1_bit.tdbeien = 1;
     #endif
@@ -141,8 +141,8 @@ uint32_t serial_read(uint8_t *data, uint32_t len){
 void USART1_IRQHandler(void){
     uint32_t isrflags = USART1->sts;
     uint32_t errorflags = isrflags & 0x000F;
-    
-    if (errorflags){        
+
+    if (errorflags){
         // read DT after STS read clears error flags
         errorflags = USART1->dt;
         return;
@@ -154,7 +154,7 @@ void USART1_IRQHandler(void){
             rx_buf[rx_wr++] = USART1->dt;
             if(rx_wr == UART_BUFFER_SIZE){
                 rx_wr = 0;
-            }else{                
+            }else{
                 errorflags = USART1->dt;
             }
         }
@@ -170,10 +170,67 @@ void USART1_IRQHandler(void){
         }else{
             USART1->dt = tx_buf[tx_rd++];
             if(tx_rd == UART_BUFFER_SIZE){
-                tx_rd = 0; 
+                tx_rd = 0;
             }
         }
     }
     #endif
 }
 
+/**
+ * @brief Syscall implementation
+ *
+ */
+#include <sys/stat.h>
+
+caddr_t _sbrk(int incr)
+{
+    register char * stack_ptr asm("sp");
+	extern char end asm("end");
+	static char *heap_end;
+	char *prev_heap_end;
+
+	if (heap_end == 0)
+		heap_end = &end;
+
+	prev_heap_end = heap_end;
+	if (heap_end + incr > stack_ptr)
+	{
+		return (caddr_t) -1;
+	}
+
+	heap_end += incr;
+
+	return (caddr_t) prev_heap_end;
+}
+
+int _read(int file, char *ptr, int len)
+{
+    return len;
+}
+
+int _write(int file, char *ptr, int len)
+{
+    return serial_write((const char*)ptr, len);
+}
+
+int _close(int file)
+{
+    return -1;
+}
+
+int _fstat(int file, struct stat *st)
+{
+	st->st_mode = S_IFCHR;
+	return 0;
+}
+
+int _lseek(int file, int ptr, int dir)
+{
+	return 0;
+}
+
+int _isatty(int file)
+{
+	return 1;
+}
