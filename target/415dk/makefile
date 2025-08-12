@@ -16,6 +16,7 @@ FEATURES +=ENABLE_CLI_COLOR
 
 BUILD_DIR 		:=build
 TARGET_PATH 	=$(CURDIR)
+APP_PATH		:=../../app
 
 LIB_PATH        =../../lib
 DRIVERS_PATH 	=../../Driver
@@ -35,7 +36,7 @@ $(LIB_PATH)/usb-at/usbd_class/audio \
 $(LIB_PATH)/cli-simple \
 $(DRIVERS_PATH)/ak4619 \
 $(DRIVERS_PATH)/tas2563 \
-$(DRIVERS_PATH)/amux \
+$(APP_PATH)/inc \
 
 AS_INCLUDES =\
 
@@ -54,6 +55,12 @@ $(DRIVERS_PER_PATH)/src/at32f415_usb.c\
 $(DRIVERS_PER_PATH)/src/at32f415_tmr.c\
 $(DRIVERS_PER_PATH)/src/at32f415_misc.c\
 $(DRIVERS_PER_PATH)/src/at32f415_exint.c\
+$(TARGET_PATH)/src/board_415dk.c \
+$(TARGET_PATH)/src/at32f415_clock.c \
+$(TARGET_PATH)/src/i2c_application.c \
+$(TARGET_PATH)/src/415dk_serial.c \
+
+USB_DEVICE_SOURCES =\
 $(LIB_PATH)/usb-at/usb_drivers/src/usb_core.c \
 $(LIB_PATH)/usb-at/usb_drivers/src/usbd_int.c \
 $(LIB_PATH)/usb-at/usb_drivers/src/usbd_core.c \
@@ -61,19 +68,18 @@ $(LIB_PATH)/usb-at/usb_drivers/src/usbd_sdr.c \
 $(LIB_PATH)/usb-at/usbd_class/audio/audio_desc.c \
 $(LIB_PATH)/usb-at/usbd_class/audio/audio_class.c \
 
-
+APP_SOURCES =\
+$(APP_PATH)/src/main.c \
+$(APP_PATH)/src/audio.c \
+$(LIB_PATH)/cli-simple/cli_simple.c \
+$(DRIVERS_PATH)/tas2563/tas2563.c \
+$(DRIVERS_PATH)/ak4619/ak4619.c \
 
 C_SOURCES = \
 $(DRIVER_SOURCES) \
-$(TARGET_PATH)/src/board_415dk.c \
-$(TARGET_PATH)/src/at32f415_clock.c \
-$(TARGET_PATH)/src/i2c_application.c \
-$(TARGET_PATH)/src/main.c \
-$(TARGET_PATH)/src/audio.c \
-$(TARGET_PATH)/src/415dk_serial.c \
-$(DRIVERS_PATH)/ak4619/ak4619.c \
-$(DRIVERS_PATH)/tas2563/tas2563.c \
-$(LIB_PATH)/cli-simple/cli_simple.c \
+$(USB_DEVICE_SOURCES) \
+$(APP_SOURCES)
+
 #$(DRIVERS_PATH)/amux/amux.c \
 
 
