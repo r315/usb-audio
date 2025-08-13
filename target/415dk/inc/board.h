@@ -61,6 +61,7 @@ int serial_available(void);
 int serial_read(char *data, int len);
 int serial_write(const char *buf, int len);
 
+void disconnect_usb(void);
 #ifdef __cplusplus
 }
 #endif

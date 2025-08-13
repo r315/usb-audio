@@ -25,11 +25,6 @@
 #include <string.h>
 #include <stdio.h>
 #include "board.h"
-#include "usb_conf.h"
-#include "usb_core.h"
-#include "usbd_int.h"
-#include "audio_class.h"
-#include "audio_desc.h"
 #include "audio.h"
 #include "cli_simple.h"
 #include "i2c_application.h"
@@ -38,10 +33,13 @@
 #include "ak4619.h"
 #include "debug.h"
 
+#ifdef ENABLE_AMUX
+#include "amux.h"
+#endif
 
 #ifndef ENABLE_DBG_APP
 #define DBG_TAG             "APP : "
-#define DBG_APP_PRINT(...)  DBG_PRINT
+#define DBG_APP_PRINT       DBG_PRINT
 #define DBG_APP_INF(...)    DBG_INF(DBG_TAG __VA_ARGS__)
 #define DBG_APP_ERR(...)    DBG_ERR(DBG_TAG __VA_ARGS__)
 #else
@@ -61,16 +59,10 @@ static uint8_t user_button_state;
 static const audio_codec_t *codec;
 
 static i2c_handle_type hi2cx;
-static otg_core_type otg_core_struct;
 
 #ifdef __AUDIO_HID_CLASS_H
 ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
 #endif
-
-/* usb global struct define */
-void usb_clock48m_select(usb_clk48_s clk_s);
-void usb_gpio_config(void);
-void usb_low_power_wakeup_config(void);
 
 static uint8_t dummy_Init (uint8_t addr){ return 0; }// fail init to allow scan for other
 static uint8_t dummy_Config (uint8_t DevID, uint8_t Mode) { return (DevID == CDC_GET_MCLK) ? CDC_MCLK_256FS : 0;}
@@ -278,7 +270,7 @@ static int audioCmd(int argc, char **argv)
 
     if(!strcmp("disable", argv[0])){
         audio_deinit();
-        usbd_disconnect(&otg_core_struct.dev);
+        disconnect_usb();
     }
     return CLI_OK;
 }
@@ -633,30 +625,6 @@ int main(void)
 
   user_button_state = 0;
 
-#ifdef USB_LOW_POWER_WAKUP
-  usb_low_power_wakeup_config();
-#endif
-
-  /* enable otgfs clock */
-  crm_periph_clock_enable(OTG_CLOCK, TRUE);
-
-  /* select usb 48m clcok source */
-  //usb_clock48m_select(USB_CLK_HICK);
-  crm_usb_clock_source_select(CRM_USB_CLOCK_SOURCE_HICK);
-
-  /* enable otgfs irq */
-  nvic_irq_enable(OTG_IRQ, 0, 0);
-
-  /* init usb */
-  usbd_init(&otg_core_struct,
-            USB_FULL_SPEED_CORE_ID,
-            USB_ID,
-            &audio_class_handler,
-            &audio_desc_handler);
-
-  /* usb gpio config */
-  usb_gpio_config();
-
   while(1)
   {
     audio_loop();
@@ -668,138 +636,6 @@ int main(void)
     #endif
   }
 }
-
-/**
-  * @brief  usb 48M clock select
-  * @param  clk_s:USB_CLK_HICK, USB_CLK_HEXT
-  * @retval none
-  */
-void usb_clock48m_select(usb_clk48_s clk_s)
-{
-  switch(system_core_clock)
-  {
-    /* 48MHz */
-    case 48000000:
-      crm_usb_clock_div_set(CRM_USB_DIV_1);
-      break;
-
-    /* 72MHz */
-    case 72000000:
-      crm_usb_clock_div_set(CRM_USB_DIV_1_5);
-      break;
-
-    /* 96MHz */
-    case 96000000:
-      crm_usb_clock_div_set(CRM_USB_DIV_2);
-      break;
-
-    /* 120MHz */
-    case 120000000:
-      crm_usb_clock_div_set(CRM_USB_DIV_2_5);
-      break;
-
-    /* 144MHz */
-    case 144000000:
-      crm_usb_clock_div_set(CRM_USB_DIV_3);
-      break;
-
-    default:
-      break;
-
-  }
-}
-
-/**
-  * @brief  this function config gpio.
-  * @param  none
-  * @retval none
-  */
-void usb_gpio_config(void)
-{
-  gpio_init_type gpio_init_struct;
-
-  crm_periph_clock_enable(CRM_GPIOA_PERIPH_CLOCK, TRUE);
-
-  gpio_default_para_init(&gpio_init_struct);
-
-  gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_STRONGER;
-  gpio_init_struct.gpio_out_type  = GPIO_OUTPUT_PUSH_PULL;
-
-#ifdef USB_SOF_OUTPUT_ENABLE
-  crm_periph_clock_enable(OTG_PIN_SOF_GPIO_CLOCK, TRUE);
-  gpio_init_struct.gpio_pins = OTG_PIN_SOF;
-  gpio_init_struct.gpio_pull = GPIO_PULL_NONE;
-  gpio_init_struct.gpio_mode = GPIO_MODE_MUX;
-  gpio_init(OTG_PIN_SOF_GPIO, &gpio_init_struct);
-#endif
-
-  /* otgfs use vbus pin */
-#ifndef USB_VBUS_IGNORE
-  gpio_init_struct.gpio_pins = OTG_PIN_VBUS;
-  gpio_init_struct.gpio_pull = GPIO_PULL_DOWN;
-  gpio_init_struct.gpio_mode = GPIO_MODE_INPUT;
-  gpio_init(OTG_PIN_GPIO, &gpio_init_struct);
-#endif
-
-
-}
-#ifdef USB_LOW_POWER_WAKUP
-/**
-  * @brief  usb low power wakeup interrupt config
-  * @param  none
-  * @retval none
-  */
-void usb_low_power_wakeup_config(void)
-{
-  exint_init_type exint_init_struct;
-
-  exint_default_para_init(&exint_init_struct);
-
-  exint_init_struct.line_enable = TRUE;
-  exint_init_struct.line_mode = EXINT_LINE_INTERRUPUT;
-  exint_init_struct.line_select = OTG_WKUP_EXINT_LINE;
-  exint_init_struct.line_polarity = EXINT_TRIGGER_RISING_EDGE;
-  exint_init(&exint_init_struct);
-
-  nvic_irq_enable(OTG_WKUP_IRQ, 0, 0);
-}
-
-/**
-  * @brief  this function handles otgfs wakup interrupt.
-  * @param  none
-  * @retval none
-  */
-void OTG_WKUP_HANDLER(void)
-{
-  exint_flag_clear(OTG_WKUP_EXINT_LINE);
-}
-
-#endif
-
-
-/**
-  * @brief  this function handles otgfs interrupt.
-  * @param  none
-  * @retval none
-  */
-void OTG_IRQ_HANDLER(void)
-{
-  usbd_irq_handler(&otg_core_struct);
-}
-
-/**
-  * @brief  usb delay millisecond function.
-  * @param  ms: number of millisecond delay
-  * @retval none
-  */
-void usb_delay_ms(uint32_t ms)
-{
-  /* user can define self delay function */
-  delay_ms(ms);
-}
-
-
-
 /**
   * @brief  initializes peripherals used by the i2c.
   * @param  none

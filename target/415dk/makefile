@@ -9,7 +9,7 @@ TARGET =usb-audio
 FEATURES +=ENABLE_CLI
 FEATURES +=ENABLE_CLI_COLOR
 FEATURES +=ENABLE_DEBUG
-#FEATURES +=ENABLE_AMUX
+FEATURES +=ENABLE_AMUX
 
 #######################################
 # paths
@@ -17,10 +17,11 @@ FEATURES +=ENABLE_DEBUG
 
 BUILD_DIR 		:=build
 TARGET_PATH 	=$(CURDIR)
-APP_PATH		:=../../app
+PROJECT_PATH	:=$(TARGET_PATH)/../..
+APP_PATH		:=$(PROJECT_PATH)/app
 
-LIB_PATH        =../../lib
-DRIVERS_PATH 	=../../Driver
+LIB_PATH        =$(PROJECT_PATH)/lib
+DRIVERS_PATH 	=$(PROJECT_PATH)/Driver
 CMSIS_PATH 		=$(DRIVERS_PATH)/CMSIS
 DRIVERS_PER_PATH =$(DRIVERS_PATH)/AT32F4xx
 
@@ -37,6 +38,7 @@ $(LIB_PATH)/usb-at/usbd_class/audio \
 $(LIB_PATH)/cli-simple \
 $(DRIVERS_PATH)/ak4619 \
 $(DRIVERS_PATH)/tas2563 \
+$(DRIVERS_PATH)/amux \
 $(APP_PATH)/inc \
 
 AS_INCLUDES =\
@@ -76,6 +78,7 @@ $(APP_PATH)/src/debug.c \
 $(LIB_PATH)/cli-simple/cli_simple.c \
 $(DRIVERS_PATH)/tas2563/tas2563.c \
 $(DRIVERS_PATH)/ak4619/ak4619.c \
+$(DRIVERS_PATH)/amux/amux.c \
 
 C_SOURCES = \
 $(DRIVER_SOURCES) \
