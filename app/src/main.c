@@ -36,6 +36,20 @@
 #include "tas2563.h"
 //#include "max98374.h"
 #include "ak4619.h"
+#include "debug.h"
+
+
+#ifndef ENABLE_DBG_APP
+#define DBG_TAG             "APP : "
+#define DBG_APP_PRINT(...)  DBG_PRINT
+#define DBG_APP_INF(...)    DBG_INF(DBG_TAG __VA_ARGS__)
+#define DBG_APP_ERR(...)    DBG_ERR(DBG_TAG __VA_ARGS__)
+#else
+#define DBG_APP_PRINT(...)
+#define DBG_APP_ERR(...)
+#define DBG_APP_INF(...)
+#endif
+
 
 typedef struct {
     const char *name;
@@ -583,11 +597,13 @@ int main(void)
 {
   board_init();
 
-
-
 #if ENABLE_CLI
   CLI_Init("Audio >", &uart_ops);
   CLI_RegisterCommand(cli_cmds, sizeof(cli_cmds) / sizeof(cli_command_t));
+#endif
+
+#ifdef ENABLE_DEBUG
+    dbg_init(&uart_ops);
 #endif
 
   /* i2c init */
@@ -597,14 +613,14 @@ int main(void)
   codec = NULL;
 
   /* audio init */
-  printf("\n\n");
+  DBG_APP_PRINT("\n\n");
   uint8_t found_idx = 0;
   for(uint8_t idx = 0; idx < sizeof(codecs)/sizeof(cdc_list_t); idx++){
      const cdc_list_t *pcdc = &codecs[idx];
      if(pcdc->cdc){
         uint8_t res = pcdc->cdc->Init(pcdc->i2c_addr);
         if(res){
-            printf("Found codec: %s\n", pcdc->name);
+            DBG_APP_INF("Found codec: %s", pcdc->name);
             if(found_idx == 0){
                 found_idx = idx; // here idx should never be zero
             }
@@ -613,7 +629,7 @@ int main(void)
   }
 
   codec = codecs[found_idx].cdc;
-  printf("Using codec: %s :%d\n\n", codecs[found_idx].name, audio_init(codec));
+  DBG_APP_INF("Using codec: %s :%d\n", codecs[found_idx].name, audio_init(codec));
 
   user_button_state = 0;
 
@@ -826,7 +842,7 @@ uint32_t I2C_Master_Write(uint8_t device, const uint8_t* data, uint32_t len)
     i2c_status_type res = i2c_master_transmit(&hi2cx, device << 1, (uint8_t*)data, len, 1000);
 
     if(res != I2C_OK){
-        printf("%s : Error %u\n", __func__, res);
+        DBG_APP_ERR("%s : %u", __func__, res);
         return 0;
     }
 
@@ -838,7 +854,7 @@ uint32_t I2C_Master_Read(uint8_t device, uint8_t* data, uint32_t len)
     i2c_status_type res = i2c_master_receive(&hi2cx, device << 1, data, len, 1000);
 
     if(res != I2C_OK){
-        printf("%s : Error %u\n", __func__, res);
+        DBG_APP_ERR("%s : %u", __func__, res);
         return 0;
     }
 

@@ -8,6 +8,7 @@ TARGET =usb-audio
 #######################################
 FEATURES +=ENABLE_CLI
 FEATURES +=ENABLE_CLI_COLOR
+FEATURES +=ENABLE_DEBUG
 #FEATURES +=ENABLE_AMUX
 
 #######################################
@@ -71,6 +72,7 @@ $(LIB_PATH)/usb-at/usbd_class/audio/audio_class.c \
 APP_SOURCES =\
 $(APP_PATH)/src/main.c \
 $(APP_PATH)/src/audio.c \
+$(APP_PATH)/src/debug.c \
 $(LIB_PATH)/cli-simple/cli_simple.c \
 $(DRIVERS_PATH)/tas2563/tas2563.c \
 $(DRIVERS_PATH)/ak4619/ak4619.c \

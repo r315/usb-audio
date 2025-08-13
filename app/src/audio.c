@@ -30,6 +30,14 @@
 #include "audio.h"
 #include "audio_desc.h"
 #include "board.h"
+#include "debug.h"
+
+#ifndef ENABLE_DBG_AUDIO
+#define DBG_TAG             "AUD : "
+#define DBG_AUD_INF(...) DBG_INF(DBG_TAG __VA_ARGS__)
+#else
+#define DBG_AUD_INF(...)
+#endif
 
 #define BUFFER_MAX_SIZE     1024
 #define MIC_BUFFER_SIZE     BUFFER_MAX_SIZE
@@ -91,7 +99,7 @@ void audio_set_freq(uint32_t freq)
   */
 void audio_set_mic_freq(uint32_t freq)
 {
-    printf("%s :%lu\n", __func__, freq);
+    DBG_AUD_INF("%s :%lu", __func__, freq);
     audio_set_freq(freq);
 }
 
@@ -102,7 +110,7 @@ void audio_set_mic_freq(uint32_t freq)
   */
 void audio_set_spk_freq(uint32_t freq)
 {
-    printf("%s :%lu\n", __func__, freq);
+    DBG_AUD_INF("%s :%lu", __func__, freq);
     audio_set_freq(freq);
 }
 
@@ -113,7 +121,7 @@ void audio_set_spk_freq(uint32_t freq)
   */
 void audio_set_mic_mute(uint8_t mute)
 {
-    printf("%s :%d\n", __func__, mute);
+    DBG_AUD_INF("%s :%d", __func__, mute);
 }
 
 
@@ -124,7 +132,7 @@ void audio_set_mic_mute(uint8_t mute)
   */
 void audio_set_spk_mute(uint8_t mute)
 {
-    printf("%s :%d\n", __func__, mute);
+    DBG_AUD_INF("%s :%d", __func__, mute);
 }
 
 
@@ -135,7 +143,7 @@ void audio_set_spk_mute(uint8_t mute)
   */
 void audio_set_mic_volume(uint16_t volume)
 {
-    printf("%s :%d\n", __func__, volume);
+    DBG_AUD_INF("%s :%d", __func__, volume);
     audio_driver.mic.volume = volume;
 }
 
@@ -152,7 +160,7 @@ uint8_t audio_get_mic_volume(void)
   */
 void audio_set_spk_volume(uint16_t volume)
 {
-    printf("%s :%d\n", __func__, volume);
+    DBG_AUD_INF("%s :%d", __func__, volume);
     audio_driver.spk.volume = volume;
     audio_driver.codec->Volume(CDC_DEV_DAC1, volume);
     audio_driver.codec->Volume(CDC_DEV_DAC2, volume);
@@ -170,7 +178,7 @@ uint8_t audio_get_spk_volume(void)
   */
 void audio_spk_alt_setting(uint32_t alt_seting)
 {
-    //printf("%s :%lu\n", __func__, alt_seting);
+    //DBG_AUD_INF("%s :%lu", __func__, alt_seting);
 }
 
 /**
@@ -180,7 +188,7 @@ void audio_spk_alt_setting(uint32_t alt_seting)
   */
 void audio_mic_alt_setting(uint32_t alt_seting)
 {
-    //printf("%s :%lu\n", __func__, alt_seting);
+    //DBG_AUD_INF("%s :%lu", __func__, alt_seting);
 }
 
 /**
