@@ -48,7 +48,6 @@
 #define DBG_APP_INF(...)
 #endif
 
-
 typedef struct {
     const char *name;
     const audio_codec_t *cdc;
@@ -57,8 +56,6 @@ typedef struct {
 
 static uint8_t user_button_state;
 static const audio_codec_t *codec;
-
-static i2c_handle_type hi2cx;
 
 #ifdef __AUDIO_HID_CLASS_H
 ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
@@ -151,7 +148,7 @@ static int codecCmd(int argc, char **argv)
                 printf("\n%02X ", i & 0xF0);
 
             if(i >= 3 && i <= 0x77){ // default range from i2cdetect
-                if(i2c_master_scan_addr(&hi2cx, (i << 1), 1000) == I2C_OK){
+                if(I2C_Master_Scan(i) == I2C_OK){
                     printf("%02X ", i);
                 }else{
                     printf("-- ");
@@ -163,7 +160,7 @@ static int codecCmd(int argc, char **argv)
         }
         putchar('\n');
 
-        i2c_config(&hi2cx);
+        //i2c_config(&hi2cx);
 
         return CLI_OK;
     }
@@ -231,8 +228,8 @@ static int codecCmd(int argc, char **argv)
     if( !strcmp("regs", argv[1])){
         uint8_t buf[32];
         buf [0] = 0;
-        if(i2c_master_transmit(&hi2cx, 16 << 1, buf, 1, 1000) == I2C_OK){
-            if(i2c_master_receive(&hi2cx, 16 << 1, buf, 32, 1000) != I2C_OK){
+        if(I2C_Master_Write(16, buf, 1) == I2C_OK){
+            if(I2C_Master_Read(16, buf, 32) != I2C_OK){
                 printf("Failed to read");
             }else{
                 return I2C_OK;
@@ -329,10 +326,10 @@ static void dump_buf(uint8_t *buf, uint32_t count)
 }
 
 #ifdef ENABLE_AMUX
-static i2c_status_type readMux(i2c_handle_type *handle, uint8_t reg, uint8_t *buf, uint32_t count)
+static i2c_status_type readMux(uint8_t reg, uint8_t *buf, uint32_t count)
 {
-    if(i2c_master_transmit(handle, AMUX_I2C_ADDR << 1, &reg, 1, 1000) == I2C_OK){
-        if(i2c_master_receive(handle, AMUX_I2C_ADDR << 1, buf, count, 1000) != I2C_OK){
+    if(I2C_Master_Write(AMUX_I2C_ADDR, &reg, 1) == I2C_OK){
+        if(I2C_Master_Read(AMUX_I2C_ADDR, buf, count) != I2C_OK){
             printf("Failed to read");
         }else{
             return I2C_OK;
@@ -390,7 +387,7 @@ static int muxCmd(int argc, char **argv)
     }
 
     if( !strcmp("regs", argv[1])){
-        if(readMux(&hi2cx, 0, regs_buf, count) == I2C_OK){
+        if(readMux(0, regs_buf, count) == I2C_OK){
             dump_buf(regs_buf, count);
             return CLI_OK;
         }
@@ -407,7 +404,7 @@ static int muxCmd(int argc, char **argv)
             regs_buf[0] = value;
             if(CLI_Ha2i(argv[3], &value)){
                 regs_buf[1] = value;
-                if(i2c_master_transmit(&hi2cx, AMUX_I2C_ADDR << 1, regs_buf, 2, 1000) == I2C_OK){
+                if(I2C_Master_Write(AMUX_I2C_ADDR, regs_buf, 2) == I2C_OK){
                     return CLI_OK;
                 }
             }
@@ -418,7 +415,7 @@ static int muxCmd(int argc, char **argv)
         if(CLI_Ha2i(argv[2], (uint32_t*)&regs_buf)){
             count = 1;
             CLI_Ha2i(argv[3], &count);
-            if(readMux(&hi2cx, regs_buf[0], regs_buf, count) == I2C_OK){
+            if(readMux(regs_buf[0], regs_buf, count) == I2C_OK){
                 dump_buf(regs_buf, count);
                 return CLI_OK;
             }
@@ -506,7 +503,7 @@ static int muxCmd(int argc, char **argv)
 
         printf("ctl0: %x, ctl1: %x\n", regs_buf[1], regs_buf[2]);
 
-        if(i2c_master_transmit(&hi2cx, AMUX_I2C_ADDR << 1, regs_buf, 3, 1000) == I2C_OK){
+        if(I2C_Master_Write(AMUX_I2C_ADDR, regs_buf, 3) == I2C_OK){
             return CLI_OK;
         }
     }
@@ -515,7 +512,7 @@ static int muxCmd(int argc, char **argv)
         if(CLI_Ia2i(argv[2], (int32_t*)&value)){
             regs_buf[0] = AMUX_PAGE_REG;
             regs_buf[1] = value;
-            if(i2c_master_transmit(&hi2cx, AMUX_I2C_ADDR << 1, regs_buf, 2, 1000) == I2C_OK){
+            if(I2C_Master_Write(AMUX_I2C_ADDR, regs_buf, 2) == I2C_OK){
                 return CLI_OK;
             }
         }
@@ -557,10 +554,6 @@ int main(void)
     dbg_init(&uart_ops);
 #endif
 
-  /* i2c init */
-  hi2cx.i2cx = I2Cx_PORT;
-  i2c_config(&hi2cx);
-
   codec = NULL;
 
   /* audio init */
@@ -595,67 +588,6 @@ int main(void)
     #endif
   }
 }
-/**
-  * @brief  initializes peripherals used by the i2c.
-  * @param  none
-  * @retval none
-  */
-void i2c_lowlevel_init(i2c_handle_type* hi2c)
-{
-  gpio_init_type gpio_init_structure;
-
-  if(hi2c->i2cx == I2Cx_PORT)
-  {
-    /* i2c periph clock enable */
-    crm_periph_clock_enable(I2Cx_CLK, TRUE);
-    crm_periph_clock_enable(CRM_GPIOB_PERIPH_CLOCK, TRUE);
-    crm_periph_clock_enable(CRM_IOMUX_PERIPH_CLOCK, TRUE);
-    gpio_pin_remap_config(I2C1_MUX, TRUE);
-
-    /* configure i2c pins: scl */
-    gpio_init_structure.gpio_out_type       = GPIO_OUTPUT_OPEN_DRAIN;
-    gpio_init_structure.gpio_pull           = GPIO_PULL_NONE;
-    gpio_init_structure.gpio_mode           = GPIO_MODE_MUX;
-    gpio_init_structure.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MAXIMUM;
-
-    gpio_init_structure.gpio_pins           = I2Cx_SCL_GPIO_PIN;
-    gpio_init(I2Cx_SCL_GPIO_PORT, &gpio_init_structure);
-
-    /* configure i2c pins: sda */
-    gpio_init_structure.gpio_pins           = I2Cx_SDA_GPIO_PIN;
-    gpio_init(I2Cx_SDA_GPIO_PORT, &gpio_init_structure);
-
-    /* config i2c */
-    i2c_init(hi2c->i2cx, I2C_FSMODE_DUTY_2_1, I2Cx_SPEED);
-
-    i2c_own_address1_set(hi2c->i2cx, I2C_ADDRESS_MODE_7BIT, I2Cx_ADDRESS);
-  }
-}
-
-uint32_t I2C_Master_Write(uint8_t device, const uint8_t* data, uint32_t len)
-{
-    i2c_status_type res = i2c_master_transmit(&hi2cx, device << 1, (uint8_t*)data, len, 1000);
-
-    if(res != I2C_OK){
-        DBG_APP_ERR("%s : %u", __func__, res);
-        return 0;
-    }
-
-    return len;
-}
-
-uint32_t I2C_Master_Read(uint8_t device, uint8_t* data, uint32_t len)
-{
-    i2c_status_type res = i2c_master_receive(&hi2cx, device << 1, data, len, 1000);
-
-    if(res != I2C_OK){
-        DBG_APP_ERR("%s : %u", __func__, res);
-        return 0;
-    }
-
-    return len;
-}
-
 /**
   * @}
   */
