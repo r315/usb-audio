@@ -327,47 +327,6 @@ static void dump_buf(uint8_t *buf, uint32_t count)
     }
     putchar('\n');
 }
-#if 0
-/**
- *
-*/
-static i2c_status_type i2c_imm_read(i2c_handle_type *handle, uint8_t slv_addr, uint8_t *buf, uint32_t count, uint32_t timeout)
-{
-    /* enable ack */
-    i2c_ack_enable(handle->i2cx, TRUE);
-
-    /* generate start condtion */
-    i2c_start_generate(handle->i2cx);
-
-    /* wait for the start flag to be set */
-    if(i2c_wait_flag(handle, I2C_STARTF_FLAG, I2C_EVENT_CHECK_NONE, timeout) != I2C_OK)
-    {
-        handle->error_code = I2C_ERR_START;
-
-        goto i2c_err;
-    }
-
-    /* send slave address */
-    i2c_7bit_address_send(handle->i2cx, slv_addr, I2C_DIRECTION_RECEIVE);
-
-    /* wait for the addr7 flag to be set */
-    if(i2c_wait_flag(handle, I2C_ADDR7F_FLAG, I2C_EVENT_CHECK_ACKFAIL, timeout) != I2C_OK)
-    {
-        handle->error_code = I2C_ERR_ADDR;
-
-        goto i2c_err;
-    }
-
-i2c_stop_generate(handle->i2cx);
-
-    return I2C_OK;
-
-i2c_err:
-    i2c_stop_generate(handle->i2cx);
-
-    return handle->error_code;
-}
-#endif
 
 #ifdef ENABLE_AMUX
 static i2c_status_type readMux(i2c_handle_type *handle, uint8_t reg, uint8_t *buf, uint32_t count)
