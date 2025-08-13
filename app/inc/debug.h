@@ -29,6 +29,7 @@ extern "C" {
 #define VT100_NORMAL
 #endif
 
+#if defined(DEBUG) || defined(ENABLE_DEBUG)
 #ifdef DBG_PRINTF_FUNC
 #define LOG_PRINTF(...) \
     do { LOG_PRINT_FUNC(__VA_ARGS__); } while(0)
@@ -39,13 +40,14 @@ extern "C" {
 #define DBG_PRINT dbg_println
 #endif
 
-#if defined(DEBUG) || defined(ENABLE_DEBUG)
 #define DBG_INF(...) DBG_PRINTF(VT100_GREEN "[INFO] " VT100_NORMAL __VA_ARGS__)
 #define DBG_WRN(...) DBG_PRINTF(VT100_YELLOW "[WARN] " VT100_NORMAL __VA_ARGS__)
 #define DBG_ERR(...) DBG_PRINTF(VT100_RED "[ERROR] " VT100_NORMAL __VA_ARGS__)
 #define DBG_DUMP_MEM dbg_HexDump
 #define DBG_DUMP_MEM_LINE dbg_HexDumpLine
 #else
+#define DBG_PRINT(...)
+#define DBG_PRINTF(...)
 #define DBG_INF(...)
 #define DBG_WRN(...)
 #define DBG_ERR(...)

@@ -573,7 +573,7 @@ int main(void)
   }
 
   codec = codecs[found_idx].cdc;
-  DBG_APP_INF("Using codec: %s :%d\n", codecs[found_idx].name, audio_init(codec));
+  DBG_APP_INF("Using codec: %s :%d", codecs[found_idx].name, audio_init(codec));
 
   user_button_state = 0;
 

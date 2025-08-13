@@ -34,9 +34,15 @@
 
 #ifndef ENABLE_DBG_AUDIO
 #define DBG_TAG             "AUD : "
-#define DBG_AUD_INF(...) DBG_INF(DBG_TAG __VA_ARGS__)
+#define DBG_AUD_PRINT       DBG_PRINT
+#define DBG_AUD_INF(...)    DBG_INF(DBG_TAG __VA_ARGS__)
+#define DBG_AUD_WRN(...)    DBG_WRN(DBG_TAG __VA_ARGS__)
+#define DBG_AUD_ERR(...)    DBG_ERR(DBG_TAG __VA_ARGS__)
 #else
+#define DBG_AUD_PRINT(...)
 #define DBG_AUD_INF(...)
+#define DBG_AUD_WRN(...)
+#define DBG_AUD_ERR(...)
 #endif
 
 #define BUFFER_MAX_SIZE     1024
@@ -178,7 +184,7 @@ uint8_t audio_get_spk_volume(void)
   */
 void audio_spk_alt_setting(uint32_t alt_seting)
 {
-    //DBG_AUD_INF("%s :%lu", __func__, alt_seting);
+    DBG_AUD_INF("%s :%lu", __func__, alt_seting);
 }
 
 /**
@@ -188,7 +194,7 @@ void audio_spk_alt_setting(uint32_t alt_seting)
   */
 void audio_mic_alt_setting(uint32_t alt_seting)
 {
-    //DBG_AUD_INF("%s :%lu", __func__, alt_seting);
+    DBG_AUD_INF("%s :%lu", __func__, alt_seting);
 }
 
 /**
@@ -623,6 +629,7 @@ audio_status_t audio_init(const audio_codec_t *codec)
     res = bus_i2s_init(&audio_driver);
 
     if(res != AUDIO_OK){
+        DBG_AUD_ERR("Fail to configure i2s bus");
         return res;
     }
 

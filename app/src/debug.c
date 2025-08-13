@@ -23,9 +23,11 @@ static const stdinout_t *sto = &dummy_out;
 
 void dbg_init(const stdinout_t *stdo)
 {
-	if(stdo != NULL){
-		sto = stdo;
+	if(stdo == NULL){
+        return;
 	}
+
+    sto = stdo;
 }
 
 void dbg_HexDumpLine(const uint8_t *mem, uint32_t len, uint8_t print_ascii)
