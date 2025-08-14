@@ -45,18 +45,19 @@
 #define DBG_AUD_ERR(...)
 #endif
 
-#define BUFFER_MAX_SIZE     1024
+#define BUFFER_MAX_SIZE     1024            // Arbitrary size, must be sufficient at least for 2ms of audio
+#define DMA_BUFFER_SIZE     192             // 2ms of 48kHz@16bit audio, for double buffering
+
 #define MIC_BUFFER_SIZE     BUFFER_MAX_SIZE
 #define SPK_BUFFER_SIZE     BUFFER_MAX_SIZE
-#define DMA_BUFFER_SIZE     288
 
-#define HICK_TRIM           50
+#define HICK_TRIM           50 // TODO: check functionality
 
-typedef enum drvstate_e{
-    DRV_INIT = 0,
-    DRV_FILL_FIRST,
-    DRV_FILL_SECOND
-}drvsatate_t;
+typedef enum stream_stage_e{
+    STREAM_INIT = 0,
+    STREAM_FILL_FIRST,
+    STREAM_FILL_SECOND
+}stream_stage_e;
 
 static audio_driver_t audio_driver;
 static uint16_t spk_dma_buffer[DMA_BUFFER_SIZE];
@@ -205,8 +206,9 @@ void audio_mic_alt_setting(uint32_t alt_seting)
   */
 uint8_t audio_spk_feedback(uint8_t *feedback)
 {
-    uint32_t feedback_value = (audio_driver.spk.freq);
-    feedback_value = ((feedback_value/1000)<<14)|((feedback_value%1000)<<4);
+    uint32_t feedback_value = (audio_driver.freq);
+
+    feedback_value = ((feedback_value/1000)<<14)|((feedback_value % 1000)<<4);
     feedback[0] = (uint8_t)(feedback_value);
     feedback[1] = (uint8_t)(feedback_value >> 8);
     feedback[2] = (uint8_t)(feedback_value >> 16);
@@ -244,20 +246,20 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
 
     switch (stream->stage)
     {
-        case DRV_INIT:
+        case STREAM_INIT:
             stream->woff = stream->roff = stream->queue_start;
             stream->wtotal = stream->rtotal = 0;
             stream->threshold = SPK_BUFFER_SIZE / 2;
-            stream->stage = DRV_FILL_FIRST;
+            stream->stage = STREAM_FILL_FIRST;
             break;
 
-        case DRV_FILL_FIRST:
+        case STREAM_FILL_FIRST:
             if (stream->wtotal >= SPK_BUFFER_SIZE / 2){
-                stream->stage = DRV_FILL_SECOND;
+                stream->stage = STREAM_FILL_SECOND;
             }
             break;
 
-        case DRV_FILL_SECOND:
+        case STREAM_FILL_SECOND:
             break;
     }
 
@@ -631,8 +633,8 @@ audio_status_t audio_init(const audio_codec_t *codec)
     audio_driver.spk.nchannels = AUDIO_SPK_CHANEL_NUM;
     audio_driver.mic.nchannels = AUDIO_MIC_CHANEL_NUM;
 
-    audio_driver.spk.stage = DRV_INIT;
-    audio_driver.mic.stage = DRV_INIT;
+    audio_driver.spk.stage = STREAM_INIT;
+    audio_driver.mic.stage = STREAM_INIT;
 
     res = bus_i2s_init(&audio_driver);
 
@@ -716,23 +718,23 @@ void DMA1_Channel3_IRQHandler(void)
 
     switch (stream->stage)
     {
-        case DRV_INIT:
-        case DRV_FILL_FIRST:
+        case STREAM_INIT:
+        case STREAM_FILL_FIRST:
             memset16(pdst, 0, half_size);
             break;
 
-        case DRV_FILL_SECOND:
+        case STREAM_FILL_SECOND:
             if (stream->wtotal >= stream->rtotal + SPK_BUFFER_SIZE)
             {
                 // Somehow buffer overflow, should not happen;
                 //SW_Reset();
-                stream->stage = DRV_INIT;
+                stream->stage = STREAM_INIT;
                 return;
             }
 
             if (stream->rtotal >= stream->wtotal)
             {
-                stream->stage = DRV_INIT;
+                stream->stage = STREAM_INIT;
             }
             else
             {
@@ -753,12 +755,10 @@ void DMA1_Channel3_IRQHandler(void)
                     if (delta < stream->threshold - half_size)
                     {
                         stream->threshold -= half_size;
-                    //ach->freq += audio_driver.freq / SPK_BUFFER_SIZE;
                     }
                     else if (delta > stream->threshold + half_size)
                     {
                         stream->threshold += half_size;
-                    //ach->freq -= audio_driver.freq / SPK_BUFFER_SIZE;
                     }
                     if (stream->rtotal > 0x20000000)
                     {
