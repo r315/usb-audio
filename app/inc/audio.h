@@ -108,12 +108,12 @@ enum cdc_cfg_val_e {
 
 typedef struct audio_channel_s
 {
-    uint32_t freq;
-    uint16_t *queue_start;
-    uint16_t *roff;
-    uint16_t *woff;
+    //uint32_t freq;
+    uint16_t *queue_start;  // Start of queue that holds usb data
     uint16_t *queue_end;
-    uint32_t nsamples;
+    uint16_t *roff;         // Queue read index pointer
+    uint16_t *woff;         // Queue write index pointer
+    uint32_t nsamples;      // number of samples per millisecond
     uint32_t wtotal;
     uint32_t rtotal;
     uint32_t delta;

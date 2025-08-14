@@ -229,7 +229,8 @@ void audio_set_codec(const audio_codec_t *codec)
 }
 
 /**
-  * @brief  callback from audio_class to write codec speaker write fifo
+  * @brief  Callback from audio_class with
+  * data to be sent to I2S bus
   *
   * @param  data: data buffer
   * @param  len: data length
@@ -237,22 +238,23 @@ void audio_set_codec(const audio_codec_t *codec)
   */
 void audio_enqueue_data(uint8_t *data, uint32_t len)
 {
-    uint16_t i, ulen = len / 2; // half len for 16bit samples
-    uint16_t *u16data = (uint16_t *)data;
+    audio_channel_t *ach = &audio_driver.spk;
+    uint16_t i, nsamples = len / 2;
+    uint16_t *src = (uint16_t *)data;
 
-    switch (audio_driver.spk.stage)
+    switch (ach->stage)
     {
         case DRV_INIT:
-        audio_driver.spk.woff = audio_driver.spk.roff = audio_driver.spk.queue_start;
-        audio_driver.spk.wtotal = audio_driver.spk.rtotal = 0;
-        audio_driver.spk.threshold = SPK_BUFFER_SIZE / 2;
-        audio_driver.spk.stage = DRV_FILL_FIRST;
+        ach->woff = ach->roff = ach->queue_start;
+        ach->wtotal = ach->rtotal = 0;
+        ach->threshold = SPK_BUFFER_SIZE / 2;
+        ach->stage = DRV_FILL_FIRST;
         break;
 
         case DRV_FILL_FIRST:
-        if (audio_driver.spk.wtotal >= SPK_BUFFER_SIZE / 2)
+        if (ach->wtotal >= SPK_BUFFER_SIZE / 2)
         {
-            audio_driver.spk.stage = DRV_FILL_SECOND;
+            ach->stage = DRV_FILL_SECOND;
         }
         break;
 
@@ -260,16 +262,16 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
         break;
     }
 
-    for (i = 0; i < ulen; ++i)
+    for (i = 0; i < nsamples; ++i)
     {
-        *(audio_driver.spk.woff++) = *u16data++;
-        if (audio_driver.spk.woff >= audio_driver.spk.queue_end)
+        *(ach->woff++) = *src++;
+        if (ach->woff >= ach->queue_end)
         {
-            audio_driver.spk.woff = audio_driver.spk.queue_start;
+            ach->woff = ach->queue_start;
         }
     }
 
-    audio_driver.spk.wtotal += ulen;
+    ach->wtotal += nsamples;
 }
 
 /**
