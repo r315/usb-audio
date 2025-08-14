@@ -121,21 +121,23 @@ static void usb_init(void)
 
     /* enable otgfs irq */
     nvic_irq_enable(OTG_IRQ, 0, 0);
+    nvic_priority_group_config(NVIC_PRIORITY_GROUP_4);
+}
 
-    /* init usb */
+void disconnect_usb(void)
+{
+    usbd_disconnect(&otg_core_struct.dev);
+}
+
+void connect_usb(void)
+{
     usbd_init(&otg_core_struct,
             USB_FULL_SPEED_CORE_ID,
             USB_ID,
             &audio_class_handler,
             &audio_desc_handler);
 
-    /* usb gpio config */
     usb_gpio_config();
-}
-
-void disconnect_usb(void)
-{
-    usbd_disconnect(&otg_core_struct.dev);
 }
 
 /**
@@ -223,8 +225,6 @@ void board_init(void)
     /* i2c init */
     hi2cx.i2cx = I2Cx_PORT;
     i2c_config(&hi2cx);
-
-    nvic_priority_group_config(NVIC_PRIORITY_GROUP_4);
 
     LED1_PIN_INIT;
 }

@@ -577,6 +577,8 @@ int main(void)
 
   user_button_state = 0;
 
+  connect_usb();
+
   while(1)
   {
     audio_loop();

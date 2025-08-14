@@ -95,6 +95,7 @@ void audio_set_freq(uint32_t freq)
         bus_i2s_reset();
         bus_i2s_init(&audio_driver);
         audio_driver.codec->SampleRate(freq);
+        audio_driver.codec->Enable();
     }
 }
 
