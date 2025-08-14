@@ -120,8 +120,7 @@ static void usb_init(void)
     crm_usb_clock_source_select(CRM_USB_CLOCK_SOURCE_HICK);
 
     /* enable otgfs irq */
-    nvic_irq_enable(OTG_IRQ, 0, 0);
-    nvic_priority_group_config(NVIC_PRIORITY_GROUP_4);
+    NVIC_EnableIRQ(OTG_IRQ);
 }
 
 void disconnect_usb(void)
@@ -217,6 +216,11 @@ void board_init(void)
 	system_core_clock_update();
 
 	SysTick_Config((SystemCoreClock / 1000) - 1);
+    //nvic_priority_group_config(NVIC_PRIORITY_GROUP_4);
+
+    NVIC_SetPriority(OTG_IRQ, 0);
+    NVIC_SetPriority(DMA1_Channel3_IRQn, 2);
+    NVIC_SetPriority(DMA1_Channel4_IRQn, 3);
 
     serial_init();
 

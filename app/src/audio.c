@@ -46,7 +46,7 @@
 #endif
 
 #define BUFFER_MAX_SIZE     1024            // Arbitrary size, must be sufficient at least for 2ms of audio
-#define DMA_BUFFER_SIZE     192             // 2ms of 48kHz@16bit audio, for double buffering
+#define DMA_BUFFER_SIZE     (48 * 2 * 2)    // Number of samples for 1ms, two channels, 48kHz@16bit audio, and double buffering
 
 #define MIC_BUFFER_SIZE     BUFFER_MAX_SIZE
 #define SPK_BUFFER_SIZE     BUFFER_MAX_SIZE
@@ -80,6 +80,61 @@ static void memcpy16(uint16_t *dst, uint16_t *src, uint32_t len)
     while(len--){
         *dst++ = *src++;
     }
+}
+
+static void queue_flush(audio_queue_t *q)
+{
+    q->read = q->write = q->start;
+}
+
+static uint16_t queue_push(audio_queue_t *q, const uint16_t *data, uint16_t len) {
+    uint16_t count = 0;
+    while(count < len){
+        *q->write++ = *data++;
+        if(q->write >= q->end){
+            q->write = q->start;
+        }
+        count++;
+        if(q->write == q->read){
+            break;
+        }
+    }
+    return count;
+}
+
+static uint16_t queue_pop(audio_queue_t *q, uint16_t *data, uint16_t len) {
+    uint16_t count = 0;
+    while(count < len){
+        *data++ = *q->read++;
+        if(q->read >= q->end){
+            q->read = q->start;
+        }
+        count++;
+        if(q->read == q->write){
+            break;
+        }
+    }
+    return count;
+}
+
+static uint16_t queue_count(audio_queue_t *q)
+{
+    return (q->write >= q->read)
+        ? (q->write - q->read)
+        : ((q->end - q->start) - (q->read - q->write));
+}
+
+/**
+ * @brief Returns maximum number of elements queue can hold.
+ * This differs of q->size that holds the maximum elements
+ * of buffer
+ *
+ * @param q
+ * @return uint16_t
+ */
+static uint16_t queue_size(audio_queue_t *q)
+{
+    return (q->end - q->start);
 }
 
 /**
@@ -241,36 +296,35 @@ void audio_set_codec(const audio_codec_t *codec)
 void audio_enqueue_data(uint8_t *data, uint32_t len)
 {
     audio_stream_t *stream = &audio_driver.spk;
-    uint16_t i, nsamples = len / 2;
-    uint16_t *src = (uint16_t *)data;
+    uint16_t nsamples = len >> 1;
 
     switch (stream->stage)
     {
         case STREAM_INIT:
-            stream->woff = stream->roff = stream->queue_start;
-            stream->wtotal = stream->rtotal = 0;
-            stream->threshold = SPK_BUFFER_SIZE / 2;
+            queue_flush(&stream->queue);
+            stream->threshold = queue_size(&stream->queue) >> 1;
             stream->stage = STREAM_FILL_FIRST;
+            DBG_AUD_INF("Starting out stream");
             break;
 
         case STREAM_FILL_FIRST:
-            if (stream->wtotal >= SPK_BUFFER_SIZE / 2){
-                stream->stage = STREAM_FILL_SECOND;
+            if (queue_count(&stream->queue) >= stream->threshold){
+                stream->stage = STREAM_FILL_SECOND;     // At least half of queue is full
+                DBG_AUD_INF("Out stream buffer half full");
             }
             break;
 
         case STREAM_FILL_SECOND:
+            if (queue_count(&stream->queue) < stream->nsamples){
+                DBG_AUD_WRN("usb is anable to keep up");
+
+            }
             break;
     }
 
-    for (i = 0; i < nsamples; ++i){
-        *(stream->woff++) = *src++;
-        if (stream->woff >= stream->queue_end){
-            stream->woff = stream->queue_start;
-        }
+    if(queue_push(&stream->queue, (uint16_t*)data, nsamples) != nsamples){
+        DBG_AUD_WRN("Out stream buffer full");
     }
-
-    stream->wtotal += nsamples;
 }
 
 /**
@@ -279,78 +333,51 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
   * @param  data: data buffer
   * @retval data len
   */
-uint32_t audio_dequeue_data(uint8_t *buffer)
-{
-    // copy_buff((uint16_t *)buffer, audio_codec.mic_buffer + audio_codec.mic_hf_status, audio_codec.mic_rx_size);
-    uint16_t len = audio_driver.mic.nsamples << 1;
-    uint16_t i;
-    uint16_t *u16buf = (uint16_t *)buffer;
+ uint32_t audio_dequeue_data(uint8_t *buffer)
+ {
+    audio_stream_t *stream = &audio_driver.mic;
+    uint16_t nsamples = stream->nsamples;
 
-    switch (audio_driver.mic.stage)
+    return 0;
+
+    switch (stream->stage)
     {
-        case 0:
-        audio_driver.mic.stage = 1;
-        memset(buffer, 0, len);
-        return len;
+        case STREAM_INIT:
+            queue_flush(&stream->queue);
+            memset16((uint16_t*)buffer, 0, nsamples);
+            stream->threshold = queue_size(&stream->queue) / 2;
+            stream->stage = STREAM_FILL_FIRST;
+            DBG_AUD_INF("Starting in stream");
+            break;
 
-        case 1:
-        if ((audio_driver.mic.wtotal - audio_driver.mic.rtotal) >= (MIC_BUFFER_SIZE / 2)){
-            audio_driver.mic.stage = 2;
-        }
-        return len;
+        case STREAM_FILL_FIRST:
+            if (queue_count(&stream->queue) >= stream->threshold){
+                queue_pop(&stream->queue, (uint16_t*)buffer, nsamples);
+                stream->stage = STREAM_FILL_SECOND;
+                DBG_AUD_INF("In stream half full");
+            }else{
+                memset16((uint16_t*)buffer, 0, nsamples);
+            }
+            break;
+
+        case STREAM_FILL_SECOND:
+            nsamples = queue_pop(&stream->queue, (uint16_t*)buffer, nsamples);
+            stream->stage = STREAM_FILL_SECOND;
+            DBG_AUD_INF("In stream half full");
+            break;
     }
 
-    switch (audio_driver.mic.adj_stage)
-    {
-        case 0:
-        break;
-
-        case 1:
-        if (audio_driver.mic.adj_count >= 4){
-            len += 4;
-            audio_driver.mic.adj_count -= 4;
-        }
-        break;
-
-        case 2:
-        if (audio_driver.mic.adj_count >= 4){
-            len -= 4;
-            audio_driver.mic.adj_count -= 4;
-        }
-        break;
-    }
-
-    for (i = 0; i < len / 2; ++i){
-        *u16buf++ = *(audio_driver.mic.roff++);
-
-        if (audio_driver.mic.roff >= audio_driver.mic.queue_end){
-            audio_driver.mic.roff = audio_driver.mic.queue_start;
-        }
-    }
-
-    if (audio_driver.mic.wtotal <= audio_driver.mic.rtotal)
-    {
-        // while (1); // should not happen
-        // TODO: Fix buffer overflow
-        audio_driver.mic.stage = 0;
-    }
-
-    audio_driver.mic.rtotal += len / 2;
-    audio_driver.mic.delta += len / 2;
-
-    return len;
-    #endif
+    return nsamples << 1;
 }
 
 static void audio_stream_init(audio_stream_t *stream, uint32_t freq, uint8_t bitw)
 {
     // Calculate the number of samples per millisecond unit
-    stream->nsamples = ((freq / 1000) * (bitw / 8) * stream->nchannels) / sizeof(*stream->queue_start);
-    stream->queue_end = stream->woff = stream->roff = stream->queue_start;
-
+    stream->nsamples = ((freq / 1000) * (bitw / 8) * stream->nchannels) / sizeof(*stream->queue.start);
     // Find queue end for miliseconds units, this varies depending frequency, channels and bit width
-    while(stream->queue_end + stream->nsamples < stream->queue_start + stream->queue_size){
-        stream->queue_end += stream->nsamples;
+    stream->queue.end = stream->queue.start;
+    while(stream->queue.end + stream->nsamples < stream->queue.start + stream->queue.size){
+        stream->queue.end += stream->nsamples;
     }
 }
 
@@ -451,7 +478,7 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     dma_init(DMA1_CHANNEL3, &dma_init_struct);
     dma_interrupt_enable(DMA1_CHANNEL3, DMA_FDT_INT, TRUE);
     dma_interrupt_enable(DMA1_CHANNEL3, DMA_HDT_INT, TRUE);
-    nvic_irq_enable(DMA1_Channel3_IRQn, 1, 0);
+    NVIC_EnableIRQ(DMA1_Channel3_IRQn);
 
     /* dma1 channel4: microphone i2s2 rx */
     dma_default_para_init(&dma_init_struct);
@@ -468,7 +495,7 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     dma_init(DMA1_CHANNEL4, &dma_init_struct);
     dma_interrupt_enable(DMA1_CHANNEL4, DMA_FDT_INT, TRUE);
     dma_interrupt_enable(DMA1_CHANNEL4, DMA_HDT_INT, TRUE);
-    nvic_irq_enable(DMA1_Channel4_IRQn, 2, 0);
+    NVIC_EnableIRQ(DMA1_Channel4_IRQn);
 
     /* Config gpio's */
     if(audio->mode == AUDIO_MODE_MASTER){
@@ -622,13 +649,13 @@ audio_status_t audio_init(const audio_codec_t *codec)
     memset16(spk_buffer, 0, SPK_BUFFER_SIZE);
     memset16(mic_buffer, 0, MIC_BUFFER_SIZE);
 
-    audio_driver.spk.queue_start = spk_buffer;
-    audio_driver.mic.queue_start = mic_buffer;
+    audio_driver.spk.queue.start = spk_buffer;
+    audio_driver.mic.queue.start = mic_buffer;
     audio_driver.mic.dma_buffer = mic_dma_buffer;
     audio_driver.spk.dma_buffer = spk_dma_buffer;
 
-    audio_driver.spk.queue_size = SPK_BUFFER_SIZE;
-    audio_driver.mic.queue_size = MIC_BUFFER_SIZE;
+    audio_driver.spk.queue.size = SPK_BUFFER_SIZE;
+    audio_driver.mic.queue.size = MIC_BUFFER_SIZE;
 
     audio_driver.spk.nchannels = AUDIO_SPK_CHANEL_NUM;
     audio_driver.mic.nchannels = AUDIO_MIC_CHANEL_NUM;
@@ -701,13 +728,11 @@ void DMA1_Channel3_IRQHandler(void)
 
     if (dma_flag_get(DMA1_HDT3_FLAG) == SET)
     {
-        // copy_buff(audio_codec.spk_buffer, audio_codec.spk_tx_fifo + audio_codec.r_pos, half_size);
         pdst = stream->dma_buffer;
         dma_flag_clear(DMA1_HDT3_FLAG);
     }
     else if (dma_flag_get(DMA1_FDT3_FLAG) == SET)
     {
-        // copy_buff(&audio_codec.spk_buffer[half_size], audio_codec.spk_tx_fifo + audio_codec.r_pos, half_size);
         pdst = stream->dma_buffer + half_size;
         dma_flag_clear(DMA1_FDT3_FLAG);
     }else{
@@ -724,49 +749,13 @@ void DMA1_Channel3_IRQHandler(void)
             break;
 
         case STREAM_FILL_SECOND:
-            if (stream->wtotal >= stream->rtotal + SPK_BUFFER_SIZE)
-            {
-                // Somehow buffer overflow, should not happen;
-                //SW_Reset();
-                stream->stage = STREAM_INIT;
-                return;
-            }
-
-            if (stream->rtotal >= stream->wtotal)
+            if (queue_count(&stream->queue) < half_size)
             {
                 stream->stage = STREAM_INIT;
+                DBG_AUD_WRN("Out stream buffer empty");
+                break;
             }
-            else
-            {
-                memcpy16(pdst, stream->roff, half_size);
-
-                stream->roff += half_size;
-                stream->rtotal += half_size;
-
-                if (stream->roff >= stream->queue_end)
-                {
-                    stream->roff = stream->queue_start;
-                }
-                if (++stream->calc == 256)
-                {
-                    stream->calc = 0;
-                    uint16_t delta = stream->wtotal - stream->rtotal;
-
-                    if (delta < stream->threshold - half_size)
-                    {
-                        stream->threshold -= half_size;
-                    }
-                    else if (delta > stream->threshold + half_size)
-                    {
-                        stream->threshold += half_size;
-                    }
-                    if (stream->rtotal > 0x20000000)
-                    {
-                        stream->rtotal -= 0x10000000;
-                        stream->wtotal -= 0x10000000;
-                    }
-                }
-            }
+            queue_pop(&stream->queue, pdst, half_size);
             break;
     }
 }
@@ -778,70 +767,37 @@ void DMA1_Channel3_IRQHandler(void)
  */
 void DMA1_Channel4_IRQHandler(void)
 {
+    audio_stream_t *stream = &audio_driver.mic;
+    uint16_t half_size = stream->nsamples;
     uint16_t *psrc;
-    uint16_t len = audio_driver.mic.nsamples << 1;
 
     if (dma_flag_get(DMA1_HDT4_FLAG) == SET)
     {
+        psrc = stream->dma_buffer;
         dma_flag_clear(DMA1_HDT4_FLAG);
-        psrc = mic_dma_buffer;
     }
     else if (dma_flag_get(DMA1_FDT4_FLAG) == SET)
     {
-        psrc = mic_dma_buffer + audio_driver.mic.nsamples;
+        psrc = stream->dma_buffer + half_size;
         dma_flag_clear(DMA1_FDT4_FLAG);
     }else{
         DMA1->clr = DMA1->sts;
         return;
     }
 
-    if (audio_driver.mic.stage)
+    switch (stream->stage)
     {
-        memcpy(audio_driver.mic.woff, psrc, len);
-        audio_driver.mic.woff += len / 2;
-        audio_driver.mic.wtotal += len / 2;
-        if (audio_driver.mic.woff >= audio_driver.mic.queue_end)
-        {
-            audio_driver.mic.woff = audio_driver.mic.queue_start;
-        }
-        if (audio_driver.mic.stage == 2)
-        {
-            if (1024 == ++audio_driver.mic.calc)
-            {
-                uint32_t size_estimate = 1024 * audio_driver.mic.nsamples;
-                audio_driver.mic.calc = 0;
-                if (audio_driver.mic.delta > size_estimate)
-                {
-                    audio_driver.mic.adj_count = audio_driver.mic.delta - size_estimate;
-                    audio_driver.mic.adj_stage = 2;
-                }
-                else if (audio_driver.mic.delta < size_estimate)
-                {
-                    audio_driver.mic.adj_count = size_estimate - audio_driver.mic.delta;
-                    audio_driver.mic.adj_stage = 1;
-                }
-                else
-                {
-                    audio_driver.mic.adj_count = 0;
-                    audio_driver.mic.adj_stage = 0;
-                }
-                audio_driver.mic.delta = 0;
-                if (audio_driver.mic.rtotal >= 0x80000000)
-                {
-                    audio_driver.mic.rtotal -= 0x80000000;
-                    audio_driver.mic.wtotal -= 0x80000000;
-                }
-            }
+        case STREAM_INIT:
+        case STREAM_FILL_FIRST:
+        memset16(psrc, 0xCCCC, half_size);
+        break;
 
-            if (audio_driver.mic.wtotal >= audio_driver.mic.rtotal + MIC_BUFFER_SIZE)
-            {
-                audio_driver.mic.delta = audio_driver.mic.wtotal = audio_driver.mic.rtotal = 0;
-                audio_driver.mic.woff = audio_driver.mic.roff = audio_driver.mic.queue_start;
-                audio_driver.mic.stage = 0;
-                audio_driver.mic.adj_stage = 0;
-                audio_driver.mic.adj_count = 0;
-                audio_driver.mic.calc = 0;
-            }
-        }
+        case STREAM_FILL_SECOND:
+            break;
+    }
+
+    if (queue_push(&stream->queue, psrc, half_size) != half_size){
+        //stream->stage = STREAM_INIT;
+        //DBG_AUD_WRN("In stream buffer full");
     }
 }
