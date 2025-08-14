@@ -185,7 +185,7 @@ void audio_set_spk_volume(uint16_t volume);
 uint8_t audio_get_spk_volume(void);
 void audio_set_mic_freq(uint32_t freq);
 void audio_set_spk_freq(uint32_t freq);
-
+void audio_suspend_event(void);
 #ifdef __cplusplus
 }
 #endif

@@ -414,9 +414,10 @@ static usb_sts_type class_event_handler(void *udev, usbd_event_type event)
       break;
     case USBD_SUSPEND_EVENT:
       paudio->spk_alt_setting = 0;
-      audio_spk_alt_setting(paudio->spk_alt_setting);
       paudio->mic_alt_setting = 0;
-      audio_mic_alt_setting(paudio->spk_alt_setting);
+      //audio_spk_alt_setting(paudio->spk_alt_setting);
+      //audio_mic_alt_setting(paudio->spk_alt_setting);
+      audio_suspend_event();
       /* ...user code... */
 
       break;

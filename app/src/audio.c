@@ -214,6 +214,11 @@ uint8_t audio_spk_feedback(uint8_t *feedback)
     return 3;
 }
 
+void audio_suspend_event(void)
+{
+    DBG_AUD_INF("%s ", __func__);
+}
+
 void audio_set_codec(const audio_codec_t *codec)
 {
     if(!codec){
