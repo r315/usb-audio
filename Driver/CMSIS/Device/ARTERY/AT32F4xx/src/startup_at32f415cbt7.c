@@ -30,7 +30,7 @@ NORETURN void Reset_Handler(void)
         *dest++ = 0;
 
     __libc_init_array();
-    
+
     main();
 
     while(1){}
@@ -163,7 +163,7 @@ ISR void *vector_table[] = {
     0,
     PendSV_Handler,
     SysTick_Handler,
-  
+
     /* External Interrupts */
     WWDG_IRQHandler,                     /* Window Watchdog                             */
     PVD_IRQHandler,                      /* PVD through EXTI Line detect                */

@@ -106,27 +106,29 @@ enum cdc_cfg_val_e {
     CDC_SR_192K = 192000
 };
 
-typedef struct audio_channel_s
+typedef struct audio_stream_s
 {
     //uint32_t freq;
     uint16_t *queue_start;  // Start of queue that holds usb data
     uint16_t *queue_end;
+    uint16_t queue_size;
     uint16_t *roff;         // Queue read index pointer
     uint16_t *woff;         // Queue write index pointer
-    uint32_t nsamples;      // number of samples per millisecond
+    uint16_t nsamples;      // number of samples per millisecond
     uint32_t wtotal;
     uint32_t rtotal;
     uint32_t delta;
     uint16_t *dma_buffer;
     uint16_t threshold;
     uint16_t calc;
-    uint8_t volume;
+    uint16_t adj_count;
+    uint8_t  nchannels;
+    uint8_t  volume;
     uint8_t  stage;
     uint8_t  adj_stage;
-    uint16_t adj_count;
     uint8_t  mute;
     uint8_t  enabled;
-}audio_channel_t;
+}audio_stream_t;
 
 typedef struct audio_codec_s
 {
@@ -147,9 +149,9 @@ typedef struct audio_driver_s
     uint32_t bitw;
     uint8_t  mode;
     //spk part
-    audio_channel_t spk;
+    audio_stream_t spk;
     //mic part
-    audio_channel_t mic;
+    audio_stream_t mic;
     // Common part
     const audio_codec_t *codec;
 }audio_driver_t;
