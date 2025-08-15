@@ -25,6 +25,40 @@
 static otg_core_type otg_core_struct;
 static i2c_handle_type hi2cx;
 
+static void usb_init(void);
+
+/**
+ * @brief
+ *
+ */
+void board_init(void)
+{
+	SystemInit();
+    system_clock_config();
+	system_core_clock_update();
+
+	SysTick_Config((SystemCoreClock / 1000) - 1);
+
+    CRM->ctrl_bit.hicktrim = HICK_TRIM; // this should be different for each board
+
+#ifdef AUDIO_SYNCHRONOUS_MODE
+    NVIC_SetPriority(OTG_IRQ, 3);
+    NVIC_SetPriority(DMA1_Channel3_IRQn, 1);
+    NVIC_SetPriority(DMA1_Channel4_IRQn, 1);
+#else
+    //TODO priority fot asynchronous mode
+#endif
+    serial_init();
+
+    usb_init();
+
+    /* i2c init */
+    hi2cx.i2cx = I2Cx_PORT;
+    i2c_config(&hi2cx);
+
+    LED1_PIN_INIT;
+}
+
 #if (USE_TIMER_SYSTICK == 1)
 #else
 static volatile uint32_t ticms;
@@ -207,42 +241,263 @@ uint32_t I2C_Master_Scan(uint8_t device)
 }
 
 /**
+  * @brief  audio codec i2s reset
+  * @param  none
+  * @retval none
+  */
+void bus_i2s_reset(void)
+{
+    i2s_enable(SPI1, FALSE);
+    i2s_enable(SPI2, FALSE);
+    dma_channel_enable(DMA1_CHANNEL3, FALSE);
+    dma_channel_enable(DMA1_CHANNEL4, FALSE);
+}
+
+/**
+  * @brief  audio codec i2s init
+  * @param  audio
+  * @retval error status
+  */
+int bus_i2s_init(i2s_config_t *cfg)
+{
+    gpio_init_type gpio_init_struct;
+    dma_init_type dma_init_struct;
+    i2s_init_type i2s_init_struct;
+    i2s_data_channel_format_type format;
+
+    if(cfg->bitw == AUDIO_BITW_16){
+        format = I2S_DATA_16BIT_CHANNEL_32BIT;
+    }else if(cfg->bitw == AUDIO_BITW_32){
+        format = I2S_DATA_32BIT_CHANNEL_32BIT;
+    }else{
+        return 1;
+    }
+
+    crm_periph_clock_enable(I2S1_GPIO_CRM_CLK, TRUE);
+    crm_periph_clock_enable(I2S2_GPIO_CRM_CLK, TRUE);
+    crm_periph_clock_enable(CRM_DMA1_PERIPH_CLOCK, TRUE);
+    crm_periph_clock_enable(CRM_SPI1_PERIPH_CLOCK, TRUE);
+    crm_periph_clock_enable(CRM_SPI2_PERIPH_CLOCK, TRUE);
+
+    gpio_default_para_init(&gpio_init_struct);
+
+    /* Config TX I2S1 */
+    spi_i2s_reset(SPI1);
+    i2s_default_para_init(&i2s_init_struct);
+    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
+    //i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
+    i2s_init_struct.data_channel_format = format;
+    i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)cfg->freq;
+    i2s_init_struct.clock_polarity = I2S_CLOCK_POLARITY_LOW;
+    i2s_init_struct.operation_mode = (cfg->mode == AUDIO_MODE_MASTER) ? I2S_MODE_MASTER_TX : I2S_MODE_SLAVE_TX;
+    i2s_init_struct.mclk_output_enable = TRUE;
+    i2s_init(SPI1, &i2s_init_struct);
+
+    /* Config RX I2S2 */
+    spi_i2s_reset(SPI2);
+    i2s_default_para_init(&i2s_init_struct);
+    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
+    //i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
+    i2s_init_struct.data_channel_format = format;
+    i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)cfg->freq;
+    i2s_init_struct.clock_polarity = I2S_CLOCK_POLARITY_LOW;
+    i2s_init_struct.operation_mode = (cfg->mode == AUDIO_MODE_MASTER) ? I2S_MODE_MASTER_RX : I2S_MODE_SLAVE_RX;
+    i2s_init_struct.mclk_output_enable = FALSE;
+    i2s_init(SPI2, &i2s_init_struct);
+
+     /* dma config */
+    dma_reset(DMA1_CHANNEL3);
+    dma_reset(DMA1_CHANNEL4);
+
+    /* dma1 channel3: speaker i2s1 tx */
+    dma_default_para_init(&dma_init_struct);
+    dma_init_struct.buffer_size = cfg->dma_buf_tx_size << 1;   // use double buffering
+    dma_init_struct.direction = DMA_DIR_MEMORY_TO_PERIPHERAL;
+    dma_init_struct.memory_base_addr = (uint32_t)cfg->dma_buf_tx;
+    dma_init_struct.memory_data_width = DMA_MEMORY_DATA_WIDTH_HALFWORD;
+    dma_init_struct.memory_inc_enable = TRUE;
+    dma_init_struct.peripheral_base_addr = (uint32_t)I2S1_DT_ADDRESS;
+    dma_init_struct.peripheral_data_width = DMA_PERIPHERAL_DATA_WIDTH_HALFWORD;
+    dma_init_struct.peripheral_inc_enable = FALSE;
+    dma_init_struct.priority = DMA_PRIORITY_HIGH;
+    dma_init_struct.loop_mode_enable = TRUE;
+    dma_init(DMA1_CHANNEL3, &dma_init_struct);
+    dma_interrupt_enable(DMA1_CHANNEL3, DMA_FDT_INT, TRUE);
+    dma_interrupt_enable(DMA1_CHANNEL3, DMA_HDT_INT, TRUE);
+    NVIC_EnableIRQ(DMA1_Channel3_IRQn);
+
+    /* dma1 channel4: microphone i2s2 rx */
+    dma_default_para_init(&dma_init_struct);
+    dma_init_struct.buffer_size = cfg->dma_buf_rx_size << 1;
+    dma_init_struct.direction = DMA_DIR_PERIPHERAL_TO_MEMORY;
+    dma_init_struct.memory_base_addr = (uint32_t)cfg->dma_buf_rx;
+    dma_init_struct.memory_data_width = DMA_MEMORY_DATA_WIDTH_HALFWORD;
+    dma_init_struct.memory_inc_enable = TRUE;
+    dma_init_struct.peripheral_base_addr = (uint32_t)I2S2_DT_ADDRESS;
+    dma_init_struct.peripheral_data_width = DMA_PERIPHERAL_DATA_WIDTH_HALFWORD;
+    dma_init_struct.peripheral_inc_enable = FALSE;
+    dma_init_struct.priority = DMA_PRIORITY_HIGH;
+    dma_init_struct.loop_mode_enable = TRUE;
+    dma_init(DMA1_CHANNEL4, &dma_init_struct);
+    dma_interrupt_enable(DMA1_CHANNEL4, DMA_FDT_INT, TRUE);
+    dma_interrupt_enable(DMA1_CHANNEL4, DMA_HDT_INT, TRUE);
+    NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+
+    /* Config gpio's */
+    if(cfg->mode == AUDIO_MODE_MASTER){
+        /* i2s1 ck, ws, tx pins */
+        gpio_init_struct.gpio_mode           = GPIO_MODE_MUX;
+        gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MAXIMUM;
+        gpio_init_struct.gpio_pull           = GPIO_PULL_UP;
+        gpio_init_struct.gpio_pins           = I2S1_WS_PIN | I2S1_SD_PIN | I2S1_CK_PIN;
+        gpio_init(I2S1_GPIO, &gpio_init_struct);
+    }else{
+        /* i2s1 ws pins */
+        gpio_init_struct.gpio_pull           = GPIO_PULL_UP;
+        gpio_init_struct.gpio_mode           = GPIO_MODE_INPUT;
+        gpio_init_struct.gpio_pins           = I2S1_WS_PIN;
+        gpio_init(I2S1_GPIO, &gpio_init_struct);
+
+        /* i2s1 ck pins */
+        gpio_init_struct.gpio_pull           = GPIO_PULL_DOWN;
+        gpio_init_struct.gpio_mode           = GPIO_MODE_INPUT;
+        gpio_init_struct.gpio_pins           = I2S1_CK_PIN;
+        gpio_init(I2S1_GPIO, &gpio_init_struct);
+
+        /* i2s1 sd pins slave tx */
+        gpio_init_struct.gpio_pull           = GPIO_PULL_UP;
+        gpio_init_struct.gpio_mode           = GPIO_MODE_MUX;
+        gpio_init_struct.gpio_pins           = I2S1_SD_PIN;
+        gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MODERATE;
+        gpio_init(I2S1_GPIO, &gpio_init_struct);
+    }
+
+    if(cfg->mode == AUDIO_MODE_MASTER){
+        /* i2s2 ws, ck pins */
+        gpio_init_struct.gpio_mode           = GPIO_MODE_MUX;
+        gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MODERATE;
+        gpio_init_struct.gpio_pins           = I2S2_WS_PIN | I2S2_CK_PIN;
+        gpio_init(I2S2_GPIO, &gpio_init_struct);
+
+        /* i2s2 sd pins slave rx */
+        gpio_init_struct.gpio_pull           = GPIO_PULL_UP;
+        gpio_init_struct.gpio_mode           = GPIO_MODE_INPUT;
+        gpio_init_struct.gpio_pins           = I2S2_SD_PIN;
+        gpio_init(I2S2_GPIO, &gpio_init_struct);
+    }else{
+        /* i2s2 ws pins */
+        gpio_init_struct.gpio_pull           = GPIO_PULL_UP;
+        gpio_init_struct.gpio_mode           = GPIO_MODE_INPUT;
+        gpio_init_struct.gpio_pins           = I2S2_WS_PIN;
+        gpio_init(I2S2_GPIO, &gpio_init_struct);
+
+        /* i2s2 ck pins */
+        gpio_init_struct.gpio_pull           = GPIO_PULL_DOWN;
+        gpio_init_struct.gpio_mode           = GPIO_MODE_INPUT;
+        gpio_init_struct.gpio_pins           = I2S2_CK_PIN;
+        gpio_init(I2S2_GPIO, &gpio_init_struct);
+
+        /* i2s2 sd pins slave rx */
+        gpio_init_struct.gpio_pull           = GPIO_PULL_UP;
+        gpio_init_struct.gpio_mode           = GPIO_MODE_INPUT;
+        gpio_init_struct.gpio_pins           = I2S2_SD_PIN;
+        gpio_init(I2S2_GPIO, &gpio_init_struct);
+    }
+
+    /* Start I2S */
+    spi_i2s_dma_transmitter_enable(SPI1, TRUE);
+    spi_i2s_dma_receiver_enable(SPI2, TRUE);
+    i2s_enable(SPI1, TRUE);
+    i2s_enable(SPI2, TRUE);
+
+    dma_channel_enable(DMA1_CHANNEL3, TRUE);
+    dma_channel_enable(DMA1_CHANNEL4, TRUE);
+
+    return 0;
+}
+
+
+/**
+  * @brief  Config PA3 to output mclk using TMR2
+  * @param  freq    Desired mclk frequency
+  * @param  enable  Enable mclk output
+  * @retval none
+  */
+void bus_i2s_mclk(uint32_t freq, uint8_t type, uint32_t enable)
+{
+    gpio_init_type gpio_init_struct;
+    tmr_output_config_type tmr_oc_init_structure;
+    uint16_t prescaler_value;
+    crm_clocks_freq_type clocks;
+
+    if(!enable){
+        if(type){
+            gpio_init_struct.gpio_pins = GPIO_PINS_3;
+            gpio_init_struct.gpio_mode = GPIO_MODE_INPUT;
+            gpio_init(GPIOA, &gpio_init_struct);
+            crm_periph_reset(CRM_TMR2_PERIPH_CLOCK, TRUE);
+        }else{
+            gpio_init_struct.gpio_pins = I2S1_MCK_PIN;
+            gpio_init_struct.gpio_mode = GPIO_MODE_INPUT;
+            gpio_init(I2S1_MCK_GPIO, &gpio_init_struct);
+            SPI1->i2sclk_bit.i2smclkoe = FALSE;
+        }
+        return;
+    }
+
+    if(!type){
+        gpio_init_struct.gpio_pins = I2S1_MCK_PIN;
+        gpio_init_struct.gpio_mode = GPIO_MODE_MUX;
+        gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MAXIMUM;
+        gpio_init(I2S1_MCK_GPIO, &gpio_init_struct);
+        return;
+    }
+
+    crm_clocks_freq_get(&clocks);
+
+    prescaler_value = (uint16_t)(clocks.apb1_freq / freq) - 1;
+
+    crm_periph_clock_enable(CRM_TMR2_PERIPH_CLOCK, TRUE);
+    crm_periph_clock_enable(CRM_GPIOA_PERIPH_CLOCK, TRUE);
+    crm_periph_clock_enable(CRM_IOMUX_PERIPH_CLOCK, TRUE);
+
+    gpio_default_para_init(&gpio_init_struct);
+
+    gpio_init_struct.gpio_pins = GPIO_PINS_3;
+    gpio_init_struct.gpio_mode = GPIO_MODE_MUX;
+    gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MAXIMUM;
+    gpio_init(GPIOA, &gpio_init_struct);
+
+    tmr_base_init(TMR2, 1, prescaler_value);
+    tmr_cnt_dir_set(TMR2, TMR_COUNT_UP);
+    tmr_clock_source_div_set(TMR2, TMR_CLOCK_DIV1);
+
+    tmr_output_default_para_init(&tmr_oc_init_structure);
+    tmr_oc_init_structure.oc_mode = TMR_OUTPUT_CONTROL_PWM_MODE_A;
+    tmr_oc_init_structure.oc_idle_state = FALSE;
+    tmr_oc_init_structure.oc_polarity = TMR_OUTPUT_ACTIVE_HIGH;
+    tmr_oc_init_structure.oc_output_state = TRUE;
+    tmr_output_channel_config(TMR2, TMR_SELECT_CHANNEL_4, &tmr_oc_init_structure);
+    tmr_channel_value_set(TMR2, TMR_SELECT_CHANNEL_4, 1);
+    tmr_output_channel_buffer_enable(TMR2, TMR_SELECT_CHANNEL_4, TRUE);
+
+    /* tmr enable counter */
+    tmr_counter_enable(TMR2, TRUE);
+    tmr_output_enable(TMR2, TRUE);
+}
+/**
  * @brief
  *
  */
-void board_init(void)
-{
-	SystemInit();
-    system_clock_config();
-	system_core_clock_update();
-
-	SysTick_Config((SystemCoreClock / 1000) - 1);
-
-    CRM->ctrl_bit.hicktrim = HICK_TRIM; // this should be different for each board
-
-#ifdef AUDIO_SYNCHRONOUS_MODE
-    NVIC_SetPriority(OTG_IRQ, 3);
-    NVIC_SetPriority(DMA1_Channel3_IRQn, 1);
-    NVIC_SetPriority(DMA1_Channel4_IRQn, 1);
-#else
-    //TODO priority fot asynchronous mode
-#endif
-    serial_init();
-
-    usb_init();
-
-    /* i2c init */
-    hi2cx.i2cx = I2Cx_PORT;
-    i2c_config(&hi2cx);
-
-    LED1_PIN_INIT;
-}
-
 void SW_Reset(void)
 {
     NVIC_SystemReset();
 }
 
+/**
+ * @brief
+ *
+ */
 void __debugbreak(void){
 	 asm volatile
     (

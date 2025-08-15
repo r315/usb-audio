@@ -228,14 +228,15 @@ static int codecCmd(int argc, char **argv)
     if( !strcmp("regs", argv[1])){
         uint8_t buf[32];
         buf [0] = 0;
-        if(I2C_Master_Write(16, buf, 1) == I2C_OK){
-            if(I2C_Master_Read(16, buf, 32) != I2C_OK){
+
+        if(I2C_Master_Write(16, buf, 1)){
+            if(!I2C_Master_Read(16, buf, 32)){
                 printf("Failed to read");
             }else{
+                dump_buf(buf, 32);
                 return I2C_OK;
             }
         }
-        dump_buf(buf, 32);
     }
 
     return CLI_BAD_PARAM;
@@ -254,7 +255,7 @@ static int audioCmd(int argc, char **argv)
     if(!strcmp("mclk", argv[0])){
         uint32_t val;
         if(CLI_Ha2i(argv[1], &val)){
-            audio_cfg_mclk(AUDIO_DEFAULT_MCLK_FREQ, val & 1);
+            bus_i2s_mclk(AUDIO_DEFAULT_MCLK_FREQ, AUDIO_DEFAULT_MCLK_SRC, val & 1);
         }
     }
 

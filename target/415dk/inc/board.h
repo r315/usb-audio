@@ -9,7 +9,6 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 #include "at32f415.h"
-//#include "at32f415_gpio.h"
 #include "at32f415_crm.h"
 
 #define SET_BIT(REG, BIT)       ((REG) |= (BIT))
@@ -43,6 +42,33 @@ extern "C" {
 #define I2Cx_SDA_GPIO_PIN                GPIO_PINS_9
 #define I2Cx_SDA_GPIO_PORT               GPIOB
 
+#define I2S1_WS_PIN                      GPIO_PINS_4
+#define I2S1_CK_PIN                      GPIO_PINS_5
+#define I2S1_SD_PIN                      GPIO_PINS_7
+#define I2S1_GPIO                        GPIOA
+#define I2S1_GPIO_CRM_CLK                CRM_GPIOA_PERIPH_CLOCK
+#define I2S1_DT_ADDRESS                  (&(SPI1->dt))
+#define I2S1_MCK_PIN                     GPIO_PINS_0
+#define I2S1_MCK_GPIO                    GPIOB
+
+#define I2S2_WS_PIN                      GPIO_PINS_12
+#define I2S2_CK_PIN                      GPIO_PINS_13
+#define I2S2_SD_PIN                      GPIO_PINS_15
+#define I2S2_GPIO                        GPIOB
+#define I2S2_GPIO_CRM_CLK                CRM_GPIOB_PERIPH_CLOCK
+#define I2S2_DT_ADDRESS                  (&(SPI2->dt))
+
+#define HICK_TRIM                        50 // This is very critical
+
+typedef struct{
+    uint32_t freq;
+    uint8_t bitw;
+    uint8_t mode;
+    uint16_t dma_buf_tx_size;
+    uint16_t *dma_buf_tx;
+    uint16_t dma_buf_rx_size;
+    uint16_t *dma_buf_rx;
+}i2s_config_t;
 
 void board_init(void);
 void delay_ms(uint32_t ms);
@@ -64,6 +90,11 @@ int serial_write(const char *buf, int len);
 
 void disconnect_usb(void);
 void connect_usb(void);
+
+void bus_i2s_reset(void);
+int bus_i2s_init(i2s_config_t *cfg);
+void bus_i2s_mclk(uint32_t freq, uint8_t type, uint32_t enable);
+
 #ifdef __cplusplus
 }
 #endif

@@ -41,26 +41,6 @@ extern "C" {
 /** @defgroup USB_device_audio_hid_codec_pin_definition
   * @{
   */
-#define I2S1_WS_PIN                      GPIO_PINS_4
-#define I2S1_CK_PIN                      GPIO_PINS_5
-#define I2S1_SD_PIN                      GPIO_PINS_7
-#define I2S1_MCK_PIN                     GPIO_PINS_0
-
-#define I2S1_GPIO                        GPIOA
-#define I2S1_GPIO_CRM_CLK                CRM_GPIOA_PERIPH_CLOCK
-#define I2S1_DT_ADDRESS                  (&(SPI1->dt))
-#define I2S1_MCK_GPIO                    GPIOB
-
-/*I2S2 Pin*/
-#define I2S2_WS_PIN                      GPIO_PINS_12
-#define I2S2_CK_PIN                      GPIO_PINS_13
-#define I2S2_SD_PIN                      GPIO_PINS_15
-
-#define I2S2_GPIO                        GPIOB
-#define I2S2_GPIO_CRM_CLK                CRM_GPIOB_PERIPH_CLOCK
-#define I2S2_DT_ADDRESS                  (&(SPI2->dt))
-
-#define SPK_TX_FIFO_SIZE                 (1024 * 4)
 
 enum cdc_cfg_e {
     CDC_DEV_DAI = 0,

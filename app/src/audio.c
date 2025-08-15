@@ -64,9 +64,6 @@ static uint16_t mic_dma_buffer[DMA_BUFFER_SIZE];
 static uint16_t spk_buffer[SPK_BUFFER_SIZE];        // spk queue buffer for usb
 static uint16_t mic_buffer[MIC_BUFFER_SIZE];        // mic queue buffer for usb
 
-static void bus_i2s_reset(void);
-static audio_status_t bus_i2s_init(audio_driver_t *audio);
-
 static void wave_triangle(uint16_t *dst, uint16_t count)
 {
     static uint16_t sample_count = 0;
@@ -100,6 +97,12 @@ static void memcpy16(uint16_t *dst, uint16_t *src, uint32_t len)
     }
 }
 
+static void stream_cfg_nsamples(audio_stream_t *stream, uint32_t freq)
+{
+    // Calculate the number of samples per millisecond unit
+    stream->nsamples = freq / 1000 * stream->nchannels;
+}
+
 /**
   * @brief  audio codec modify freq
   * @param  freq: freq
@@ -107,12 +110,26 @@ static void memcpy16(uint16_t *dst, uint16_t *src, uint32_t len)
   */
 void audio_set_freq(uint32_t freq)
 {
+    i2s_config_t i2s_cfg;
+
     if(audio_driver.freq != freq)
     {
         audio_driver.freq = freq;
         audio_driver.codec->Disable();
         bus_i2s_reset();
-        bus_i2s_init(&audio_driver);
+
+        stream_cfg_nsamples(&audio_driver.spk, audio_driver.freq);
+        stream_cfg_nsamples(&audio_driver.mic, audio_driver.freq);
+
+        i2s_cfg.freq = freq;
+        i2s_cfg.mode = audio_driver.mode;
+        i2s_cfg.bitw = audio_driver.bitw;
+        i2s_cfg.dma_buf_tx_size = audio_driver.spk.nsamples;
+        i2s_cfg.dma_buf_rx_size = audio_driver.mic.nsamples;
+        i2s_cfg.dma_buf_tx = audio_driver.spk.dma_buffer;
+        i2s_cfg.dma_buf_rx = audio_driver.mic.dma_buffer;
+        bus_i2s_init(&i2s_cfg);
+
         audio_driver.codec->SampleRate(freq);
         audio_driver.codec->Enable();
     }
@@ -373,245 +390,6 @@ void audio_enqueue_data(uint8_t *buffer, uint32_t len)
 }
 
 /**
-  * @brief  audio codec i2s reset
-  * @param  none
-  * @retval none
-  */
-static void bus_i2s_reset(void)
-{
-    i2s_enable(SPI1, FALSE);
-    i2s_enable(SPI2, FALSE);
-    dma_channel_enable(DMA1_CHANNEL3, FALSE);
-    dma_channel_enable(DMA1_CHANNEL4, FALSE);
-}
-
-/**
-  * @brief  audio codec i2s init
-  * @param  audio
-  * @retval error status
-  */
-static audio_status_t bus_i2s_init(audio_driver_t *audio)
-{
-    gpio_init_type gpio_init_struct;
-    dma_init_type dma_init_struct;
-    i2s_init_type i2s_init_struct;
-    i2s_data_channel_format_type format;
-
-    if(audio->bitw == AUDIO_BITW_16){
-        format = I2S_DATA_16BIT_CHANNEL_32BIT;
-    }else if(audio->bitw == AUDIO_BITW_32){
-        format = I2S_DATA_32BIT_CHANNEL_32BIT;
-    }else{
-        return AUDIO_ERROR_BITW;
-    }
-
-    crm_periph_clock_enable(I2S1_GPIO_CRM_CLK, TRUE);
-    crm_periph_clock_enable(I2S2_GPIO_CRM_CLK, TRUE);
-    crm_periph_clock_enable(CRM_DMA1_PERIPH_CLOCK, TRUE);
-    crm_periph_clock_enable(CRM_SPI1_PERIPH_CLOCK, TRUE);
-    crm_periph_clock_enable(CRM_SPI2_PERIPH_CLOCK, TRUE);
-
-    gpio_default_para_init(&gpio_init_struct);
-
-    /* Config TX I2S1 */
-    spi_i2s_reset(SPI1);
-    i2s_default_para_init(&i2s_init_struct);
-    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
-    //i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
-    i2s_init_struct.data_channel_format = format;
-    i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
-    i2s_init_struct.clock_polarity = I2S_CLOCK_POLARITY_LOW;
-    i2s_init_struct.operation_mode = (audio->mode == AUDIO_MODE_MASTER) ? I2S_MODE_MASTER_TX : I2S_MODE_SLAVE_TX;
-    if(audio->codec->Config(CDC_GET_MCLK, 0)){
-        gpio_init_struct.gpio_pins = I2S1_MCK_PIN;
-        gpio_init_struct.gpio_mode = GPIO_MODE_MUX;
-        gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MAXIMUM;
-        i2s_init_struct.mclk_output_enable = TRUE;
-        gpio_init(I2S1_MCK_GPIO, &gpio_init_struct);
-    }else{
-        i2s_init_struct.mclk_output_enable = FALSE;
-    }
-    i2s_init(SPI1, &i2s_init_struct);
-
-    /* Config RX I2S2 */
-    spi_i2s_reset(SPI2);
-    i2s_default_para_init(&i2s_init_struct);
-    i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
-    //i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
-    i2s_init_struct.data_channel_format = format;
-    i2s_init_struct.mclk_output_enable = FALSE;
-    i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)audio->freq;
-    i2s_init_struct.clock_polarity = I2S_CLOCK_POLARITY_LOW;
-    i2s_init_struct.operation_mode = (audio->mode == AUDIO_MODE_MASTER) ? I2S_MODE_MASTER_RX : I2S_MODE_SLAVE_RX;
-    i2s_init(SPI2, &i2s_init_struct);
-
-     /* dma config */
-    dma_reset(DMA1_CHANNEL3);
-    dma_reset(DMA1_CHANNEL4);
-
-    /* dma1 channel3: speaker i2s1 tx */
-    dma_default_para_init(&dma_init_struct);
-    dma_init_struct.buffer_size = audio->spk.nsamples << 1;   // use double buffering
-    dma_init_struct.direction = DMA_DIR_MEMORY_TO_PERIPHERAL;
-    dma_init_struct.memory_base_addr = (uint32_t)audio->spk.dma_buffer;
-    dma_init_struct.memory_data_width = DMA_MEMORY_DATA_WIDTH_HALFWORD;
-    dma_init_struct.memory_inc_enable = TRUE;
-    dma_init_struct.peripheral_base_addr = (uint32_t)I2S1_DT_ADDRESS;
-    dma_init_struct.peripheral_data_width = DMA_PERIPHERAL_DATA_WIDTH_HALFWORD;
-    dma_init_struct.peripheral_inc_enable = FALSE;
-    dma_init_struct.priority = DMA_PRIORITY_HIGH;
-    dma_init_struct.loop_mode_enable = TRUE;
-    dma_init(DMA1_CHANNEL3, &dma_init_struct);
-    dma_interrupt_enable(DMA1_CHANNEL3, DMA_FDT_INT, TRUE);
-    dma_interrupt_enable(DMA1_CHANNEL3, DMA_HDT_INT, TRUE);
-    NVIC_EnableIRQ(DMA1_Channel3_IRQn);
-
-    /* dma1 channel4: microphone i2s2 rx */
-    dma_default_para_init(&dma_init_struct);
-    dma_init_struct.buffer_size = audio->mic.nsamples << 1;
-    dma_init_struct.direction = DMA_DIR_PERIPHERAL_TO_MEMORY;
-    dma_init_struct.memory_base_addr = (uint32_t)audio->mic.dma_buffer;
-    dma_init_struct.memory_data_width = DMA_MEMORY_DATA_WIDTH_HALFWORD;
-    dma_init_struct.memory_inc_enable = TRUE;
-    dma_init_struct.peripheral_base_addr = (uint32_t)I2S2_DT_ADDRESS;
-    dma_init_struct.peripheral_data_width = DMA_PERIPHERAL_DATA_WIDTH_HALFWORD;
-    dma_init_struct.peripheral_inc_enable = FALSE;
-    dma_init_struct.priority = DMA_PRIORITY_HIGH;
-    dma_init_struct.loop_mode_enable = TRUE;
-    dma_init(DMA1_CHANNEL4, &dma_init_struct);
-    dma_interrupt_enable(DMA1_CHANNEL4, DMA_FDT_INT, TRUE);
-    dma_interrupt_enable(DMA1_CHANNEL4, DMA_HDT_INT, TRUE);
-    NVIC_EnableIRQ(DMA1_Channel4_IRQn);
-
-    /* Config gpio's */
-    if(audio->mode == AUDIO_MODE_MASTER){
-        /* i2s1 ck, ws, tx pins */
-        gpio_init_struct.gpio_mode           = GPIO_MODE_MUX;
-        gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MAXIMUM;
-        gpio_init_struct.gpio_pull           = GPIO_PULL_UP;
-        gpio_init_struct.gpio_pins           = I2S1_WS_PIN | I2S1_SD_PIN | I2S1_CK_PIN;
-        gpio_init(I2S1_GPIO, &gpio_init_struct);
-    }else{
-        /* i2s1 ws pins */
-        gpio_init_struct.gpio_pull           = GPIO_PULL_UP;
-        gpio_init_struct.gpio_mode           = GPIO_MODE_INPUT;
-        gpio_init_struct.gpio_pins           = I2S1_WS_PIN;
-        gpio_init(I2S1_GPIO, &gpio_init_struct);
-
-        /* i2s1 ck pins */
-        gpio_init_struct.gpio_pull           = GPIO_PULL_DOWN;
-        gpio_init_struct.gpio_mode           = GPIO_MODE_INPUT;
-        gpio_init_struct.gpio_pins           = I2S1_CK_PIN;
-        gpio_init(I2S1_GPIO, &gpio_init_struct);
-
-        /* i2s1 sd pins slave tx */
-        gpio_init_struct.gpio_pull           = GPIO_PULL_UP;
-        gpio_init_struct.gpio_mode           = GPIO_MODE_MUX;
-        gpio_init_struct.gpio_pins           = I2S1_SD_PIN;
-        gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MODERATE;
-        gpio_init(I2S1_GPIO, &gpio_init_struct);
-    }
-
-    if(audio->mode == AUDIO_MODE_MASTER){
-        /* i2s2 ws, ck pins */
-        gpio_init_struct.gpio_mode           = GPIO_MODE_MUX;
-        gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MODERATE;
-        gpio_init_struct.gpio_pins           = I2S2_WS_PIN | I2S2_CK_PIN;
-        gpio_init(I2S2_GPIO, &gpio_init_struct);
-
-        /* i2s2 sd pins slave rx */
-        gpio_init_struct.gpio_pull           = GPIO_PULL_UP;
-        gpio_init_struct.gpio_mode           = GPIO_MODE_INPUT;
-        gpio_init_struct.gpio_pins           = I2S2_SD_PIN;
-        gpio_init(I2S2_GPIO, &gpio_init_struct);
-    }else{
-        /* i2s2 ws pins */
-        gpio_init_struct.gpio_pull           = GPIO_PULL_UP;
-        gpio_init_struct.gpio_mode           = GPIO_MODE_INPUT;
-        gpio_init_struct.gpio_pins           = I2S2_WS_PIN;
-        gpio_init(I2S2_GPIO, &gpio_init_struct);
-
-        /* i2s2 ck pins */
-        gpio_init_struct.gpio_pull           = GPIO_PULL_DOWN;
-        gpio_init_struct.gpio_mode           = GPIO_MODE_INPUT;
-        gpio_init_struct.gpio_pins           = I2S2_CK_PIN;
-        gpio_init(I2S2_GPIO, &gpio_init_struct);
-
-        /* i2s2 sd pins slave rx */
-        gpio_init_struct.gpio_pull           = GPIO_PULL_UP;
-        gpio_init_struct.gpio_mode           = GPIO_MODE_INPUT;
-        gpio_init_struct.gpio_pins           = I2S2_SD_PIN;
-        gpio_init(I2S2_GPIO, &gpio_init_struct);
-    }
-
-    /* Start I2S */
-    spi_i2s_dma_transmitter_enable(SPI1, TRUE);
-    spi_i2s_dma_receiver_enable(SPI2, TRUE);
-    i2s_enable(SPI1, TRUE);
-    i2s_enable(SPI2, TRUE);
-
-    dma_channel_enable(DMA1_CHANNEL3, TRUE);
-    dma_channel_enable(DMA1_CHANNEL4, TRUE);
-
-    return AUDIO_OK;
-}
-
-/**
-  * @brief  Config PA3 to output mclk using TMR2
-  * @param  freq    Desired mclk frequency
-  * @param  enable  Enable mclk output
-  * @retval none
-  */
-void audio_cfg_mclk(uint32_t freq, uint32_t enable)
-{
-    gpio_init_type gpio_init_struct;
-    tmr_output_config_type tmr_oc_init_structure;
-    uint16_t prescaler_value;
-    crm_clocks_freq_type clocks;
-
-    if(!enable){
-        gpio_init_struct.gpio_pins = GPIO_PINS_3;
-        gpio_init_struct.gpio_mode = GPIO_MODE_INPUT;
-        gpio_init(GPIOA, &gpio_init_struct);
-
-        crm_periph_reset(CRM_TMR2_PERIPH_CLOCK, TRUE);
-        return;
-    }
-
-    crm_clocks_freq_get(&clocks);
-
-    prescaler_value = (uint16_t)(clocks.apb1_freq / freq) - 1;
-
-    crm_periph_clock_enable(CRM_TMR2_PERIPH_CLOCK, TRUE);
-    crm_periph_clock_enable(CRM_GPIOA_PERIPH_CLOCK, TRUE);
-    crm_periph_clock_enable(CRM_IOMUX_PERIPH_CLOCK, TRUE);
-
-    gpio_default_para_init(&gpio_init_struct);
-
-    gpio_init_struct.gpio_pins = GPIO_PINS_3;
-    gpio_init_struct.gpio_mode = GPIO_MODE_MUX;
-    gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_MAXIMUM;
-    gpio_init(GPIOA, &gpio_init_struct);
-
-    tmr_base_init(TMR2, 1, prescaler_value);
-    tmr_cnt_dir_set(TMR2, TMR_COUNT_UP);
-    tmr_clock_source_div_set(TMR2, TMR_CLOCK_DIV1);
-
-    tmr_output_default_para_init(&tmr_oc_init_structure);
-    tmr_oc_init_structure.oc_mode = TMR_OUTPUT_CONTROL_PWM_MODE_A;
-    tmr_oc_init_structure.oc_idle_state = FALSE;
-    tmr_oc_init_structure.oc_polarity = TMR_OUTPUT_ACTIVE_HIGH;
-    tmr_oc_init_structure.oc_output_state = TRUE;
-    tmr_output_channel_config(TMR2, TMR_SELECT_CHANNEL_4, &tmr_oc_init_structure);
-    tmr_channel_value_set(TMR2, TMR_SELECT_CHANNEL_4, 1);
-    tmr_output_channel_buffer_enable(TMR2, TMR_SELECT_CHANNEL_4, TRUE);
-
-    /* tmr enable counter */
-    tmr_counter_enable(TMR2, TRUE);
-    tmr_output_enable(TMR2, TRUE);
-}
-
-/**
   * @brief  audio codec init
   * @param  none
   * @retval error status
@@ -619,6 +397,7 @@ void audio_cfg_mclk(uint32_t freq, uint32_t enable)
 audio_status_t audio_init(const audio_codec_t *codec)
 {
     audio_status_t res;
+    i2s_config_t i2s_cfg;
 
     if(!codec){
         return AUDIO_ERROR_CODEC;
@@ -628,6 +407,8 @@ audio_status_t audio_init(const audio_codec_t *codec)
         audio_driver.freq = AUDIO_DEFAULT_FREQ;
         audio_driver.bitw = AUDIO_DEFAULT_BITW;
         audio_driver.mode = AUDIO_DEFAULT_MODE;
+        audio_driver.spk.nchannels = AUDIO_SPK_CHANEL_NUM;
+        audio_driver.mic.nchannels = AUDIO_MIC_CHANEL_NUM;
     }
 
     audio_driver.codec = codec;
@@ -637,9 +418,8 @@ audio_status_t audio_init(const audio_codec_t *codec)
     memset16(spk_dma_buffer, 0, DMA_BUFFER_SIZE);
     memset16(mic_dma_buffer, 0, DMA_BUFFER_SIZE);
 
-    // Calculate the number of samples per millisecond unit
-    audio_driver.spk.nsamples = audio_driver.freq / 1000 * audio_driver.spk.nchannels;
-    audio_driver.mic.nsamples = audio_driver.freq / 1000 * audio_driver.mic.nchannels;
+    stream_cfg_nsamples(&audio_driver.spk, audio_driver.freq);
+    stream_cfg_nsamples(&audio_driver.mic, audio_driver.freq);
 
 #ifndef AUDIO_SYNCHRONOUS_MODE
     //assert(audio_driver.spk.nsamples <= SPK_BUFFER_SIZE);
@@ -657,12 +437,22 @@ audio_status_t audio_init(const audio_codec_t *codec)
     audio_driver.spk.stage = STREAM_INIT;
     audio_driver.mic.stage = STREAM_INIT;
 
-    res = bus_i2s_init(&audio_driver);
+    i2s_cfg.freq = audio_driver.freq;
+    i2s_cfg.bitw = audio_driver.bitw;
+    i2s_cfg.mode = audio_driver.mode;
+    i2s_cfg.dma_buf_tx_size = audio_driver.spk.nsamples;
+    i2s_cfg.dma_buf_rx_size = audio_driver.spk.nsamples;
+    i2s_cfg.dma_buf_tx = audio_driver.spk.dma_buffer;
+    i2s_cfg.dma_buf_rx = audio_driver.mic.dma_buffer;
+
+    res = bus_i2s_init(&i2s_cfg);
 
     if(res != AUDIO_OK){
         DBG_AUD_ERR("Fail to configure i2s bus");
         return res;
     }
+
+    bus_i2s_mclk(AUDIO_DEFAULT_MCLK_FREQ, AUDIO_DEFAULT_MCLK_SRC, audio_driver.codec->Config(CDC_GET_MCLK, 0));
 
     uint8_t cdc_addr = codec->Config(CDC_GET_I2C_ADDR, 0);
 
@@ -778,8 +568,6 @@ void DMA1_Channel3_IRQHandler(void)
 void DMA1_Channel4_IRQHandler(void)
 {
     audio_stream_t *stream = &audio_driver.mic;
-    uint16_t half_size = stream->nsamples;
-    uint16_t *psrc;
 #ifdef AUDIO_SYNCHRONOUS_MODE
     if(stream->stage == STREAM_PAUSED){
         DMA1->clr = DMA1_HDT4_FLAG | DMA1_FDT4_FLAG;
@@ -795,7 +583,9 @@ void DMA1_Channel4_IRQHandler(void)
         }
     }
 #else
- if (dma_flag_get(DMA1_HDT4_FLAG) == SET)
+    uint16_t *psrc;
+    uint16_t half_size = stream->nsamples;
+    if (dma_flag_get(DMA1_HDT4_FLAG) == SET)
     {
         psrc = stream->dma_buffer + half_size;
         dma_flag_clear(DMA1_HDT4_FLAG);

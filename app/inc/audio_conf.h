@@ -71,7 +71,10 @@ extern "C" {
 #define AUDIO_MODE_SLAVE                1
 #define AUDIO_DEFAULT_MODE              AUDIO_MODE_MASTER
 
-#define AUDIO_DEFAULT_MCLK              0
+#define AUDIO_MCLK_SRC_I2S              0
+#define AUDIO_MCLK_SRC_TIMER            1
+
+#define AUDIO_DEFAULT_MCLK_SRC          AUDIO_MCLK_SRC_I2S
 #define AUDIO_DEFAULT_MCLK_FREQ         12000000UL
 
 #define AUDIO_SYNCHRONOUS_MODE          1
