@@ -310,14 +310,12 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
         case STREAM_FILL_FIRST:
             if (queue_count(&stream->queue) >= stream->threshold){
                 stream->stage = STREAM_FILL_SECOND;     // At least half of queue is full
-                DBG_AUD_INF("Out stream buffer half full");
             }
             break;
 
         case STREAM_FILL_SECOND:
             if (queue_count(&stream->queue) < stream->nsamples){
-                DBG_AUD_WRN("usb is anable to keep up");
-
+                DBG_AUD_WRN("usb is unable to keep up");
             }
             break;
     }
@@ -337,8 +335,6 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
  {
     audio_stream_t *stream = &audio_driver.mic;
     uint16_t nsamples = stream->nsamples;
-
-    return 0;
 
     switch (stream->stage)
     {
@@ -362,8 +358,6 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
 
         case STREAM_FILL_SECOND:
             nsamples = queue_pop(&stream->queue, (uint16_t*)buffer, nsamples);
-            stream->stage = STREAM_FILL_SECOND;
-            DBG_AUD_INF("In stream half full");
             break;
     }
 
@@ -670,9 +664,9 @@ audio_status_t audio_init(const audio_codec_t *codec)
         return res;
     }
 
-    uint8_t cdc_addr = audio_driver.codec->Config(CDC_GET_I2C_ADDR, 0);
+    uint8_t cdc_addr = codec->Config(CDC_GET_I2C_ADDR, 0);
 
-    if(!audio_driver.codec->Init(cdc_addr)){
+    if(!codec->Init(cdc_addr)){
         return AUDIO_ERROR_CODEC;
     }
 
@@ -773,12 +767,12 @@ void DMA1_Channel4_IRQHandler(void)
 
     if (dma_flag_get(DMA1_HDT4_FLAG) == SET)
     {
-        psrc = stream->dma_buffer;
+        psrc = stream->dma_buffer + half_size;
         dma_flag_clear(DMA1_HDT4_FLAG);
     }
     else if (dma_flag_get(DMA1_FDT4_FLAG) == SET)
     {
-        psrc = stream->dma_buffer + half_size;
+        psrc = stream->dma_buffer;
         dma_flag_clear(DMA1_FDT4_FLAG);
     }else{
         DMA1->clr = DMA1->sts;
@@ -793,11 +787,11 @@ void DMA1_Channel4_IRQHandler(void)
         break;
 
         case STREAM_FILL_SECOND:
-            break;
+        break;
     }
 
     if (queue_push(&stream->queue, psrc, half_size) != half_size){
         //stream->stage = STREAM_INIT;
-        //DBG_AUD_WRN("In stream buffer full");
+        DBG_AUD_WRN("In stream buffer full");
     }
 }
