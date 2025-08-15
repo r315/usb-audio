@@ -1,5 +1,6 @@
 #include <sys/times.h>
 #include "board.h"
+#inlcude "audio_conf.h"
 #include "cli_simple.h"
 #include "at32f415_clock.h"
 #include "i2c_application.h"
@@ -217,11 +218,13 @@ void board_init(void)
 
 	SysTick_Config((SystemCoreClock / 1000) - 1);
 
-    //NVIC_SetPriorityGrouping(NVIC_PRIORITY_GROUP_4);
-    NVIC_SetPriority(OTG_IRQ, 1);
-    NVIC_SetPriority(DMA1_Channel3_IRQn, 2);
-    NVIC_SetPriority(DMA1_Channel4_IRQn, 2);
-
+#ifdef AUDIO_SYNCHRONOUS_MODE
+    NVIC_SetPriority(OTG_IRQ, 3);
+    NVIC_SetPriority(DMA1_Channel3_IRQn, 1);
+    NVIC_SetPriority(DMA1_Channel4_IRQn, 1);
+#else
+    //TODO priority fot asynchronous mode
+#endif
     serial_init();
 
     usb_init();

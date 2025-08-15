@@ -26,7 +26,6 @@
 #include <string.h>
 #include <stdio.h>
 #include "at32f415.h"
-#include "audio_conf.h"
 #include "audio.h"
 #include "audio_desc.h"
 #include "board.h"
@@ -51,10 +50,12 @@
 #define MIC_BUFFER_SIZE     BUFFER_MAX_SIZE
 #define SPK_BUFFER_SIZE     BUFFER_MAX_SIZE
 
-#define HICK_TRIM           50 // TODO: check functionality
+#define HICK_TRIM           50 // This is very critical
 
 typedef enum stream_stage_e{
     STREAM_INIT = 0,
+    STREAM_PAUSED,
+    STREAM_RESUME,
     STREAM_FILL_FIRST,
     STREAM_FILL_SECOND
 }stream_stage_e;
@@ -67,6 +68,25 @@ static uint16_t mic_buffer[MIC_BUFFER_SIZE];        // mic queue buffer for usb
 
 static void bus_i2s_reset(void);
 static audio_status_t bus_i2s_init(audio_driver_t *audio);
+
+static void wave_triangle(uint16_t *dst, uint16_t count)
+{
+    static uint16_t sample_count = 0;
+    static uint8_t sample_count_dir = 0;
+
+    for (int i = 0; i < count; ++i){
+        if(sample_count_dir == 0 && sample_count == 0x8000){
+            sample_count_dir = 1;
+            sample_count = 0x7ffe;
+        }else if(sample_count_dir == 1 && sample_count == 0x7fff){
+            sample_count_dir = 0;
+            sample_count = 0x8001;
+        }
+
+        *dst++ = sample_count;
+        sample_count = sample_count_dir ? sample_count - 1  : sample_count + 1;
+    }
+}
 
 static void memset16(uint16_t *buffer, uint32_t set, uint32_t len)
 {
@@ -241,7 +261,17 @@ uint8_t audio_get_spk_volume(void)
   */
 void audio_spk_alt_setting(uint32_t alt_seting)
 {
+    audio_stream_t *stream = &audio_driver.spk;
+
     DBG_AUD_INF("%s :%lu", __func__, alt_seting);
+
+    if(!alt_seting){
+        // Fill both buffers
+        memset16(stream->dma_buffer, 0x0000, stream->nsamples << 1);
+        stream->stage = STREAM_PAUSED;
+    }else{
+        stream->stage = STREAM_RESUME;
+    }
 }
 
 /**
@@ -251,7 +281,16 @@ void audio_spk_alt_setting(uint32_t alt_seting)
   */
 void audio_mic_alt_setting(uint32_t alt_seting)
 {
+    audio_stream_t *stream = &audio_driver.mic;
+
     DBG_AUD_INF("%s :%lu", __func__, alt_seting);
+
+    if(!alt_seting){
+        memset16(stream->dma_buffer, 0x0000, stream->nsamples << 1);
+        stream->stage = STREAM_PAUSED;
+    }else{
+        stream->stage = STREAM_RESUME;
+    }
 }
 
 /**
@@ -289,15 +328,27 @@ void audio_set_codec(const audio_codec_t *codec)
   * @brief  Callback from audio_class with
   * data to be sent to I2S bus
   *
-  * @param  data: data buffer
-  * @param  len: data length
+  * @param  data: Input buffer
+  * @param  len: Input data length
   * @retval none
   */
-void audio_enqueue_data(uint8_t *data, uint32_t len)
+void audio_enqueue_data(uint8_t *buffer, uint32_t len)
 {
     audio_stream_t *stream = &audio_driver.spk;
     uint16_t nsamples = len >> 1;
-
+#ifdef AUDIO_SYNCHRONOUS_MODE
+    switch (stream->stage)
+    {
+        case STREAM_PAUSED:
+            break;
+        case STREAM_FILL_FIRST:
+            memcpy16(stream->dma_buffer, (uint16_t*)buffer, nsamples);
+            break;
+        case STREAM_FILL_SECOND:
+            memcpy16(stream->dma_buffer + nsamples, (uint16_t*)buffer, nsamples);
+            break;
+    }
+#else
     switch (stream->stage)
     {
         case STREAM_INIT:
@@ -320,22 +371,36 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
             break;
     }
 
-    if(queue_push(&stream->queue, (uint16_t*)data, nsamples) != nsamples){
+    if(queue_push(&stream->queue, (uint16_t*)buffer, nsamples) != nsamples){
         DBG_AUD_WRN("Out stream buffer full");
     }
+#endif
 }
 
 /**
-  * @brief  callback from audio_class to get codec microphone data
+  * @brief  callback from audio_class to get data from I2S bus
   *
-  * @param  data: data buffer
-  * @retval data len
+  * @param  buffer: Output buffer
+  * @retval Number of bytes placed on buffer
   */
  uint32_t audio_dequeue_data(uint8_t *buffer)
  {
     audio_stream_t *stream = &audio_driver.mic;
     uint16_t nsamples = stream->nsamples;
-
+#ifdef AUDIO_SYNCHRONOUS_MODE
+    switch (stream->stage)
+    {
+        case STREAM_PAUSED:
+            memset16((uint16_t*)buffer, 0, nsamples);
+            break;
+        case STREAM_FILL_FIRST:
+            memcpy16( (uint16_t*)buffer, stream->dma_buffer, nsamples);
+            break;
+        case STREAM_FILL_SECOND:
+            memcpy16( (uint16_t*)buffer, stream->dma_buffer + nsamples, nsamples);
+            break;
+    }
+#else
     switch (stream->stage)
     {
         case STREAM_INIT:
@@ -360,7 +425,7 @@ void audio_enqueue_data(uint8_t *data, uint32_t len)
             nsamples = queue_pop(&stream->queue, (uint16_t*)buffer, nsamples);
             break;
     }
-
+#endif
     return nsamples << 1;
 }
 
@@ -642,6 +707,8 @@ audio_status_t audio_init(const audio_codec_t *codec)
 
     memset16(spk_buffer, 0, SPK_BUFFER_SIZE);
     memset16(mic_buffer, 0, MIC_BUFFER_SIZE);
+    memset16(spk_dma_buffer, 0, DMA_BUFFER_SIZE);
+    memset16(mic_dma_buffer, 0, DMA_BUFFER_SIZE);
 
     audio_driver.spk.queue.start = spk_buffer;
     audio_driver.mic.queue.start = mic_buffer;
@@ -717,6 +784,22 @@ audio_status_t audio_loop(void)
 void DMA1_Channel3_IRQHandler(void)
 {
     audio_stream_t *stream = &audio_driver.spk;
+#ifdef AUDIO_SYNCHRONOUS_MODE
+    if(stream->stage == STREAM_PAUSED){
+        DMA1->clr = DMA1_HDT3_FLAG | DMA1_FDT3_FLAG;
+    }else{
+        if(DMA1->sts & DMA1_HDT3_FLAG){
+            stream->stage = STREAM_FILL_FIRST;
+            DMA1->clr = DMA1_HDT3_FLAG;
+        }else if(DMA1->sts & DMA1_FDT3_FLAG){
+            DMA1->clr = DMA1_FDT3_FLAG;
+            stream->stage = STREAM_FILL_SECOND;
+        }else{
+            // it should not get here
+            DMA1->clr = DMA1->sts;
+        }
+    }
+#else
     uint16_t half_size = stream->nsamples;  // nsamples is half buffer on dma transfer
     uint16_t *pdst;
 
@@ -730,7 +813,6 @@ void DMA1_Channel3_IRQHandler(void)
         pdst = stream->dma_buffer + half_size;
         dma_flag_clear(DMA1_FDT3_FLAG);
     }else{
-        // it should not get here
         DMA1->clr = DMA1->sts;
         return;
     }
@@ -752,6 +834,7 @@ void DMA1_Channel3_IRQHandler(void)
             queue_pop(&stream->queue, pdst, half_size);
             break;
     }
+#endif
 }
 
 /**
@@ -764,8 +847,22 @@ void DMA1_Channel4_IRQHandler(void)
     audio_stream_t *stream = &audio_driver.mic;
     uint16_t half_size = stream->nsamples;
     uint16_t *psrc;
-
-    if (dma_flag_get(DMA1_HDT4_FLAG) == SET)
+#ifdef AUDIO_SYNCHRONOUS_MODE
+    if(stream->stage == STREAM_PAUSED){
+        DMA1->clr = DMA1_HDT4_FLAG | DMA1_FDT4_FLAG;
+    }else{
+        if(DMA1->sts & DMA1_HDT4_FLAG){
+            stream->stage = STREAM_FILL_FIRST;
+            DMA1->clr = DMA1_HDT4_FLAG;
+        }else if(DMA1->sts & DMA1_FDT4_FLAG){
+            DMA1->clr = DMA1_FDT4_FLAG;
+            stream->stage = STREAM_FILL_SECOND;
+        }else{
+            DMA1->clr = DMA1->sts;
+        }
+    }
+#else
+ if (dma_flag_get(DMA1_HDT4_FLAG) == SET)
     {
         psrc = stream->dma_buffer + half_size;
         dma_flag_clear(DMA1_HDT4_FLAG);
@@ -794,4 +891,5 @@ void DMA1_Channel4_IRQHandler(void)
         //stream->stage = STREAM_INIT;
         DBG_AUD_WRN("In stream buffer full");
     }
+#endif
 }

@@ -669,7 +669,6 @@ static void audio_get_interface(void *udev, usb_setup_type *setup)
   {
     usbd_ctrl_send(pudev, (uint8_t *)&paudio->mic_alt_setting, 1);
   }
-
 }
 
 
