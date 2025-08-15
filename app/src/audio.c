@@ -50,8 +50,6 @@
 #define MIC_BUFFER_SIZE     BUFFER_MAX_SIZE
 #define SPK_BUFFER_SIZE     BUFFER_MAX_SIZE
 
-#define HICK_TRIM           50 // This is very critical
-
 typedef enum stream_stage_e{
     STREAM_INIT = 0,
     STREAM_PAUSED,
@@ -100,61 +98,6 @@ static void memcpy16(uint16_t *dst, uint16_t *src, uint32_t len)
     while(len--){
         *dst++ = *src++;
     }
-}
-
-static void queue_flush(audio_queue_t *q)
-{
-    q->read = q->write = q->start;
-}
-
-static uint16_t queue_push(audio_queue_t *q, const uint16_t *data, uint16_t len) {
-    uint16_t count = 0;
-    while(count < len){
-        *q->write++ = *data++;
-        if(q->write >= q->end){
-            q->write = q->start;
-        }
-        count++;
-        if(q->write == q->read){
-            break;
-        }
-    }
-    return count;
-}
-
-static uint16_t queue_pop(audio_queue_t *q, uint16_t *data, uint16_t len) {
-    uint16_t count = 0;
-    while(count < len){
-        *data++ = *q->read++;
-        if(q->read >= q->end){
-            q->read = q->start;
-        }
-        count++;
-        if(q->read == q->write){
-            break;
-        }
-    }
-    return count;
-}
-
-static uint16_t queue_count(audio_queue_t *q)
-{
-    return (q->write >= q->read)
-        ? (q->write - q->read)
-        : ((q->end - q->start) - (q->read - q->write));
-}
-
-/**
- * @brief Returns maximum number of elements queue can hold.
- * This differs of q->size that holds the maximum elements
- * of buffer
- *
- * @param q
- * @return uint16_t
- */
-static uint16_t queue_size(audio_queue_t *q)
-{
-    return (q->end - q->start);
 }
 
 /**
@@ -429,17 +372,6 @@ void audio_enqueue_data(uint8_t *buffer, uint32_t len)
     return nsamples << 1;
 }
 
-static void audio_stream_init(audio_stream_t *stream, uint32_t freq, uint8_t bitw)
-{
-    // Calculate the number of samples per millisecond unit
-    stream->nsamples = ((freq / 1000) * (bitw / 8) * stream->nchannels) / sizeof(*stream->queue.start);
-    // Find queue end for miliseconds units, this varies depending frequency, channels and bit width
-    stream->queue.end = stream->queue.start;
-    while(stream->queue.end + stream->nsamples < stream->queue.start + stream->queue.size){
-        stream->queue.end += stream->nsamples;
-    }
-}
-
 /**
   * @brief  audio codec i2s reset
   * @param  none
@@ -478,11 +410,6 @@ static audio_status_t bus_i2s_init(audio_driver_t *audio)
     crm_periph_clock_enable(CRM_DMA1_PERIPH_CLOCK, TRUE);
     crm_periph_clock_enable(CRM_SPI1_PERIPH_CLOCK, TRUE);
     crm_periph_clock_enable(CRM_SPI2_PERIPH_CLOCK, TRUE);
-
-    CRM->ctrl_bit.hicktrim = HICK_TRIM; // this should be different for each board
-
-    audio_stream_init(&audio->spk, audio->freq, audio->bitw);
-    audio_stream_init(&audio->mic, audio->freq, audio->bitw);
 
     gpio_default_para_init(&gpio_init_struct);
 
@@ -710,13 +637,19 @@ audio_status_t audio_init(const audio_codec_t *codec)
     memset16(spk_dma_buffer, 0, DMA_BUFFER_SIZE);
     memset16(mic_dma_buffer, 0, DMA_BUFFER_SIZE);
 
-    audio_driver.spk.queue.start = spk_buffer;
-    audio_driver.mic.queue.start = mic_buffer;
+    // Calculate the number of samples per millisecond unit
+    audio_driver.spk.nsamples = audio_driver.freq / 1000 * audio_driver.spk.nchannels;
+    audio_driver.mic.nsamples = audio_driver.freq / 1000 * audio_driver.mic.nchannels;
+
+#ifndef AUDIO_SYNCHRONOUS_MODE
+    //assert(audio_driver.spk.nsamples <= SPK_BUFFER_SIZE);
+    //assert(audio_driver.mic.nsamples <= MIC_BUFFER_SIZE);
+
+    audio_queue_init(&audio_driver.spk.queue, spk_buffer, audio_driver.spk.nsamples, SPK_BUFFER_SIZE);
+    audio_queue_init(&audio_driver.mic.queue, mic_buffer, audio_driver.mic.nsamples, MIC_BUFFER_SIZE);
+#endif
     audio_driver.mic.dma_buffer = mic_dma_buffer;
     audio_driver.spk.dma_buffer = spk_dma_buffer;
-
-    audio_driver.spk.queue.size = SPK_BUFFER_SIZE;
-    audio_driver.mic.queue.size = MIC_BUFFER_SIZE;
 
     audio_driver.spk.nchannels = AUDIO_SPK_CHANEL_NUM;
     audio_driver.mic.nchannels = AUDIO_MIC_CHANEL_NUM;

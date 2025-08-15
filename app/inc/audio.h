@@ -32,6 +32,8 @@ extern "C" {
 
 #include <stdint.h>
 #include "audio_conf.h"
+#include "audio_queue.h"
+
 /**
   * @}
   */
@@ -106,17 +108,11 @@ enum cdc_cfg_val_e {
     CDC_SR_192K = 192000
 };
 
-typedef struct {
-    uint16_t *start;
-    uint16_t *end;
-    uint16_t size;
-    volatile uint16_t *read;
-    volatile uint16_t *write;
-} audio_queue_t;
-
 typedef struct audio_stream_s
 {
+#ifndef AUDIO_SYNCHRONOUS_MODE
     audio_queue_t queue;
+#endif
     uint16_t nsamples;      // number of samples per millisecond times number of channels
     uint16_t *dma_buffer;
     uint16_t threshold;

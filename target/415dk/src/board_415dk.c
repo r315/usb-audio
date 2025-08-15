@@ -1,6 +1,6 @@
 #include <sys/times.h>
 #include "board.h"
-#inlcude "audio_conf.h"
+#include "audio_conf.h"
 #include "cli_simple.h"
 #include "at32f415_clock.h"
 #include "i2c_application.h"
@@ -217,6 +217,8 @@ void board_init(void)
 	system_core_clock_update();
 
 	SysTick_Config((SystemCoreClock / 1000) - 1);
+
+    CRM->ctrl_bit.hicktrim = HICK_TRIM; // this should be different for each board
 
 #ifdef AUDIO_SYNCHRONOUS_MODE
     NVIC_SetPriority(OTG_IRQ, 3);
