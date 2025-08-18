@@ -75,6 +75,7 @@ APP_SOURCES =\
 $(APP_PATH)/src/main.c \
 $(APP_PATH)/src/audio.c \
 $(APP_PATH)/src/debug.c \
+$(APP_PATH)/src/audio_queue.c \
 $(LIB_PATH)/cli-simple/cli_simple.c \
 $(DRIVERS_PATH)/tas2563/tas2563.c \
 $(DRIVERS_PATH)/ak4619/ak4619.c \

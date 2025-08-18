@@ -30,6 +30,7 @@
 #include "audio_desc.h"
 #include "board.h"
 #include "debug.h"
+#include "audio_queue.h"
 
 #ifndef ENABLE_DBG_AUDIO
 #define DBG_TAG             "AUD : "
