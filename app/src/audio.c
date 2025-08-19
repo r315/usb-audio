@@ -236,6 +236,7 @@ void audio_spk_alt_setting(uint32_t alt_seting)
         stream->stage = STREAM_PAUSED;
     }else{
         stream->stage = STREAM_RESUME;
+        audio_driver.feedback_counter = 0;
     }
 }
 
@@ -259,19 +260,19 @@ void audio_mic_alt_setting(uint32_t alt_seting)
 }
 
 /**
-  * @brief  codec speaker feedback
-  * @param  feedback: data buffer
-  * @retval feedback len
+  * @brief  Feedback to host for async mode
+  * @param  feedback: device output frequency
+  * @retval number of bytes of feedback
   */
 uint8_t audio_spk_feedback(uint8_t *feedback)
 {
-    uint32_t feedback_value = (audio_driver.freq);
-
-    feedback_value = ((feedback_value/1000)<<14)|((feedback_value % 1000)<<4);
+    uint32_t feedback_cnt = (audio_driver.feedback_counter) << 1;
+    float fd_fval = (float) feedback_cnt / (float)1024.0 * (float)16384/*2^14*/;
+    uint32_t feedback_value = (uint32_t)fd_fval;
+    audio_driver.feedback_counter = 0;
     feedback[0] = (uint8_t)(feedback_value);
     feedback[1] = (uint8_t)(feedback_value >> 8);
     feedback[2] = (uint8_t)(feedback_value >> 16);
-
     return 3;
 }
 
@@ -546,11 +547,13 @@ void DMA1_Channel3_IRQHandler(void)
     if (dma_flag_get(DMA1_HDT3_FLAG) == SET)
     {
         pdst = stream->dma_buffer;
+        audio_driver.feedback_counter += (half_size << 1) - dma_data_number_get(DMA1_CHANNEL3);
         dma_flag_clear(DMA1_HDT3_FLAG);
     }
     else if (dma_flag_get(DMA1_FDT3_FLAG) == SET)
     {
         pdst = stream->dma_buffer + half_size;
+        audio_driver.feedback_counter += ((half_size << 1) - dma_data_number_get(DMA1_CHANNEL3)) + half_size;
         dma_flag_clear(DMA1_FDT3_FLAG);
     }else{
         DMA1->clr = DMA1->sts;

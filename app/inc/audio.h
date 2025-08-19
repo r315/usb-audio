@@ -125,6 +125,7 @@ typedef struct audio_driver_s
     //mic part
     audio_stream_t mic;
     // Common part
+    uint32_t feedback_counter;
     const audio_codec_t *codec;
 }audio_driver_t;
 

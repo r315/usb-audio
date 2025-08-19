@@ -105,7 +105,7 @@ typedef struct
   uint8_t g_audio_cur[64];
   uint8_t audio_spk_data[AUDIO_SPK_OUT_MAXPACKET_SIZE];
   uint8_t audio_mic_data[AUDIO_MIC_IN_MAXPACKET_SIZE];
-  uint8_t audio_feed_back[AUDIO_FEEDBACK_MAXPACKET_SIZE+1];
+  uint8_t audio_feedback[AUDIO_FEEDBACK_MAXPACKET_SIZE+1];
 
    __IO uint16_t audio_feedback_state;
    __IO uint8_t audio_spk_out_stage;
