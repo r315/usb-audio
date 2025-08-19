@@ -44,7 +44,6 @@ extern "C" {
   */
 #define AUDIO_SUPPORT_SPK               1
 #define AUDIO_SUPPORT_MIC               1
-#define AUDIO_SUPPORT_FEEDBACK          1
 
 #define AUDIO_SUPPORT_FREQ_16K          1
 #define AUDIO_SUPPORT_FREQ_48K          1
@@ -77,7 +76,20 @@ extern "C" {
 #define AUDIO_DEFAULT_MCLK_SRC          AUDIO_MCLK_SRC_I2S
 #define AUDIO_DEFAULT_MCLK_FREQ         12000000UL
 
-#define AUDIO_SYNCHRONOUS_MODE          1
+#define AUDIO_MODE_NSYNC                0
+#define AUDIO_MODE_ASYNC                1   /* Device clock master, reports its rate via feedback to host (paudio->SOF_num)*/
+#define AUDIO_MODE_ADAPTIVE             2   /* The host is master, device adapts its playback/recording clock to stay in sync with host data flow.*/
+#define AUDIO_MODE_SYNC                 3   /* Device clock is directly derived from USB SOF (Start of Frame) timing (fixed relationship).*/
+
+#ifndef AUDIO_MODE
+#define AUDIO_MODE                      AUDIO_MODE_ASYNC
+#endif
+
+#if AUDIO_MODE == AUDIO_MODE_ASYNC
+#define AUDIO_SUPPORT_FEEDBACK          1
+#else
+#define AUDIO_SUPPORT_FEEDBACK          0
+#endif
 
 /**
   * @}

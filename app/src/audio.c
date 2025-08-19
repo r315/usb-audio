@@ -65,7 +65,11 @@ static uint16_t mic_dma_buffer[DMA_BUFFER_SIZE];
 static uint16_t spk_buffer[SPK_BUFFER_SIZE];        // spk queue buffer for usb
 static uint16_t mic_buffer[MIC_BUFFER_SIZE];        // mic queue buffer for usb
 
-static void wave_triangle(uint16_t *dst, uint16_t count)
+#if AUDIO_MODE != AUDIO_MODE_ASYNC
+static stream_stage_e last_state;
+#endif
+
+void wave_triangle(uint16_t *dst, uint16_t count)
 {
     static uint16_t sample_count = 0;
     static uint8_t sample_count_dir = 0;
@@ -297,42 +301,54 @@ void audio_enqueue_data(uint8_t *buffer, uint32_t len)
 {
     audio_stream_t *stream = &audio_driver.spk;
     uint16_t nsamples = len >> 1;
-#ifdef AUDIO_SYNCHRONOUS_MODE
+#if AUDIO_MODE == AUDIO_MODE_SYNC
     switch (stream->stage)
     {
         case STREAM_PAUSED:
             break;
         case STREAM_FILL_FIRST:
             memcpy16(stream->dma_buffer, (uint16_t*)buffer, nsamples);
+            if(last_state != STREAM_FILL_SECOND){
+                DBG_AUD_WRN("Sync lost");
+            }
+            last_state = STREAM_FILL_FIRST;
             break;
         case STREAM_FILL_SECOND:
             memcpy16(stream->dma_buffer + nsamples, (uint16_t*)buffer, nsamples);
+            if(last_state != STREAM_FILL_FIRST){
+                DBG_AUD_WRN("Sync lost");
+            }
+            last_state = STREAM_FILL_SECOND;
             break;
     }
+
+
 #else
     switch (stream->stage)
     {
+        //case STREAM_PAUSED:
+        case STREAM_RESUME:
         case STREAM_INIT:
-            queue_flush(&stream->queue);
-            stream->threshold = queue_size(&stream->queue) >> 1;
+            audio_queue_flush(&stream->queue);
+            stream->threshold = audio_queue_size(&stream->queue) >> 1;
             stream->stage = STREAM_FILL_FIRST;
             DBG_AUD_INF("Starting out stream");
             break;
 
         case STREAM_FILL_FIRST:
-            if (queue_count(&stream->queue) >= stream->threshold){
+            if (audio_queue_count(&stream->queue) >= stream->threshold){
                 stream->stage = STREAM_FILL_SECOND;     // At least half of queue is full
             }
             break;
 
         case STREAM_FILL_SECOND:
-            if (queue_count(&stream->queue) < stream->nsamples){
+            if (audio_queue_count(&stream->queue) < stream->nsamples){
                 DBG_AUD_WRN("usb is unable to keep up");
             }
             break;
     }
 
-    if(queue_push(&stream->queue, (uint16_t*)buffer, nsamples) != nsamples){
+    if(audio_queue_enqueue(&stream->queue, (const uint16_t*)buffer, nsamples) != nsamples){
         DBG_AUD_WRN("Out stream buffer full");
     }
 #endif
@@ -348,7 +364,7 @@ void audio_enqueue_data(uint8_t *buffer, uint32_t len)
  {
     audio_stream_t *stream = &audio_driver.mic;
     uint16_t nsamples = stream->nsamples;
-#ifdef AUDIO_SYNCHRONOUS_MODE
+#if AUDIO_MODE == AUDIO_MODE_SYNC
     switch (stream->stage)
     {
         case STREAM_PAUSED:
@@ -365,16 +381,16 @@ void audio_enqueue_data(uint8_t *buffer, uint32_t len)
     switch (stream->stage)
     {
         case STREAM_INIT:
-            queue_flush(&stream->queue);
+            audio_queue_flush(&stream->queue);
             memset16((uint16_t*)buffer, 0, nsamples);
-            stream->threshold = queue_size(&stream->queue) / 2;
+            stream->threshold = audio_queue_size(&stream->queue) / 2;
             stream->stage = STREAM_FILL_FIRST;
             DBG_AUD_INF("Starting in stream");
             break;
 
         case STREAM_FILL_FIRST:
-            if (queue_count(&stream->queue) >= stream->threshold){
-                queue_pop(&stream->queue, (uint16_t*)buffer, nsamples);
+            if (audio_queue_count(&stream->queue) >= stream->threshold){
+                audio_queue_dequeue(&stream->queue, (uint16_t*)buffer, nsamples);
                 stream->stage = STREAM_FILL_SECOND;
                 DBG_AUD_INF("In stream half full");
             }else{
@@ -383,7 +399,7 @@ void audio_enqueue_data(uint8_t *buffer, uint32_t len)
             break;
 
         case STREAM_FILL_SECOND:
-            nsamples = queue_pop(&stream->queue, (uint16_t*)buffer, nsamples);
+            nsamples = audio_queue_dequeue(&stream->queue, (uint16_t*)buffer, nsamples);
             break;
     }
 #endif
@@ -422,7 +438,7 @@ audio_status_t audio_init(const audio_codec_t *codec)
     stream_cfg_nsamples(&audio_driver.spk, audio_driver.freq);
     stream_cfg_nsamples(&audio_driver.mic, audio_driver.freq);
 
-#ifndef AUDIO_SYNCHRONOUS_MODE
+#if AUDIO_MODE == AUDIO_MODE_ASYNC
     //assert(audio_driver.spk.nsamples <= SPK_BUFFER_SIZE);
     //assert(audio_driver.mic.nsamples <= MIC_BUFFER_SIZE);
 
@@ -508,7 +524,7 @@ audio_status_t audio_loop(void)
 void DMA1_Channel3_IRQHandler(void)
 {
     audio_stream_t *stream = &audio_driver.spk;
-#ifdef AUDIO_SYNCHRONOUS_MODE
+#if AUDIO_MODE == AUDIO_MODE_SYNC
     if(stream->stage == STREAM_PAUSED){
         DMA1->clr = DMA1_HDT3_FLAG | DMA1_FDT3_FLAG;
     }else{
@@ -543,19 +559,20 @@ void DMA1_Channel3_IRQHandler(void)
 
     switch (stream->stage)
     {
+        case STREAM_PAUSED:
         case STREAM_INIT:
         case STREAM_FILL_FIRST:
             memset16(pdst, 0, half_size);
             break;
 
         case STREAM_FILL_SECOND:
-            if (queue_count(&stream->queue) < half_size)
+            if (audio_queue_count(&stream->queue) < half_size)
             {
                 stream->stage = STREAM_INIT;
                 DBG_AUD_WRN("Out stream buffer empty");
                 break;
             }
-            queue_pop(&stream->queue, pdst, half_size);
+            audio_queue_dequeue(&stream->queue, pdst, half_size);
             break;
     }
 #endif
@@ -568,8 +585,8 @@ void DMA1_Channel3_IRQHandler(void)
  */
 void DMA1_Channel4_IRQHandler(void)
 {
+#if AUDIO_MODE == AUDIO_MODE_SYNC
     audio_stream_t *stream = &audio_driver.mic;
-#ifdef AUDIO_SYNCHRONOUS_MODE
     if(stream->stage == STREAM_PAUSED){
         DMA1->clr = DMA1_HDT4_FLAG | DMA1_FDT4_FLAG;
     }else{
@@ -583,7 +600,7 @@ void DMA1_Channel4_IRQHandler(void)
             DMA1->clr = DMA1->sts;
         }
     }
-#else
+#elf AUDIO_MODE == AUDIO_MODE_ASYNC
     uint16_t *psrc;
     uint16_t half_size = stream->nsamples;
     if (dma_flag_get(DMA1_HDT4_FLAG) == SET)
@@ -611,9 +628,11 @@ void DMA1_Channel4_IRQHandler(void)
         break;
     }
 
-    if (queue_push(&stream->queue, psrc, half_size) != half_size){
+    if (audio_queue_enqueue(&stream->queue, psrc, half_size) != half_size){
         //stream->stage = STREAM_INIT;
         DBG_AUD_WRN("In stream buffer full");
     }
+#else
+    DMA1->clr = DMA1_GL4_FLAG | DMA1_FDT4_FLAG | DMA1_HDT4_FLAG;
 #endif
 }

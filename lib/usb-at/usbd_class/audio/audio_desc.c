@@ -285,10 +285,19 @@ ALIGNED_HEAD static uint8_t g_usbd_configuration[USBD_AUDIO_CONFIG_DESC_SIZE] AL
   0x09,                                  /* bLength: size of endpoint descriptor in bytes */
   USB_DESCIPTOR_TYPE_ENDPOINT,           /* bDescriptorType: endpoint descriptor type */
   USBD_AUDIO_MIC_IN_EPT,                 /* bEndpointAddress: the address of endpoint on usb device described by this descriptor */
-  USB_EPT_DESC_ISO | USB_ETP_DESC_ASYNC, /* bmAttributes: endpoint attributes */
+  USB_EPT_DESC_ISO |                     /* bmAttributes: endpoint attributes */
+#if AUDIO_MODE == AUDIO_MODE_SYNC
+  USB_ETP_DESC_SYNC,
+#elif AUDIO_MODE == AUDIO_MODE_ASYNC
+  USB_ETP_DESC_ASYNC,
+#elif AUDIO_MODE == AUDIO_MODE_ADAPTIVE
+  USB_ETP_DESC_ADAPTIVE,
+#else
+  USB_ETP_DESC_NSYNC,
+#endif
   LBYTE(AUDIO_MIC_IN_MAXPACKET_SIZE),
   HBYTE(AUDIO_MIC_IN_MAXPACKET_SIZE),    /* wMaxPacketSize: maximum packe size this endpoint */
-  AUDIO_BINTERVAL_TIME,                    /* bInterval: interval for polling endpoint for data transfers */
+  AUDIO_BINTERVAL_TIME,                  /* bInterval: interval for polling endpoint for data transfers */
   0x00,                                  /* bRefresh: unused */
   0x00,                                  /* bSynchAddress: unused */
 
@@ -349,7 +358,16 @@ ALIGNED_HEAD static uint8_t g_usbd_configuration[USBD_AUDIO_CONFIG_DESC_SIZE] AL
   0x09,                                  /* bLength: size of endpoint descriptor in bytes */
   USB_DESCIPTOR_TYPE_ENDPOINT,           /* bDescriptorType: endpoint descriptor type */
   USBD_AUDIO_SPK_OUT_EPT,                /* bEndpointAddress: the address of endpoint on usb device described by this descriptor */
-  USB_EPT_DESC_ISO | USB_ETP_DESC_ASYNC, /* bmAttributes: endpoint attributes */
+  USB_EPT_DESC_ISO |                     /* bmAttributes: endpoint attributes */
+#if AUDIO_MODE == AUDIO_MODE_SYNC
+  USB_ETP_DESC_SYNC,
+#elif AUDIO_MODE == AUDIO_MODE_ASYNC
+  USB_ETP_DESC_ASYNC,
+#elif AUDIO_MODE == AUDIO_MODE_ADAPTIVE
+  USB_ETP_DESC_ADAPTIVE,
+#else
+  USB_ETP_DESC_NSYNC,
+#endif
   LBYTE(AUDIO_SPK_OUT_MAXPACKET_SIZE),
   HBYTE(AUDIO_SPK_OUT_MAXPACKET_SIZE),   /* wMaxPacketSize: maximum packe size this endpoint */
   AUDIO_BINTERVAL_TIME,                  /* bInterval: interval for polling endpoint for data transfers */
@@ -375,7 +393,7 @@ ALIGNED_HEAD static uint8_t g_usbd_configuration[USBD_AUDIO_CONFIG_DESC_SIZE] AL
   0x11,                                  /* bmAttributes: endpoint attributes */
   LBYTE(AUDIO_FEEDBACK_MAXPACKET_SIZE),  /* wMaxPacketSize: maximum packe size this endpoint */
   HBYTE(AUDIO_FEEDBACK_MAXPACKET_SIZE),  /* wMaxPacketSize: maximum packe size this endpoint */
-  1,                                     /* bInterval: interval for polling endpoint for data transfers */
+  AUDIO_BINTERVAL_TIME,                  /* bInterval: interval for polling endpoint for data transfers */
   FEEDBACK_REFRESH_TIME,                 /* bRefresh: this field indicates the rate at which an iso syncronization
                                                       pipe provides new syncronization feedback data. this rate must be a power of
                                                       2, therefore only the power is reported back and the range of this field is from
