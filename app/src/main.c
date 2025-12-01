@@ -329,17 +329,17 @@ static void dump_buf(uint8_t *buf, uint32_t count)
 #ifdef ENABLE_AMUX
 static i2c_status_type readMux(uint8_t reg, uint8_t *buf, uint32_t count)
 {
-    if(I2C_Master_Write(AMUX_I2C_ADDR, &reg, 1) == I2C_OK){
-        if(I2C_Master_Read(AMUX_I2C_ADDR, buf, count) != I2C_OK){
-            printf("Failed to read");
-        }else{
-            return I2C_OK;
-        }
+    if(!I2C_Master_Write(AMUX_I2C_ADDR, &reg, 1)){
+        printf("Failed to write reg address\n");
+        return I2C_ERR_ACKFAIL;
     }
 
-    printf("Failed to write reg address\n");
+    if(!I2C_Master_Read(AMUX_I2C_ADDR, buf, count)){
+        printf("Failed to read");
+        return I2C_ERR_ACKFAIL;
+    }
 
-    return I2C_ERR_ACKFAIL;
+    return I2C_OK;
 }
 
 const uint16_t tone500[] = {
@@ -371,14 +371,13 @@ static int muxCmd(int argc, char **argv)
         printf("\trr <reg>\n");
         printf("\twr <reg> <val>\n");
         printf("\tpage <nr>\n");
-        printf("\troute <scr> <dst> [func]\n"
+        printf("\troute <scr> <dst> [mix]\n"
                "\t  src/dst, 0-31\n"
-               "\t  func, 0-3,\n"
-               "\t    0: disabled\n"
-               "\t    1: enable\n"
-               "\t    2: apply pre-gain\n"
-               "\t    3: feedback\n"
-               "\t    4: feedback + pre-gain\n");
+               "\t  mix,     0-3,\n"
+               "\t        0: disabled\n"
+               "\t        1: in[src] -> out[dst]\n"
+               "\t        2: out[src] -> out[dst]\n"
+               "\t        3: in[src] + out[src] -> out[dst]\n");
         printf("\tatt <value>\n");
         printf("\tgain <dst> <value>\n");
         printf("\tagc <en>\n");
@@ -405,7 +404,7 @@ static int muxCmd(int argc, char **argv)
             regs_buf[0] = value;
             if(CLI_Ha2i(argv[3], &value)){
                 regs_buf[1] = value;
-                if(I2C_Master_Write(AMUX_I2C_ADDR, regs_buf, 2) == I2C_OK){
+                if(I2C_Master_Write(AMUX_I2C_ADDR, regs_buf, 2) == 2){
                     return CLI_OK;
                 }
             }
@@ -467,18 +466,22 @@ static int muxCmd(int argc, char **argv)
     if( !strcmp("gain", argv[1])){
         int32_t slot;
         if(CLI_Ia2i(argv[2], &slot)){
-            if(CLI_Ha2i(argv[3], (uint32_t*)&value)){
+            if(CLI_Ia2i(argv[3], (int32_t*)&value)){
                 amux_gain(slot, value);
-                return CLI_OK;
+            }else{
+                printf("gain: %u\n", amux_gain_get(slot));
             }
+            return CLI_OK;
         }
     }
 
     if( !strcmp("agc", argv[1])){
         if(CLI_Ia2i(argv[2], (int32_t*)&value)){
             amux_agc(value);
-            return CLI_OK;
+        }else{
+            printf("%s\n", amux_agc_get() ? "Enabled" : "Disabled");
         }
+        return CLI_OK;
     }
 
     if( !strcmp("tone_load", argv[1])){
@@ -504,7 +507,7 @@ static int muxCmd(int argc, char **argv)
 
         printf("ctl0: %x, ctl1: %x\n", regs_buf[1], regs_buf[2]);
 
-        if(I2C_Master_Write(AMUX_I2C_ADDR, regs_buf, 3) == I2C_OK){
+        if(I2C_Master_Write(AMUX_I2C_ADDR, regs_buf, 3) == 3){
             return CLI_OK;
         }
     }
@@ -513,7 +516,7 @@ static int muxCmd(int argc, char **argv)
         if(CLI_Ia2i(argv[2], (int32_t*)&value)){
             regs_buf[0] = AMUX_PAGE_REG;
             regs_buf[1] = value;
-            if(I2C_Master_Write(AMUX_I2C_ADDR, regs_buf, 2) == I2C_OK){
+            if(I2C_Master_Write(AMUX_I2C_ADDR, regs_buf, 2)){
                 return CLI_OK;
             }
         }
