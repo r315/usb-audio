@@ -21,11 +21,16 @@ extern "C" {
 #define LED1_PIN_INIT \
         CRM->apb2en_bit.gpioaen = 1; \
         GPIOA->cfghr_bit.iomc8 = 2; \
-        GPIOA->cfghr_bit.iofc8 = 0;
+        GPIOA->cfghr_bit.iofc8 = 0; \
+        GPIOA->cfglr_bit.iomc0 = 2; \
+        GPIOA->cfglr_bit.iofc0 = 0; \
 
 #define LED1_OFF        GPIOA->scr = (1 << 8)
 #define LED1_ON         GPIOA->clr = (1 << 8)
 #define LED1_TOGGLE     GPIOA->odt = GPIOA->idt ^ (1 << 8)
+#define LED2_OFF        GPIOA->scr = (1 << 0)
+#define LED2_ON         GPIOA->clr = (1 << 0)
+#define LED2_TOGGLE     GPIOA->odt = GPIOA->idt ^ (1 << 0)
 
 #define DBG_PIN_INIT    LED1_PIN_INIT
 #define DBG_PIN_TOGGLE  LED1_TOGGLE
@@ -58,7 +63,7 @@ extern "C" {
 #define I2S2_GPIO_CRM_CLK                CRM_GPIOB_PERIPH_CLOCK
 #define I2S2_DT_ADDRESS                  (&(SPI2->dt))
 
-#define HICK_TRIM                        50 // This is very critical
+#define HICK_TRIM                        51 // This is very critical
 
 typedef struct{
     uint32_t freq;
