@@ -69,22 +69,27 @@ static uint16_t mic_buffer[MIC_BUFFER_SIZE];        // mic queue buffer for usb
 static stream_stage_e last_state;
 #endif
 
-void wave_triangle(uint16_t *dst, uint16_t count)
+void wave_triangle(uint16_t *dst, uint16_t count, uint8_t nch)
 {
-    static uint16_t sample_count = 0;
+    static uint16_t sample_value = 0;
     static uint8_t sample_count_dir = 0;
 
-    for (int i = 0; i < count; ++i){
-        if(sample_count_dir == 0 && sample_count == 0x8000){
+    for (int i = 0; i < count; i += nch){
+        if(sample_count_dir == 0 && sample_value == 0x8000){
             sample_count_dir = 1;
-            sample_count = 0x7ffe;
-        }else if(sample_count_dir == 1 && sample_count == 0x7fff){
+            sample_value = 0x7ffe;
+        }else if(sample_count_dir == 1 && sample_value == 0x7fff){
             sample_count_dir = 0;
-            sample_count = 0x8001;
+            sample_value = 0x8001;
         }
 
-        *dst++ = sample_count;
-        sample_count = sample_count_dir ? sample_count - 1  : sample_count + 1;
+        if(nch == 1)
+            *dst++ = sample_value;
+        else{
+            *dst++ = sample_value;
+            *dst++ = sample_value;
+        }
+        sample_value = sample_count_dir ? sample_value - 1 : sample_value + 1;
     }
 }
 
