@@ -30,6 +30,7 @@ DRIVERS_PER_PATH =$(DRIVERS_PATH)/AT32F4xx
 #######################################
 C_INCLUDES = \
 $(TARGET_PATH)/inc \
+$(APP_PATH)/inc \
 $(DRIVERS_PER_PATH)/inc \
 $(CMSIS_PATH)/Core/Include \
 $(CMSIS_PATH)/Device/ARTERY/AT32F4xx/inc \
@@ -38,8 +39,7 @@ $(LIB_PATH)/usb-at/usbd_class/audio \
 $(LIB_PATH)/cli-simple \
 $(DRIVERS_PATH)/ak4619 \
 $(DRIVERS_PATH)/tas2563 \
-$(DRIVERS_PATH)/amux \
-$(APP_PATH)/inc \
+
 
 AS_INCLUDES =\
 
@@ -79,15 +79,12 @@ $(APP_PATH)/src/audio_queue.c \
 $(LIB_PATH)/cli-simple/cli_simple.c \
 $(DRIVERS_PATH)/tas2563/tas2563.c \
 $(DRIVERS_PATH)/ak4619/ak4619.c \
-$(DRIVERS_PATH)/amux/amux.c \
+
 
 C_SOURCES = \
 $(DRIVER_SOURCES) \
 $(USB_DEVICE_SOURCES) \
 $(APP_SOURCES)
-
-#$(DRIVERS_PATH)/amux/amux.c \
-
 
 CPP_SOURCES = \
 
@@ -104,6 +101,11 @@ $(DEVICE) \
 BOARD_415DK \
 _USE_STDPERIPH_DRIVER \
 $(FEATURES) \
+
+ifneq ($(filter ENABLE_AMUX, $(FEATURES)),)
+APP_SOURCES +=$(DRIVERS_PATH)/amux/amux.c
+C_INCLUDES +=$(DRIVERS_PATH)/amux
+endif
 
 #######################################
 # CFLAGS
@@ -200,7 +202,7 @@ endif
 #######################################
 # Rules
 #######################################
-all: $(BUILD_DIR) $(BUILD_DIR)/$(TARGET).elf size
+all: $(BUILD_DIR)/$(TARGET).elf size
 #@echo $(CMSIS_PATH)
 
 bin: $(BUILD_DIR)/$(TARGET).bin
@@ -221,14 +223,17 @@ $(BUILD_DIR)/%.d: %.c
 
 $(BUILD_DIR)/%.o: %.c
 	@echo "[CC]  $<"
+	@mkdir -p $(dir $@)
 	$(VERBOSE)$(CC) -c $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/%.obj: %.cpp
 	@echo "[CP]  $<"
+	@mkdir -p $(dir $@)
 	$(VERBOSE)$(CPP) -c $(CPPFLAGS)  $< -o $@
 
 $(BUILD_DIR)/%.o: %.s
 	@echo "[AS]  $<"
+	@mkdir -p $(dir $@)
 	$(VERBOSE)$(AS) -c $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/$(TARGET).elf: $(OBJECTS)
@@ -240,9 +245,6 @@ $(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf
 
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf
 	$(VERBOSE)$(BIN) $< $@
-
-$(BUILD_DIR):
-	mkdir -p $@
 
 size: $(BUILD_DIR)/$(TARGET).elf
 	@echo "--- Size ---"
