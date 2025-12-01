@@ -593,8 +593,8 @@ void DMA1_Channel3_IRQHandler(void)
  */
 void DMA1_Channel4_IRQHandler(void)
 {
-#if AUDIO_MODE == AUDIO_MODE_SYNC
     audio_stream_t *stream = &audio_driver.mic;
+#if AUDIO_MODE == AUDIO_MODE_SYNC
     if(stream->stage == STREAM_PAUSED){
         DMA1->clr = DMA1_HDT4_FLAG | DMA1_FDT4_FLAG;
     }else{
@@ -608,9 +608,10 @@ void DMA1_Channel4_IRQHandler(void)
             DMA1->clr = DMA1->sts;
         }
     }
-#elf AUDIO_MODE == AUDIO_MODE_ASYNC
+#elif AUDIO_MODE == AUDIO_MODE_ASYNC
     uint16_t *psrc;
     uint16_t half_size = stream->nsamples;
+
     if (dma_flag_get(DMA1_HDT4_FLAG) == SET)
     {
         psrc = stream->dma_buffer + half_size;
