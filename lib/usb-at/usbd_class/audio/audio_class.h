@@ -81,6 +81,15 @@ extern "C" {
 #define AUDIO_DESCRIPTOR_TYPE             0x21
 #define AUDIO_DESCRIPTOR_SIZE             0x09
 
+typedef struct {
+    uint16_t volume;
+    uint16_t volume_limits[3]; /*min, max, resolution */
+    uint32_t freq;
+    uint32_t alt_setting;
+    uint8_t data[AUDIO_SPK_OUT_MAXPACKET_SIZE]; /* different size for mic? */
+    uint8_t mute;
+}audio_channel_type;
+
 /**
   * @brief usb audio control struct
   */
@@ -89,24 +98,14 @@ typedef struct
   uint8_t enpd;
   uint8_t interface;
   uint8_t request_no;
-  uint8_t spk_mute;
-  uint8_t mic_mute;
-  uint16_t spk_volume;
-  uint16_t mic_volume;
-  uint32_t spk_freq;
-  uint32_t mic_freq;
-  uint16_t spk_volume_limits[3]; /*[0] is mininum value, [1] is maxnum value, [2] is volume resolution */
-  uint16_t mic_volume_limits[3]; /*[0] is mininum value, [1] is maxnum value, [2] is volume resolution */
+  audio_channel_type spk;
+  audio_channel_type mic;
 
   uint8_t audio_cmd;
   uint32_t audio_cmd_len;
-  uint32_t spk_alt_setting;
-  uint32_t mic_alt_setting;
-  uint8_t g_audio_cur[64];
-  uint8_t audio_spk_data[AUDIO_SPK_OUT_MAXPACKET_SIZE];
-  uint8_t audio_mic_data[AUDIO_MIC_IN_MAXPACKET_SIZE];
-  uint8_t audio_feedback[AUDIO_FEEDBACK_MAXPACKET_SIZE+1];
 
+  uint8_t g_audio_cur[64];
+  uint8_t audio_feedback[AUDIO_FEEDBACK_MAXPACKET_SIZE+1];
    __IO uint16_t audio_feedback_state;
    __IO uint8_t audio_spk_out_stage;
 }usb_audio_type;
