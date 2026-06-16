@@ -266,7 +266,7 @@ int bus_i2s_init(i2s_config_t *cfg)
     i2s_data_channel_format_type format;
 
     if(cfg->bitw == AUDIO_BITW_16){
-        format = I2S_DATA_16BIT_CHANNEL_32BIT;
+        format = I2S_DATA_16BIT_CHANNEL_16BIT;
     }else if(cfg->bitw == AUDIO_BITW_32){
         format = I2S_DATA_32BIT_CHANNEL_32BIT;
     }else{
