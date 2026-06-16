@@ -468,9 +468,9 @@ static int muxCmd(int argc, char **argv)
         if(CLI_Ia2i(argv[2], &slot)){
             if(CLI_Ia2i(argv[3], (int32_t*)&value)){
                 amux_gain(slot, value);
-            }else{
+            }/*else{
                 printf("gain: %u\n", amux_gain_get(slot));
-            }
+            }*/
             return CLI_OK;
         }
     }
@@ -478,9 +478,9 @@ static int muxCmd(int argc, char **argv)
     if( !strcmp("agc", argv[1])){
         if(CLI_Ia2i(argv[2], (int32_t*)&value)){
             amux_agc(value);
-        }else{
+        }/*else{
             printf("%s\n", amux_agc_get() ? "Enabled" : "Disabled");
-        }
+        }*/
         return CLI_OK;
     }
 
