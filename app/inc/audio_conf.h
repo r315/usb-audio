@@ -35,7 +35,7 @@ extern "C" {
  *
  */
 #define AUDIO_SUPPORT_SPK               1
-#define AUDIO_SUPPORT_MIC               1
+#define AUDIO_SUPPORT_MIC               0
 #define AUDIO_SUPPORT_FREQ_16K          1
 #define AUDIO_SUPPORT_FREQ_48K          1
 #define AUDIO_SUPPORT_FREQ              (AUDIO_SUPPORT_FREQ_16K + \

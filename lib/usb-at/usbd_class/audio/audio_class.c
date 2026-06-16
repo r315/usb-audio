@@ -112,6 +112,7 @@ static void audio_req_set_cur (void *udev, usb_setup_type *setup)
 {
    usbd_core_type *pudev  = (usbd_core_type *) udev;
    usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
+
    if (setup->wLength > 0)
    {
       usbd_ctrl_recv (pudev, paudio->g_audio_cur, setup->wLength);
@@ -310,16 +311,20 @@ static usb_sts_type class_clear_handler (void *udev)
    usb_sts_type status   = USB_OK;
    usbd_core_type *pudev = (usbd_core_type *) udev;
 
+#if AUDIO_SUPPORT_MIC
    /* close in endpoint */
    usbd_ept_close (pudev, USBD_AUDIO_MIC_IN_EPT);
+#endif
+
+#if AUDIO_SUPPORT_SPK
+/* close out endpoint */
+usbd_ept_close (pudev, USBD_AUDIO_SPK_OUT_EPT);
+#endif
 
 #if AUDIO_SUPPORT_FEEDBACK
    /* close in endpoint */
    usbd_ept_close (pudev, USBD_AUDIO_FEEDBACK_EPT);
 #endif
-
-   /* close out endpoint */
-   usbd_ept_close (pudev, USBD_AUDIO_SPK_OUT_EPT);
 
    return status;
 }
@@ -537,15 +542,15 @@ static usb_sts_type class_out_handler (void *udev, uint8_t ept_num)
    usb_sts_type status    = USB_OK;
    usbd_core_type *pudev  = (usbd_core_type *) udev;
    usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
-   uint16_t g_rxlen;
+   uint16_t len;
 
    /* get endpoint receive data length  */
-   g_rxlen = usbd_get_recv_len (pudev, ept_num);
+   len = usbd_get_recv_len (pudev, ept_num);
 
    if ((ept_num & 0x7F) == (USBD_AUDIO_SPK_OUT_EPT & 0x7F))
    {
       /* speaker data*/
-      audio_enqueue_data (paudio->spk.data, g_rxlen);
+      audio_enqueue_data (paudio->spk.data, len);
       paudio->audio_spk_out_stage = 1;
       /* get next data */
       usbd_ept_recv (pudev, USBD_AUDIO_SPK_OUT_EPT, paudio->spk.data,
