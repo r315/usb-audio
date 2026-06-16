@@ -27,61 +27,13 @@
 #include "usbd_core.h"
 #include "audio_desc.h"
 
-/** @addtogroup AT32F415_middlewares_usbd_class
-  * @{
-  */
-
-/** @defgroup USB_audio_desc
-  * @brief usb device audio descriptor
-  * @{
-  */
-
-/** @defgroup USB_audio_desc_private_functions
-  * @{
-  */
-static usbd_desc_t *get_device_descriptor(void);
-static usbd_desc_t *get_device_qualifier(void);
-static usbd_desc_t *get_device_configuration(void);
-static usbd_desc_t *get_device_other_speed(void);
-static usbd_desc_t *get_device_lang_id(void);
-static usbd_desc_t *get_device_manufacturer_string(void);
-static usbd_desc_t *get_device_product_string(void);
-static usbd_desc_t *get_device_serial_string(void);
-static usbd_desc_t *get_device_interface_string(void);
-static usbd_desc_t *get_device_config_string(void);
-
-static uint16_t usbd_unicode_convert(uint8_t *string, uint8_t *unicode_buf);
-static void usbd_int_to_unicode (uint32_t value , uint8_t *pbuf , uint8_t len);
-static void get_serial_num(void);
-#if defined ( __ICCARM__ ) /* iar compiler */
-  #pragma data_alignment=4
-#endif
-ALIGNED_HEAD static uint8_t g_usbd_desc_buffer[256] ALIGNED_TAIL;
+#define MCU_ID      (0x1FFFF7E8)
 
 /**
-  * @brief device descriptor handler structure
-  */
-usbd_desc_handler audio_desc_handler =
-{
-  get_device_descriptor,
-  get_device_qualifier,
-  get_device_configuration,
-  get_device_other_speed,
-  get_device_lang_id,
-  get_device_manufacturer_string,
-  get_device_product_string,
-  get_device_serial_string,
-  get_device_interface_string,
-  get_device_config_string,
-};
-
-/**
-  * @brief usb device standard descriptor
-  */
-#if defined ( __ICCARM__ ) /* iar compiler */
-  #pragma data_alignment=4
-#endif
-ALIGNED_HEAD static uint8_t g_usbd_descriptor[USB_DEVICE_DESC_LEN] ALIGNED_TAIL =
+ * @brief
+ *
+ */
+static uint8_t g_usbd_descriptor[] =
 {
   USB_DEVICE_DESC_LEN,                   /* bLength */
   USB_DESCIPTOR_TYPE_DEVICE,             /* bDescriptorType */
@@ -106,10 +58,7 @@ ALIGNED_HEAD static uint8_t g_usbd_descriptor[USB_DEVICE_DESC_LEN] ALIGNED_TAIL 
 /**
   * @brief usb configuration standard descriptor
   */
-#if defined ( __ICCARM__ ) /* iar compiler */
-  #pragma data_alignment=4
-#endif
-ALIGNED_HEAD static uint8_t g_usbd_configuration[USBD_AUDIO_CONFIG_DESC_SIZE] ALIGNED_TAIL =
+static uint8_t g_usbd_configuration[] =
 {
   USB_DEVICE_CFG_DESC_LEN,               /* bLength: configuration descriptor size */
   USB_DESCIPTOR_TYPE_CONFIGURATION,      /* bDescriptorType: configuration */
@@ -404,12 +353,7 @@ ALIGNED_HEAD static uint8_t g_usbd_configuration[USBD_AUDIO_CONFIG_DESC_SIZE] AL
 #endif
 };
 
-/**
-  * @brief usb string lang id
-  */
-#if defined ( __ICCARM__ ) /* iar compiler */
-  #pragma data_alignment=4
-#endif
+
 ALIGNED_HEAD static uint8_t g_string_lang_id[USBD_AUDIO_SIZ_STRING_LANGID] ALIGNED_TAIL =
 {
   USBD_AUDIO_SIZ_STRING_LANGID,
@@ -418,48 +362,17 @@ ALIGNED_HEAD static uint8_t g_string_lang_id[USBD_AUDIO_SIZ_STRING_LANGID] ALIGN
   0x04,
 };
 
-/**
-  * @brief usb string serial
-  */
-#if defined ( __ICCARM__ ) /* iar compiler */
-  #pragma data_alignment=4
-#endif
-ALIGNED_HEAD static uint8_t g_string_serial[USBD_AUDIO_SIZ_STRING_SERIAL] ALIGNED_TAIL =
-{
-  USBD_AUDIO_SIZ_STRING_SERIAL,
-  USB_DESCIPTOR_TYPE_STRING,
+static const char *g_usbd_desc_strings [] = {
+    "",
+    "Artery",                        /* MFC */
+    "AT32 Audio",                    /* Product */
+    "",                              /* Serial */
+    "AT32 Config",                   /* Configuration */
+    "AT32 Interface",                /* Interface */
 };
 
-
-/* device descriptor */
-static usbd_desc_t device_descriptor =
-{
-  USB_DEVICE_DESC_LEN,
-  g_usbd_descriptor
-};
-
-/* config descriptor */
-static usbd_desc_t config_descriptor =
-{
-  USBD_AUDIO_CONFIG_DESC_SIZE,
-  g_usbd_configuration
-};
-
-/* langid descriptor */
-static usbd_desc_t langid_descriptor =
-{
-  USBD_AUDIO_SIZ_STRING_LANGID,
-  g_string_lang_id
-};
-
-/* serial descriptor */
-static usbd_desc_t serial_descriptor =
-{
-  USBD_AUDIO_SIZ_STRING_SERIAL,
-  g_string_serial
-};
-
-static usbd_desc_t vp_desc;
+static usbd_desc_t g_usbd_desc;
+ALIGNED_HEAD static uint8_t g_usbd_desc_buffer[256] ALIGNED_TAIL;
 
 /**
   * @brief  standard usb unicode convert
@@ -515,35 +428,16 @@ static void usbd_int_to_unicode (uint32_t value , uint8_t *pbuf , uint8_t len)
 }
 
 /**
-  * @brief  usb get serial number
-  * @param  none
-  * @retval none
-  */
-static void get_serial_num(void)
-{
-  uint32_t serial0, serial1, serial2;
-
-  serial0 = *(uint32_t*)MCU_ID1;
-  serial1 = *(uint32_t*)MCU_ID2;
-  serial2 = *(uint32_t*)MCU_ID3;
-
-  serial0 += serial2;
-
-  if (serial0 != 0)
-  {
-    usbd_int_to_unicode (serial0, &g_string_serial[2] ,8);
-    usbd_int_to_unicode (serial1, &g_string_serial[18] ,4);
-  }
-}
-
-/**
   * @brief  get device descriptor
   * @param  none
   * @retval usbd_desc
   */
 static usbd_desc_t *get_device_descriptor(void)
 {
-  return &device_descriptor;
+    return &(usbd_desc_t){
+        (uint16_t)USB_DEVICE_DESC_LEN,
+        g_usbd_descriptor
+    };
 }
 
 /**
@@ -553,7 +447,7 @@ static usbd_desc_t *get_device_descriptor(void)
   */
 static usbd_desc_t * get_device_qualifier(void)
 {
-  return NULL;
+    return NULL;
 }
 
 /**
@@ -563,7 +457,10 @@ static usbd_desc_t * get_device_qualifier(void)
   */
 static usbd_desc_t *get_device_configuration(void)
 {
-  return &config_descriptor;
+    return &(usbd_desc_t){
+        sizeof(g_usbd_configuration),
+        g_usbd_configuration
+    };
 }
 
 /**
@@ -583,9 +480,29 @@ static usbd_desc_t *get_device_other_speed(void)
   */
 static usbd_desc_t *get_device_lang_id(void)
 {
-  return &langid_descriptor;
+    return &(usbd_desc_t){
+        USBD_AUDIO_SIZ_STRING_LANGID,
+        g_string_lang_id
+    };
 }
 
+
+/**
+ * @brief Get string by index
+ *
+ * @param index
+ * @return usbd_desc_t*
+ */
+static usbd_desc_t *get_device_string(uint8_t index)
+{
+    if(index > (sizeof(g_usbd_desc_strings) / sizeof(*g_usbd_desc_strings))){
+        return NULL;
+    }
+
+    g_usbd_desc.length = usbd_unicode_convert((uint8_t *)g_usbd_desc_strings[index], g_usbd_desc_buffer);
+    g_usbd_desc.descriptor = g_usbd_desc_buffer;
+    return &g_usbd_desc;
+}
 
 /**
   * @brief  get manufacturer descriptor
@@ -594,9 +511,7 @@ static usbd_desc_t *get_device_lang_id(void)
   */
 static usbd_desc_t *get_device_manufacturer_string(void)
 {
-  vp_desc.length = usbd_unicode_convert((uint8_t *)USBD_AUDIO_DESC_MANUFACTURER_STRING, g_usbd_desc_buffer);
-  vp_desc.descriptor = g_usbd_desc_buffer;
-  return &vp_desc;
+    return get_device_string(USB_MFC_STRING);
 }
 
 /**
@@ -606,9 +521,7 @@ static usbd_desc_t *get_device_manufacturer_string(void)
   */
 static usbd_desc_t *get_device_product_string(void)
 {
-  vp_desc.length = usbd_unicode_convert((uint8_t *)USBD_AUDIO_DESC_PRODUCT_STRING, g_usbd_desc_buffer);
-  vp_desc.descriptor = g_usbd_desc_buffer;
-  return &vp_desc;
+    return get_device_string(USB_PRODUCT_STRING);
 }
 
 /**
@@ -618,8 +531,22 @@ static usbd_desc_t *get_device_product_string(void)
   */
 static usbd_desc_t *get_device_serial_string(void)
 {
-  get_serial_num();
-  return &serial_descriptor;
+    uint32_t *uid = (uint32_t*)MCU_ID;
+
+    uid[0] += uid[2];
+
+    if (uid[0] != 0){
+        usbd_int_to_unicode (uid[0], &g_usbd_desc_buffer[2] , 8);
+        usbd_int_to_unicode (uid[1], &g_usbd_desc_buffer[18] ,4);
+    }
+
+    g_usbd_desc_buffer[0] = USBD_AUDIO_SIZ_STRING_SERIAL;
+    g_usbd_desc_buffer[1] = USB_DESCIPTOR_TYPE_STRING;
+
+    return &(usbd_desc_t){
+        USBD_AUDIO_SIZ_STRING_SERIAL,
+        g_usbd_desc_buffer
+    };
 }
 
 /**
@@ -629,9 +556,7 @@ static usbd_desc_t *get_device_serial_string(void)
   */
 static usbd_desc_t *get_device_interface_string(void)
 {
-  vp_desc.length = usbd_unicode_convert((uint8_t *)USBD_AUDIO_DESC_INTERFACE_STRING, g_usbd_desc_buffer);
-  vp_desc.descriptor = g_usbd_desc_buffer;
-  return &vp_desc;
+    return get_device_string(USB_INTERFACE_STRING);
 }
 
 /**
@@ -641,19 +566,22 @@ static usbd_desc_t *get_device_interface_string(void)
   */
 static usbd_desc_t *get_device_config_string(void)
 {
-  vp_desc.length = usbd_unicode_convert((uint8_t *)USBD_AUDIO_DESC_CONFIGURATION_STRING, g_usbd_desc_buffer);
-  vp_desc.descriptor = g_usbd_desc_buffer;
-  return &vp_desc;
+    return get_device_string(USB_CONFIG_STRING);
 }
 
 /**
-  * @}
+  * @brief device descriptor handler structure
   */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
+usbd_desc_handler audio_desc_handler =
+{
+  get_device_descriptor,
+  get_device_qualifier,
+  get_device_configuration,
+  get_device_other_speed,
+  get_device_lang_id,
+  get_device_manufacturer_string,
+  get_device_product_string,
+  get_device_serial_string,
+  get_device_interface_string,
+  get_device_config_string,
+};

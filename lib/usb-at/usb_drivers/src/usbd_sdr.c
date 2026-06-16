@@ -103,8 +103,11 @@ static usb_sts_type usbd_get_descriptor(usbd_core_type *udev)
           desc = udev->desc_handler->get_device_interface_string();
           break;
         default:
-          udev->class_handler->setup_handler(udev, &udev->setup);
-          return ret;
+            desc = udev->desc_handler->get_device_string(str_desc);
+            if(!desc){
+                udev->class_handler->setup_handler(udev, &udev->setup);
+                return ret;
+            }
       }
       break;
     }
@@ -450,7 +453,7 @@ usb_sts_type usbd_endpoint_request(usbd_core_type *udev)
           }
           ept_info->status = 0x0000;
           usbd_ctrl_send(udev, (uint8_t *)(&ept_info->status), 2);
-          
+
           break;
         case USB_CONN_STATE_CONFIGURED:
         {

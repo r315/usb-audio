@@ -87,6 +87,7 @@ typedef struct
   usbd_desc_t *(*get_device_serial_string)(void);                    /*!< get device serial callback */
   usbd_desc_t *(*get_device_interface_string)(void);                 /*!< get device interface string callback */
   usbd_desc_t *(*get_device_config_string)(void);                    /*!< get device device config callback */
+  usbd_desc_t *(*get_device_string)(uint8_t index);
 }usbd_desc_handler;
 
 /**

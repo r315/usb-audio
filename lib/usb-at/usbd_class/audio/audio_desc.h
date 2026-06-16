@@ -54,11 +54,6 @@ extern "C" {
 #define USBD_AUDIO_SIZ_STRING_LANGID     4
 #define USBD_AUDIO_SIZ_STRING_SERIAL     0x1A
 
-#define USBD_AUDIO_DESC_MANUFACTURER_STRING    "Artery"
-#define USBD_AUDIO_DESC_PRODUCT_STRING         "AT32 Audio"
-#define USBD_AUDIO_DESC_CONFIGURATION_STRING   "Audio Config"
-#define USBD_AUDIO_DESC_INTERFACE_STRING       "Audio Interface"
-
 /**
   * @brief audio interface subclass codes
   */
@@ -209,10 +204,6 @@ extern "C" {
                                           + (9 * AUDIO_SUPPORT_FEEDBACK) \
                                           )
 #define SAMPLE_FREQ(frq)                 (uint8_t)(frq), (uint8_t)((frq >> 8)), (uint8_t)((frq >> 16))
-
-#define         MCU_ID1                   (0x1FFFF7E8)
-#define         MCU_ID2                   (0x1FFFF7EC)
-#define         MCU_ID3                   (0x1FFFF7F0)
 
 extern usbd_desc_handler audio_desc_handler;
 
