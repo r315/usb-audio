@@ -585,13 +585,12 @@ int main(void)
 
   while(1)
   {
-    audio_loop();
-
     #if ENABLE_CLI
     if(CLI_ReadLine()){
         CLI_HandleLine();
     }
     #endif
+    delay_ms(10);
   }
 }
 /**

@@ -307,6 +307,7 @@ void audio_enqueue_data(uint8_t *buffer, uint32_t len)
 {
     audio_stream_t *stream = &audio_driver.spk;
     uint16_t nsamples = len >> 1;
+
 #if AUDIO_MODE == AUDIO_MODE_SYNC
     switch (stream->stage)
     {
@@ -327,8 +328,6 @@ void audio_enqueue_data(uint8_t *buffer, uint32_t len)
             last_state = STREAM_FILL_SECOND;
             break;
     }
-
-
 #else
     switch (stream->stage)
     {
@@ -370,6 +369,7 @@ void audio_enqueue_data(uint8_t *buffer, uint32_t len)
  {
     audio_stream_t *stream = &audio_driver.mic;
     uint16_t nsamples = stream->nsamples;
+
 #if AUDIO_MODE == AUDIO_MODE_SYNC
     switch (stream->stage)
     {
@@ -511,25 +511,15 @@ audio_status_t audio_deinit(void)
 }
 
 /**
-  * @brief  audio codec loop
-  * @param  none
-  * @retval none
-  */
-audio_status_t audio_loop(void)
-{
-    delay_ms(10);
-    return AUDIO_OK;
-}
-
-/**
- * @brief  This dma handler is called when dma has reach half transfer or
- * ended the transfer from memory to I2S peripheral.
+ * @brief  Handles audio dma transmit end of transfer.
+ *
  * @param  none
  * @retval none
  */
 void DMA1_Channel3_IRQHandler(void)
 {
     audio_stream_t *stream = &audio_driver.spk;
+
 #if AUDIO_MODE == AUDIO_MODE_SYNC
     if(stream->stage == STREAM_PAUSED){
         DMA1->clr = DMA1_HDT3_FLAG | DMA1_FDT3_FLAG;

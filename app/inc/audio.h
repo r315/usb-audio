@@ -141,7 +141,6 @@ typedef enum audio_status_e{
   */
 audio_status_t audio_init(const audio_codec_t *codec);
 audio_status_t audio_deinit(void);
-audio_status_t audio_loop(void);
 audio_status_t audio_change_mode(uint32_t mode);
 void audio_cfg_mclk(uint32_t freq, uint32_t enable);
 void audio_set_freq(uint32_t freq);
