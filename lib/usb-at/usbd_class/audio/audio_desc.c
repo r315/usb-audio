@@ -580,4 +580,5 @@ usbd_desc_handler audio_desc_handler =
   get_device_serial_string,
   get_device_interface_string,
   get_device_config_string,
+  get_device_string
 };

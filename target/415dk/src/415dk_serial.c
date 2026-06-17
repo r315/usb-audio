@@ -36,9 +36,9 @@ void serial_init(void){
     gpio_init_type gpio_init_struct;
 
     crm_periph_clock_enable(CRM_USART1_PERIPH_CLOCK, TRUE);
-    crm_periph_reset(CRM_USART1_PERIPH_CLOCK, FALSE);
+    crm_periph_reset(CRM_USART1_PERIPH_RESET, FALSE);
     crm_periph_clock_enable(CRM_GPIOA_PERIPH_CLOCK, TRUE);
-    crm_periph_reset(CRM_USART1_PERIPH_CLOCK, TRUE);
+    crm_periph_reset(CRM_USART1_PERIPH_RESET, TRUE);
 
     crm_clocks_freq_get(&clocks);
 
@@ -208,31 +208,37 @@ caddr_t _sbrk(int incr)
 
 int _read(int file, char *ptr, int len)
 {
+    (void)file; (void)ptr; (void)len;
     return len;
 }
 
 int _write(int file, char *ptr, int len)
 {
+    (void)file; (void)ptr; (void)len;
     return serial_write((const char*)ptr, len);
 }
 
 int _close(int file)
 {
+    (void)file;
     return -1;
 }
 
 int _fstat(int file, struct stat *st)
 {
+    (void)file;
 	st->st_mode = S_IFCHR;
 	return 0;
 }
 
 int _lseek(int file, int ptr, int dir)
 {
+    (void)file; (void)ptr; (void)dir;
 	return 0;
 }
 
 int _isatty(int file)
 {
+    (void)file;
 	return 1;
 }

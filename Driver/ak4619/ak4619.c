@@ -160,6 +160,7 @@ uint8_t ak4619_Config (uint8_t DevID, uint8_t Cfg)
 
 void ak4619_SampleRate (uint32_t Rate)
 {
+    (void)Rate;
     // Set by MCLK
 }
 

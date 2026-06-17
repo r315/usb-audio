@@ -435,7 +435,7 @@ void bus_i2s_mclk(uint32_t freq, uint8_t type, uint32_t enable)
             gpio_init_struct.gpio_pins = GPIO_PINS_3;
             gpio_init_struct.gpio_mode = GPIO_MODE_INPUT;
             gpio_init(GPIOA, &gpio_init_struct);
-            crm_periph_reset(CRM_TMR2_PERIPH_CLOCK, TRUE);
+            crm_periph_reset(CRM_TMR2_PERIPH_RESET, TRUE);
         }else{
             gpio_init_struct.gpio_pins = I2S1_MCK_PIN;
             gpio_init_struct.gpio_mode = GPIO_MODE_INPUT;

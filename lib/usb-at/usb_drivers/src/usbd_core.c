@@ -138,6 +138,7 @@ void usbd_core_out_handler(usbd_core_type *udev, uint8_t ept_addr)
   */
 void usbd_core_setup_handler(usbd_core_type *udev, uint8_t ept_num)
 {
+  UNUSED(ept_num);
   /* setup parse */
   usbd_setup_request_parse(&udev->setup, udev->setup_buffer);
 
@@ -751,6 +752,8 @@ usb_sts_type usbd_core_init(usbd_core_type *udev,
   otg_eptin_type *ept_in;
   otg_eptout_type *ept_out;
   uint32_t i_index;
+
+  (void)core_id;
 
   udev->usb_reg = usb_reg;
   usbx = usb_reg;

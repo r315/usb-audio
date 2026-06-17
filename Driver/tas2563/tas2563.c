@@ -179,6 +179,8 @@ void tas2563_Mute (uint8_t DevID, uint8_t Mute)
 {
    uint8_t RegVal;
 
+   (void)DevID;
+
    // Mask MODE bits
 
    tas2563_ReadReg(TAS2563_PWR_CTL_REG, &RegVal);
@@ -194,6 +196,8 @@ void tas2563_Mute (uint8_t DevID, uint8_t Mute)
 void tas2563_Volume (uint8_t DevID, uint8_t Volume)
 {
    uint8_t RegVal;
+
+   (void)DevID;
 
    if (Volume > 100)
    {

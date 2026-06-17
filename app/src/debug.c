@@ -9,8 +9,8 @@
 
 uint32_t strformater(char *dst, const char* fmt, va_list arp);
 
-static int dummy_write(const char *str, int len){ return len; }
-static int dummy_read(char *str, int len){ return 0; }
+static int dummy_write(const char *str, int len){ (void)str; return len; }
+static int dummy_read(char *str, int len){ (void)str;(void)len;return 0; }
 static int dummy_available(void) { return 0; }
 
 static const stdinout_t dummy_out = {
@@ -32,7 +32,7 @@ void dbg_init(const stdinout_t *stdo)
 
 void dbg_HexDumpLine(const uint8_t *mem, uint32_t len, uint8_t print_ascii)
 {
-    int i;
+    uint32_t i;
 
     for(i=0; i<len; i++){
 		dbg_printf("%02X ",*(mem + i));
@@ -56,7 +56,7 @@ void dbg_HexDumpLine(const uint8_t *mem, uint32_t len, uint8_t print_ascii)
 void dbg_HexDump(const uint8_t *mem, uint32_t len)
 {
     //dbg_printf("\nDump address: 0x%X \n\n",(uint32_t)&mem[0]);
-	for(int i=0; i<len ;i+=LINE_NCOLS){
+	for(uint32_t i=0; i<len ;i+=LINE_NCOLS){
 		dbg_printf("%02X: ",i);
 		dbg_HexDumpLine(mem, LINE_NCOLS, 1);
 		mem += LINE_NCOLS;

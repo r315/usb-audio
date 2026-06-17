@@ -99,7 +99,7 @@
   */
 __WEAK void i2c_lowlevel_init(i2c_handle_type* hi2c)
 {
-
+    UNUSED(hi2c);
 }
 
 /**

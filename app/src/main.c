@@ -61,15 +61,15 @@ static const audio_codec_t *codec;
 ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
 #endif
 
-static uint8_t dummy_Init (uint8_t addr){ return 0; }// fail init to allow scan for other
-static uint8_t dummy_Config (uint8_t DevID, uint8_t Mode) { return (DevID == CDC_GET_MCLK) ? CDC_MCLK_256FS : 0;}
-static void    dummy_SampleRate (uint32_t Rate){}
+static uint8_t dummy_Init (uint8_t addr){ (void)addr; return 0; }// fail init to allow scan for other
+static uint8_t dummy_Config (uint8_t DevID, uint8_t Mode) {(void)Mode; return (DevID == CDC_GET_MCLK) ? CDC_MCLK_256FS : 0;}
+static void    dummy_SampleRate (uint32_t Rate){(void)Rate;}
 static void    dummy_Enable (void) {}
 static void    dummy_Disable (void) {}
-static void    dummy_Volume (uint8_t DevID, uint8_t Volume){}
-static void    dummy_Mute (uint8_t DevID, uint8_t Mode) {}
-static uint8_t dummy_writeReg (uint16_t reg, uint8_t val) {return 1;}
-static uint8_t dummy_readReg (uint16_t reg, uint8_t *val) {return 1;}
+static void    dummy_Volume (uint8_t DevID, uint8_t Volume){(void)DevID;(void)Volume;}
+static void    dummy_Mute (uint8_t DevID, uint8_t Mode) {(void)DevID;(void)Mode;}
+static uint8_t dummy_writeReg (uint16_t reg, uint8_t val) {(void)reg;(void)val;return 1;}
+static uint8_t dummy_readReg (uint16_t reg, uint8_t *val) {(void)reg;(void)val;return 1;}
 
 static const audio_codec_t dummy_codec = {
     dummy_Init,
@@ -252,6 +252,8 @@ static int hidCmd(int argc, char **argv)
 
 static int audioCmd(int argc, char **argv)
 {
+    (void)argc;
+
     if(!strcmp("mclk", argv[0])){
         uint32_t val;
         if(CLI_Ha2i(argv[1], &val)){
@@ -275,12 +277,14 @@ static int audioCmd(int argc, char **argv)
 
 static int resetCmd(int argc, char **argv)
 {
+    (void)argc;(void)argv;
     SW_Reset();
     return CLI_OK;
 }
 
 static int clearCmd(int argc, char **argv)
 {
+    (void)argc;(void)argv;
     CLI_Clear();
     return CLI_OK;
 }
@@ -318,7 +322,7 @@ static int trimCmd(int argc, char **argv)
 
 static void dump_buf(uint8_t *buf, uint32_t count)
 {
-    for(int i = 0; i < count; i ++){
+    for(unsigned int i = 0; i < count; i ++){
         if( (i & 15) == 0)
             printf("\n%02X: ", i & 0xF0);
         printf("%02X ", buf[i]);
@@ -526,7 +530,7 @@ static int muxCmd(int argc, char **argv)
 }
 #endif
 cli_command_t cli_cmds [] = {
-    {"help", ((int (*)(int, char**))CLI_Commands)},
+    {"help", CLI_PrintCommands},
     {"cdc", codecCmd},
     {"reset", resetCmd},
     {"clear", clearCmd},
