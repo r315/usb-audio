@@ -90,9 +90,6 @@ enum cdc_cfg_val_e {
 
 typedef struct audio_stream_s
 {
-#ifndef AUDIO_SYNCHRONOUS_MODE
-    audio_queue_t queue;
-#endif
     uint16_t nsamples;      // number of samples per millisecond times number of channels
     uint16_t *dma_buffer;
     uint16_t threshold;
@@ -146,8 +143,8 @@ void audio_cfg_mclk(uint32_t freq, uint32_t enable);
 void audio_set_freq(uint32_t freq);
 void audio_set_codec(const audio_codec_t *codec);
 
-void audio_enqueue_data(uint8_t *data, uint32_t len);
-uint32_t audio_dequeue_data(uint8_t *buffer);
+void audio_enqueue_data(const uint16_t *data, uint32_t len);
+uint32_t audio_dequeue_data(uint16_t *buffer);
 uint8_t audio_spk_feedback(uint8_t *feedback);
 void audio_spk_alt_setting(uint32_t alt_seting);
 void audio_mic_alt_setting(uint32_t alt_seting);

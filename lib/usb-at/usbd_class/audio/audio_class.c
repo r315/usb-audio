@@ -226,7 +226,7 @@ static void audio_set_interface (void *udev, usb_setup_type *setup)
       audio_spk_alt_setting (paudio->spk.alt_setting);
       if (paudio->spk.alt_setting)
       {
-         usbd_ept_recv (pudev, USBD_AUDIO_SPK_OUT_EPT, paudio->spk.data,
+         usbd_ept_recv (pudev, USBD_AUDIO_SPK_OUT_EPT, (uint8_t*)paudio->spk.data,
                         AUDIO_SPK_OUT_MAXPACKET_SIZE);
       }
    }
@@ -237,12 +237,11 @@ static void audio_set_interface (void *udev, usb_setup_type *setup)
       if (paudio->mic.alt_setting)
       {
          len = audio_dequeue_data (paudio->mic.data);
-         usbd_ept_send (pudev, USBD_AUDIO_MIC_IN_EPT, paudio->mic.data,
+         usbd_ept_send (pudev, USBD_AUDIO_MIC_IN_EPT, (uint8_t*)paudio->mic.data,
                         len);
       }
    }
 }
-
 
 /**
  * @brief  usb audio get interface
@@ -295,7 +294,7 @@ static usb_sts_type class_init_handler (void *udev)
 
 #if AUDIO_SUPPORT_SPK
    /* start receive speaker out data */
-   usbd_ept_recv (pudev, USBD_AUDIO_SPK_OUT_EPT, paudio->spk.data,
+   usbd_ept_recv (pudev, USBD_AUDIO_SPK_OUT_EPT, (uint8_t*)paudio->spk.data,
                   AUDIO_SPK_OUT_MAXPACKET_SIZE);
 #endif
    return status;
@@ -389,6 +388,7 @@ static usb_sts_type class_setup_handler (void *udev, usb_setup_type *setup)
                   usbd_ctrl_unsupport (pudev);
                }
                break;
+
             case USB_STD_REQ_GET_INTERFACE:
                audio_get_interface (udev, setup);
                break;
@@ -401,13 +401,13 @@ static usb_sts_type class_setup_handler (void *udev, usb_setup_type *setup)
                break;
             case USB_STD_REQ_SET_FEATURE:
                break;
+
             default:
                usbd_ctrl_unsupport (pudev);
                break;
          }
          break;
-
-      default:
+         default:
          usbd_ctrl_unsupport (pudev);
          break;
    }
@@ -520,12 +520,14 @@ static usb_sts_type class_in_handler (void *udev, uint8_t ept_num)
    {
       len = audio_dequeue_data (paudio->mic.data);
       usbd_flush_tx_fifo (udev, USBD_AUDIO_MIC_IN_EPT);
-      usbd_ept_send (udev, USBD_AUDIO_MIC_IN_EPT, paudio->mic.data, len);
+      usbd_ept_send (udev, USBD_AUDIO_MIC_IN_EPT, (uint8_t*)paudio->mic.data, len);
    }
 
    else if ((ept_num & 0x7F) == (USBD_AUDIO_FEEDBACK_EPT & 0x7F))
    {
-      paudio->audio_feedback_state = 0;
+        paudio->audio_feedback_state = 0;
+        //len = audio_codec_spk_feedback(audio_struct.audio_feed_back);
+        //usbd_ept_send(pudev, USBD_AUDIO_FEEDBACK_EPT, audio_struct.audio_feed_back, len);
    }
 
    return status;
@@ -550,10 +552,10 @@ static usb_sts_type class_out_handler (void *udev, uint8_t ept_num)
    if ((ept_num & 0x7F) == (USBD_AUDIO_SPK_OUT_EPT & 0x7F))
    {
       /* speaker data*/
-      audio_enqueue_data (paudio->spk.data, len);
+      audio_enqueue_data (paudio->spk.data, len >> 1);
       paudio->audio_spk_out_stage = 1;
       /* get next data */
-      usbd_ept_recv (pudev, USBD_AUDIO_SPK_OUT_EPT, paudio->spk.data,
+      usbd_ept_recv (pudev, USBD_AUDIO_SPK_OUT_EPT, (uint8_t*)paudio->spk.data,
                      AUDIO_SPK_OUT_MAXPACKET_SIZE);
    }
 

@@ -60,13 +60,16 @@ typedef enum stream_stage_e{
 }stream_stage_e;
 
 static audio_driver_t audio_driver;
+#if AUDIO_SUPPORT_SPK
+static audio_queue_t spk_queue;
+static uint16_t spk_queue_buffer[SPK_BUFFER_SIZE];
 static uint16_t spk_dma_buffer[DMA_BUFFER_SIZE];
-static uint16_t mic_dma_buffer[DMA_BUFFER_SIZE];
-static uint16_t spk_buffer[SPK_BUFFER_SIZE];        // spk queue buffer for usb
-static uint16_t mic_buffer[MIC_BUFFER_SIZE];        // mic queue buffer for usb
+#endif
 
-#if AUDIO_MODE != AUDIO_MODE_ASYNC
-static stream_stage_e last_state;
+#if AUDIO_SUPPORT_MIC
+static audio_queue_t mic_queue;
+static uint16_t mic_queue_buffer[MIC_BUFFER_SIZE];
+static uint16_t mic_dma_buffer[DMA_BUFFER_SIZE];
 #endif
 
 void wave_triangle(uint16_t *dst, uint16_t count, uint8_t nch)
@@ -299,34 +302,17 @@ void audio_set_codec(const audio_codec_t *codec)
   * @brief  Callback from audio_class with
   * data to be sent to I2S bus
   *
-  * @param  data: Input buffer
-  * @param  len: Input data length
+  * @param  data: Samples to be queued
+  * @param  len: Number of samples
   * @retval none
   */
-void audio_enqueue_data(uint8_t *buffer, uint32_t len)
+void audio_enqueue_data(const uint16_t *data, uint32_t len)
 {
     audio_stream_t *stream = &audio_driver.spk;
-    uint16_t nsamples = len >> 1;
 
 #if AUDIO_MODE == AUDIO_MODE_SYNC
-    switch (stream->stage)
-    {
-        case STREAM_PAUSED:
-            break;
-        case STREAM_FILL_FIRST:
-            memcpy16(stream->dma_buffer, (uint16_t*)buffer, nsamples);
-            if(last_state != STREAM_FILL_SECOND){
-                DBG_AUD_WRN("Sync lost");
-            }
-            last_state = STREAM_FILL_FIRST;
-            break;
-        case STREAM_FILL_SECOND:
-            memcpy16(stream->dma_buffer + nsamples, (uint16_t*)buffer, nsamples);
-            if(last_state != STREAM_FILL_FIRST){
-                DBG_AUD_WRN("Sync lost");
-            }
-            last_state = STREAM_FILL_SECOND;
-            break;
+    if (stream->stage != STREAM_PAUSED){
+        audio_queue_enqueue(&spk_queue, data, len);
     }
 #else
     switch (stream->stage)
@@ -365,7 +351,7 @@ void audio_enqueue_data(uint8_t *buffer, uint32_t len)
   * @param  buffer: Output buffer
   * @retval Number of bytes placed on buffer
   */
- uint32_t audio_dequeue_data(uint8_t *buffer)
+ uint32_t audio_dequeue_data(uint16_t *buffer)
  {
     audio_stream_t *stream = &audio_driver.mic;
     uint16_t nsamples = stream->nsamples;
@@ -436,29 +422,24 @@ audio_status_t audio_init(const audio_codec_t *codec)
 
     audio_driver.codec = codec;
 
-    memset16(spk_buffer, 0, SPK_BUFFER_SIZE);
-    memset16(mic_buffer, 0, MIC_BUFFER_SIZE);
+#if AUDIO_SUPPORT_SPK
+    memset16(spk_queue_buffer, 0, SPK_BUFFER_SIZE);
     memset16(spk_dma_buffer, 0, DMA_BUFFER_SIZE);
-    memset16(mic_dma_buffer, 0, DMA_BUFFER_SIZE);
-
     stream_cfg_nsamples(&audio_driver.spk, audio_driver.freq);
-    stream_cfg_nsamples(&audio_driver.mic, audio_driver.freq);
-
-#if AUDIO_MODE == AUDIO_MODE_ASYNC
-    //assert(audio_driver.spk.nsamples <= SPK_BUFFER_SIZE);
-    //assert(audio_driver.mic.nsamples <= MIC_BUFFER_SIZE);
-
-    audio_queue_init(&audio_driver.spk.queue, spk_buffer, audio_driver.spk.nsamples, SPK_BUFFER_SIZE);
-    audio_queue_init(&audio_driver.mic.queue, mic_buffer, audio_driver.mic.nsamples, MIC_BUFFER_SIZE);
-#endif
-    audio_driver.mic.dma_buffer = mic_dma_buffer;
+    audio_queue_init(&spk_queue, spk_queue_buffer, audio_driver.spk.nsamples, SPK_BUFFER_SIZE);
     audio_driver.spk.dma_buffer = spk_dma_buffer;
-
     audio_driver.spk.nchannels = AUDIO_SPK_CHANEL_NUM;
-    audio_driver.mic.nchannels = AUDIO_MIC_CHANEL_NUM;
-
     audio_driver.spk.stage = STREAM_INIT;
+#endif
+#if AUDIO_SUPPORT_MIC
+    memset16(mic_queue_buffer, 0, MIC_BUFFER_SIZE);
+    memset16(mic_dma_buffer, 0, DMA_BUFFER_SIZE);
+    stream_cfg_nsamples(&audio_driver.mic, audio_driver.freq);
+    audio_queue_init(&mic_queue, mic_buffer, audio_driver.mic.nsamples, MIC_BUFFER_SIZE);
+    audio_driver.mic.dma_buffer = mic_dma_buffer;
+    audio_driver.mic.nchannels = AUDIO_MIC_CHANEL_NUM;
     audio_driver.mic.stage = STREAM_INIT;
+#endif
 
     i2s_cfg.freq = audio_driver.freq;
     i2s_cfg.bitw = audio_driver.bitw;
@@ -522,17 +503,20 @@ void DMA1_Channel3_IRQHandler(void)
 
 #if AUDIO_MODE == AUDIO_MODE_SYNC
     if(stream->stage == STREAM_PAUSED){
-        DMA1->clr = DMA1_HDT3_FLAG | DMA1_FDT3_FLAG;
+        audio_queue_flush(&spk_queue);
+        dma_flag_clear(DMA1_HDT3_FLAG | DMA1_FDT3_FLAG);
     }else{
-        if(DMA1->sts & DMA1_HDT3_FLAG){
-            stream->stage = STREAM_FILL_FIRST;
-            DMA1->clr = DMA1_HDT3_FLAG;
-        }else if(DMA1->sts & DMA1_FDT3_FLAG){
-            DMA1->clr = DMA1_FDT3_FLAG;
-            stream->stage = STREAM_FILL_SECOND;
-        }else{
-            // it should not get here
-            DMA1->clr = DMA1->sts;
+        uint16_t len = audio_driver.spk.nsamples;
+
+        if(dma_flag_get(DMA1_HDT3_FLAG) == SET)
+        {
+            audio_queue_dequeue(&spk_queue, audio_driver.spk.dma_buffer, len);
+            dma_flag_clear(DMA1_HDT3_FLAG);
+        }
+        else if(dma_flag_get(DMA1_FDT3_FLAG) == SET)
+        {
+            audio_queue_dequeue(&spk_queue, audio_driver.spk.dma_buffer + len, len);
+            dma_flag_clear(DMA1_FDT3_FLAG);
         }
     }
 #else
