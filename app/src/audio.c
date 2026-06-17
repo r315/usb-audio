@@ -307,6 +307,7 @@ void audio_set_codec(const audio_codec_t *codec)
   * @retval none
   */
 void audio_enqueue_data(const uint16_t *data, uint32_t len)
+#if AUDIO_SUPPORT_SPK
 {
     audio_stream_t *stream = &audio_driver.spk;
 
@@ -342,6 +343,10 @@ void audio_enqueue_data(const uint16_t *data, uint32_t len)
     if(audio_queue_enqueue(&stream->queue, (const uint16_t*)buffer, nsamples) != nsamples){
         DBG_AUD_WRN("Out stream buffer full");
     }
+#endif
+#else
+    (void)data;
+    (void)len;
 #endif
 }
 
@@ -435,7 +440,7 @@ audio_status_t audio_init(const audio_codec_t *codec)
     memset16(mic_queue_buffer, 0, MIC_BUFFER_SIZE);
     memset16(mic_dma_buffer, 0, DMA_BUFFER_SIZE);
     stream_cfg_nsamples(&audio_driver.mic, audio_driver.freq);
-    audio_queue_init(&mic_queue, mic_buffer, audio_driver.mic.nsamples, MIC_BUFFER_SIZE);
+    audio_queue_init(&mic_queue, mic_queue_buffer, audio_driver.mic.nsamples, MIC_BUFFER_SIZE);
     audio_driver.mic.dma_buffer = mic_dma_buffer;
     audio_driver.mic.nchannels = AUDIO_MIC_CHANEL_NUM;
     audio_driver.mic.stage = STREAM_INIT;
@@ -497,6 +502,7 @@ audio_status_t audio_deinit(void)
  * @param  none
  * @retval none
  */
+#if AUDIO_SUPPORT_SPK
 void DMA1_Channel3_IRQHandler(void)
 {
     audio_stream_t *stream = &audio_driver.spk;
@@ -559,12 +565,14 @@ void DMA1_Channel3_IRQHandler(void)
     }
 #endif
 }
+#endif
 
 /**
  * @brief  this function handles dma1 channel4 interrupt.
  * @param  none
  * @retval none
  */
+#if AUDIO_SUPPORT_MIC
 void DMA1_Channel4_IRQHandler(void)
 {
     audio_stream_t *stream = &audio_driver.mic;
@@ -619,3 +627,4 @@ void DMA1_Channel4_IRQHandler(void)
     DMA1->clr = DMA1_GL4_FLAG | DMA1_FDT4_FLAG | DMA1_HDT4_FLAG;
 #endif
 }
+#endif

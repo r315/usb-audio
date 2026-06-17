@@ -217,9 +217,10 @@ static void audio_req_get_res (void *udev, usb_setup_type *setup)
  */
 static void audio_set_interface (void *udev, usb_setup_type *setup)
 {
-   uint32_t len;
    usbd_core_type *pudev  = (usbd_core_type *) udev;
    usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
+
+   #if AUDIO_SUPPORT_SPK
    if (LBYTE (setup->wIndex) == AUDIO_SPK_INTERFACE_NUMBER)
    {
       paudio->spk.alt_setting = setup->wValue;
@@ -230,17 +231,21 @@ static void audio_set_interface (void *udev, usb_setup_type *setup)
                         AUDIO_SPK_OUT_MAXPACKET_SIZE);
       }
    }
-   else if (LBYTE (setup->wIndex) == AUDIO_MIC_INTERFACE_NUMBER)
+   #endif
+
+   #if AUDIO_SUPPORT_MIC
+   if (LBYTE (setup->wIndex) == AUDIO_MIC_INTERFACE_NUMBER)
    {
       paudio->mic.alt_setting = setup->wValue;
       audio_mic_alt_setting (paudio->mic.alt_setting);
       if (paudio->mic.alt_setting)
       {
-         len = audio_dequeue_data (paudio->mic.data);
+         uint32_t len = audio_dequeue_data (paudio->mic.data);
          usbd_ept_send (pudev, USBD_AUDIO_MIC_IN_EPT, (uint8_t*)paudio->mic.data,
                         len);
       }
    }
+   #endif
 }
 
 /**
@@ -253,14 +258,18 @@ static void audio_get_interface (void *udev, usb_setup_type *setup)
 {
    usbd_core_type *pudev  = (usbd_core_type *) udev;
    usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
-   if (LBYTE (setup->wIndex) == AUDIO_SPK_INTERFACE_NUMBER)
-   {
+
+   #if AUDIO_SUPPORT_SPK
+   if (LBYTE (setup->wIndex) == AUDIO_SPK_INTERFACE_NUMBER){
       usbd_ctrl_send (pudev, (uint8_t *) &paudio->spk.alt_setting, 1);
    }
-   else if (LBYTE (setup->wIndex) == AUDIO_MIC_INTERFACE_NUMBER)
-   {
+   #endif
+
+   #if AUDIO_SUPPORT_MIC
+   if (LBYTE (setup->wIndex) == AUDIO_MIC_INTERFACE_NUMBER){
       usbd_ctrl_send (pudev, (uint8_t *) &paudio->mic.alt_setting, 1);
    }
+   #endif
 }
 
 /**

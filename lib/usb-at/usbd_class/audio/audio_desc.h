@@ -80,6 +80,7 @@ extern "C" {
 /**
   * @brief audio class-specific ac interface descriptor subtypes
   */
+#define AUDIO_AC_IF_HEADER_LEN           (0x08 + AUDIO_INTERFACE_NUM)
 #define AUDIO_AC_DESCRIPTOR_UNDEFINED    0x00
 #define AUDIO_AC_HEADER                  0x01
 #define AUDIO_AC_INPUT_TERMINAL          0x02
@@ -144,16 +145,16 @@ extern "C" {
   * @brief audio interface config
   */
 #define AUDIO_INTERFACE_NUM              (AUDIO_SUPPORT_SPK + AUDIO_SUPPORT_MIC)
-#define AUDIO_INTERFACE_LEN              ((0x08 + AUDIO_INTERFACE_NUM) + AUDIO_INTERFACE_NUM * 0x22)
-#define AUDIO_MIC_INTERFACE              0x01
-#define AUDIO_SPK_INTERFACE              0x02
 
 /**
-  * @brief audio interface descriptor size define
+  * @brief Class Specific descriptors length
   */
-#define AUDIO_INPUT_TERMINAL_SIZE        0x0C
-#define AUDIO_OUTPUT_TERMINAL_SIZE       0x09
-#define AUDIO_FEATURE_UNIT_SIZE          0x0D
+#define AUDIO_CS_AC_INPUT_TERMINAL_LEN   0x0C
+#define AUDIO_CS_AC_OUTPUT_TERMINAL_LEN  0x09
+#define AUDIO_CS_AC_FEATURE_UNIT_LEN     0x0D
+#define AUDIO_CS_AS_IF_LEN               0x07
+#define AUDIO_CS_AS_AD_EP_LEN            0x09
+#define AUDIO_CS_AC_IF_LEN              ((0x08 + AUDIO_INTERFACE_NUM) + AUDIO_INTERFACE_NUM * 0x22)
 
 /**
   * @brief audio terminal id define
@@ -166,13 +167,18 @@ extern "C" {
 #define AUDIO_SPK_OUTPUT_TERMINAL_ID     0x06
 
 /**
-  * @brief audio interface number
+  * @brief audio interface numbers
   */
+#if (AUDIO_SUPPORT_MIC == 1) && (AUDIO_SUPPORT_SPK == 1)
 #define AUDIO_MIC_INTERFACE_NUMBER       0x01
-#if (AUDIO_SUPPORT_MIC == 1)
 #define AUDIO_SPK_INTERFACE_NUMBER       0x02
-#else
+#define USBD_CONFIGURATION_DESC_LEN       206
+#elif (AUDIO_SUPPORT_SPK == 1)
 #define AUDIO_SPK_INTERFACE_NUMBER       0x01
+#define USBD_CONFIGURATION_DESC_LEN       116
+#else
+#define AUDIO_MIC_INTERFACE_NUMBER       0x01
+#define USBD_CONFIGURATION_DESC_LEN       116
 #endif
 
 /**
@@ -197,12 +203,6 @@ extern "C" {
 
 #define AUDIO_BINTERVAL_TIME              0x01  // 1ms
 
-
-#define USBD_AUDIO_CONFIG_DESC_SIZE       ( 0x12 + AUDIO_INTERFACE_LEN + \
-                                          + (0x31 + AUDIO_SPK_FREQ_SIZE * 3) \
-                                          + (0x31 + AUDIO_MIC_FREQ_SIZE * 3) \
-                                          + (9 * AUDIO_SUPPORT_FEEDBACK) \
-                                          )
 #define SAMPLE_FREQ(frq)                 (uint8_t)(frq), (uint8_t)((frq >> 8)), (uint8_t)((frq >> 16))
 
 extern usbd_desc_handler audio_desc_handler;
