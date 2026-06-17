@@ -36,9 +36,9 @@ void serial_init(void){
     gpio_init_type gpio_init_struct;
 
     crm_periph_clock_enable(CRM_USART1_PERIPH_CLOCK, TRUE);
-    crm_periph_reset(CRM_USART1_PERIPH_RESET, FALSE);
-    crm_periph_clock_enable(CRM_GPIOA_PERIPH_CLOCK, TRUE);
     crm_periph_reset(CRM_USART1_PERIPH_RESET, TRUE);
+    crm_periph_clock_enable(CRM_GPIOA_PERIPH_CLOCK, TRUE);
+    crm_periph_reset(CRM_USART1_PERIPH_RESET, FALSE);
 
     crm_clocks_freq_get(&clocks);
 

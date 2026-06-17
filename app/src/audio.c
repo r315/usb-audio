@@ -502,9 +502,9 @@ audio_status_t audio_deinit(void)
  * @param  none
  * @retval none
  */
-#if AUDIO_SUPPORT_SPK
 void DMA1_Channel3_IRQHandler(void)
 {
+#if AUDIO_SUPPORT_SPK
     audio_stream_t *stream = &audio_driver.spk;
 
 #if AUDIO_MODE == AUDIO_MODE_SYNC
@@ -564,17 +564,19 @@ void DMA1_Channel3_IRQHandler(void)
             break;
     }
 #endif
+#else
+    dma_flag_clear(DMA1_GL3_FLAG | DMA1_HDT3_FLAG | DMA1_FDT3_FLAG);
+#endif /* AUDIO_SUPPORT_SPK */
 }
-#endif
 
 /**
  * @brief  this function handles dma1 channel4 interrupt.
  * @param  none
  * @retval none
  */
-#if AUDIO_SUPPORT_MIC
 void DMA1_Channel4_IRQHandler(void)
 {
+#if AUDIO_SUPPORT_MIC
     audio_stream_t *stream = &audio_driver.mic;
 #if AUDIO_MODE == AUDIO_MODE_SYNC
     if(stream->stage == STREAM_PAUSED){
@@ -626,5 +628,7 @@ void DMA1_Channel4_IRQHandler(void)
 #else
     DMA1->clr = DMA1_GL4_FLAG | DMA1_FDT4_FLAG | DMA1_HDT4_FLAG;
 #endif
+#else
+    dma_flag_clear(DMA1_GL4_FLAG | DMA1_HDT4_FLAG | DMA1_FDT4_FLAG);
+#endif /* AUDIO_SUPPORT_MIC */
 }
-#endif
