@@ -36,18 +36,22 @@ extern "C" {
 #define DBG_PRINT LOG_PRINTF
 #else
 #define DBG_PRINTF(...) \
+    dbg_printf(__VA_ARGS__);
+#define DBG_PRINT(...) \
     do { dbg_printf(__VA_ARGS__); dbg_putchar('\n'); } while(0)
-#define DBG_PRINT dbg_println
+#define DBG_PRINTLN \
+    dbg_println
 #endif
 
-#define DBG_INF(...) DBG_PRINTF(VT100_GREEN "[INFO] " VT100_NORMAL __VA_ARGS__)
-#define DBG_WRN(...) DBG_PRINTF(VT100_YELLOW "[WARN] " VT100_NORMAL __VA_ARGS__)
-#define DBG_ERR(...) DBG_PRINTF(VT100_RED "[ERROR] " VT100_NORMAL __VA_ARGS__)
+#define DBG_INF(...) DBG_PRINT(VT100_GREEN "[INFO] " VT100_NORMAL __VA_ARGS__)
+#define DBG_WRN(...) DBG_PRINT(VT100_YELLOW "[WARN] " VT100_NORMAL __VA_ARGS__)
+#define DBG_ERR(...) DBG_PRINT(VT100_RED "[ERROR] " VT100_NORMAL __VA_ARGS__)
 #define DBG_DUMP_MEM dbg_HexDump
 #define DBG_DUMP_MEM_LINE dbg_HexDumpLine
 #else
 #define DBG_PRINT(...)
 #define DBG_PRINTF(...)
+#define DBG_PRINTLN(...)
 #define DBG_INF(...)
 #define DBG_WRN(...)
 #define DBG_ERR(...)

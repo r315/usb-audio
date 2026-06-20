@@ -51,6 +51,8 @@
 #define MIC_BUFFER_SIZE     BUFFER_MAX_SIZE
 #define SPK_BUFFER_SIZE     BUFFER_MAX_SIZE
 
+#define DEFAULT_SPK_VOL     50
+
 typedef enum stream_stage_e{
     STREAM_INIT = 0,
     STREAM_PAUSED,
@@ -435,6 +437,7 @@ audio_status_t audio_init(const audio_codec_t *codec)
     audio_driver.spk.dma_buffer = spk_dma_buffer;
     audio_driver.spk.nchannels = AUDIO_SPK_CHANEL_NUM;
     audio_driver.spk.stage = STREAM_INIT;
+    audio_set_spk_volume(DEFAULT_SPK_VOL);
 #endif
 #if AUDIO_SUPPORT_MIC
     memset16(mic_queue_buffer, 0, MIC_BUFFER_SIZE);

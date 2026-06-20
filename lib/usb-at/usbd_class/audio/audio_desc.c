@@ -47,9 +47,9 @@ static uint8_t g_usbd_descriptor[] =
   LBYTE(USBD_AUDIO_PRODUCT_ID),          /* idProduct */
   HBYTE(USBD_AUDIO_PRODUCT_ID),          /* idProduct */
   0x00, 0x01,                            /* bcdDevice */
-  USB_MFC_STRING,                        /* Index of manufacturer string */
-  USB_PRODUCT_STRING,                    /* Index of product string */
-  USB_SERIAL_STRING,                     /* Index of serial number string */
+  USB_MFC_STRING,                        /* iManufacturer */
+  USB_PRODUCT_STRING,                    /* iProduct */
+  USB_SERIAL_STRING,                     /* iSerialNumber */
   0x01                                   /* bNumConfigurations */
 };
 
@@ -65,7 +65,7 @@ static uint8_t g_usbd_configuration[] =
   HBYTE(USBD_CONFIGURATION_DESC_LEN),    /* wTotalLength: bytes returned */
   0x1 + AUDIO_INTERFACE_NUM,             /* bNumInterfaces: n interface */
   0x01,                                  /* bConfigurationValue: configuration value */
-  0x00,                                  /* iConfiguration: */
+  USB_CONFIG_STRING,                     /* iConfiguration: */
   0xC0,                                  /* bmAttributes: self powered */
   0x32,                                  /* MaxPower 100 mA: this current is used for detecting vbus */
  // -------------- Interface(0) Descriptor ---------------
@@ -77,12 +77,12 @@ static uint8_t g_usbd_configuration[] =
   USB_CLASS_CODE_AUDIO,                  /* bInterfaceClass: audio class code */
   AUDIO_SUBCLASS_AUDIOCONTROL,           /* bInterfaceSubClass: audio control */
   AUDIO_PROTOCOL_UNDEFINED,              /* bInterfaceProtocol: undefined */
-  0x00,                                  /* iInterface: index of string descriptor */
+  USB_INTERFACE_STRING,                  /* iInterface: index of string descriptor */
   // -------------- Audio Control Interface Header Descriptor ---------------
   AUDIO_AC_IF_HEADER_LEN,                /* bLength: size of this descriptor, in bytes 8+n */
   AUDIO_CS_INTERFACE,                    /* bDescriptorType: cs interface descriptor type */
   AUDIO_AC_HEADER,                       /* bDescriptorSubtype: Header function Descriptor*/
-  LBYTE(AUDIO_BCD_NUM),                  /* bcdCDC: audio device class specification release number */
+  LBYTE(AUDIO_BCD_NUM),                  /* bcdADC: audio device class specification release number */
   HBYTE(AUDIO_BCD_NUM),
   LBYTE(AUDIO_CS_AC_IF_LEN),             /* wTotalLength: total number of bytes returned for the class-specific audio control interface */
   HBYTE(AUDIO_CS_AC_IF_LEN),
@@ -175,11 +175,11 @@ static uint8_t g_usbd_configuration[] =
   AUDIO_SPK_FEATURE_UNIT_ID,             /* bUnitID: id of this feature unit */
   AUDIO_SPK_INPUT_TERMINAL_ID,           /* bSourceID: from input terminal */
   0x02,                                  /* bControlSize: 2 byte */
-  0x03,                                  /* bmaControls0: mute & volume*/
+  0x03,                                  /* bmaControls0: master mute & volume*/
   0x00,
-  0x00,                                  /* bmaControls1: 0x0000 */
+  0x00,                                  /* bmaControls1: channel 1*/
   0x00,
-  0x00,                                  /* bmaControls2: 0x0000 */
+  0x00,                                  /* bmaControls2: channel 2 */
   0x00,
   0x00,                                  /* iFeature: unused */
 #endif
@@ -363,8 +363,8 @@ static const char *g_usbd_desc_strings [] = {
     "Artery",                        /* MFC */
     "AT32 Audio",                    /* Product */
     "",                              /* Serial */
-    "AT32 Config",                   /* Configuration */
-    "AT32 Interface",                /* Interface */
+    "Sound card",                    /* Configuration */
+    "AT32 Audio control",            /* Interface */
 };
 
 static usbd_desc_t g_usbd_desc;
@@ -454,7 +454,7 @@ static usbd_desc_t * get_device_qualifier(void)
 static usbd_desc_t *get_device_configuration(void)
 {
     return &(usbd_desc_t){
-        sizeof(g_usbd_configuration),
+        (uint16_t)USBD_CONFIGURATION_DESC_LEN,
         g_usbd_configuration
     };
 }
@@ -477,7 +477,7 @@ static usbd_desc_t *get_device_other_speed(void)
 static usbd_desc_t *get_device_lang_id(void)
 {
     return &(usbd_desc_t){
-        USBD_AUDIO_SIZ_STRING_LANGID,
+        (uint16_t)USBD_AUDIO_SIZ_STRING_LANGID,
         g_string_lang_id
     };
 }
