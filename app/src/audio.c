@@ -123,7 +123,7 @@ static void stream_cfg_nsamples(audio_stream_t *stream, uint32_t freq)
   * @param  freq: freq
   * @retval none
   */
-void audio_set_freq(uint32_t freq)
+void audio_driver_set_freq(uint32_t freq)
 {
     i2s_config_t i2s_cfg;
 
@@ -158,7 +158,7 @@ void audio_set_freq(uint32_t freq)
 void audio_set_mic_freq(uint32_t freq)
 {
     DBG_AUD_INF("%s :%lu", __func__, freq);
-    audio_set_freq(freq);
+    audio_driver_set_freq(freq);
 }
 
 /**
@@ -169,7 +169,7 @@ void audio_set_mic_freq(uint32_t freq)
 void audio_set_spk_freq(uint32_t freq)
 {
     DBG_AUD_INF("%s :%lu", __func__, freq);
-    audio_set_freq(freq);
+    audio_driver_set_freq(freq);
 }
 
 /**
@@ -423,6 +423,7 @@ audio_status_t audio_init(const audio_codec_t *codec)
         audio_driver.freq = AUDIO_DEFAULT_FREQ;
         audio_driver.bitw = AUDIO_DEFAULT_BITW;
         audio_driver.mode = AUDIO_DEFAULT_MODE;
+        audio_driver.protocol = AUDIO_DEFAULT_FORMAT;
         audio_driver.spk.nchannels = AUDIO_SPK_CHANEL_NUM;
         audio_driver.mic.nchannels = AUDIO_MIC_CHANEL_NUM;
     }
@@ -452,6 +453,7 @@ audio_status_t audio_init(const audio_codec_t *codec)
     i2s_cfg.freq = audio_driver.freq;
     i2s_cfg.bitw = audio_driver.bitw;
     i2s_cfg.mode = audio_driver.mode;
+    i2s_cfg.protocol = audio_driver.protocol;
     i2s_cfg.dma_buf_tx_size = audio_driver.spk.nsamples;
     i2s_cfg.dma_buf_rx_size = audio_driver.spk.nsamples;
     i2s_cfg.dma_buf_tx = audio_driver.spk.dma_buffer;

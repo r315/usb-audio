@@ -252,8 +252,6 @@ static int hidCmd(int argc, char **argv)
 
 static int audioCmd(int argc, char **argv)
 {
-    (void)argc;
-
     if(!strcmp("mclk", argv[0])){
         uint32_t val;
         if(CLI_Ha2i(argv[1], &val)){
@@ -264,7 +262,7 @@ static int audioCmd(int argc, char **argv)
     if(!strcmp("freq", argv[0])){
         int32_t val;
         if(CLI_Ia2i(argv[1], &val)){
-            audio_set_freq(val);
+            audio_driver_set_freq(val);
         }
     }
 
@@ -272,6 +270,64 @@ static int audioCmd(int argc, char **argv)
         audio_deinit();
         disconnect_usb();
     }
+
+    if(!strcmp("fmt", argv[0])){
+        if(argc == 1){
+            printf("usage: fmt <protocol | format>\n"
+                   "  protocol = philips | msb | lsb | pcm | pcml\n"
+                   "  format = data16 | data16slot32 | data24 | data32\n"
+            );
+            return CLI_OK;
+        }
+
+        while(*argv++){
+            if(!strcmp("philips", *argv)){
+                bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_PHILLIPS);
+                continue;
+            }
+
+            if(!strcmp("msb", *argv)){
+                bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_MSB);
+                continue;
+            }
+
+            if(!strcmp("lsb", *argv)){
+                bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_LSB);
+                continue;
+            }
+
+            if(!strcmp("pcm", *argv)){
+                bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_PCM_SHORT);
+                continue;
+            }
+
+            if(!strcmp("pcml", *argv)){
+                bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_PCM_LONG);
+                continue;
+            }
+
+            if(!strcmp("data16", *argv)){
+                bus_i2s_cfg_format(AUDIO_BITW_16);
+                continue;
+            }
+
+            if(!strcmp("data16slot32", *argv)){
+                bus_i2s_cfg_format(AUDIO_BITW_16_32);
+                continue;
+            }
+
+            if(!strcmp("data24", *argv)){
+                bus_i2s_cfg_format(AUDIO_BITW_24);
+                continue;
+            }
+
+            if(!strcmp("data32", *argv)){
+                bus_i2s_cfg_format(AUDIO_BITW_32);
+                continue;
+            }
+        }
+    }
+
     return CLI_OK;
 }
 
@@ -537,6 +593,7 @@ cli_command_t cli_cmds [] = {
     {"mclk", audioCmd},
     {"freq", audioCmd},
     {"disable", audioCmd},
+    {"fmt", audioCmd},
 #ifdef ENABLE_AMUX
     {"mux", muxCmd},
 #endif

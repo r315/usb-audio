@@ -117,6 +117,7 @@ typedef struct audio_driver_s
     uint32_t freq;
     uint32_t bitw;
     uint8_t  mode;
+    uint8_t protocol;
     //spk part
     audio_stream_t spk;
     //mic part
@@ -138,10 +139,8 @@ typedef enum audio_status_e{
   */
 audio_status_t audio_init(const audio_codec_t *codec);
 audio_status_t audio_deinit(void);
-audio_status_t audio_change_mode(uint32_t mode);
-void audio_cfg_mclk(uint32_t freq, uint32_t enable);
-void audio_set_freq(uint32_t freq);
 void audio_set_codec(const audio_codec_t *codec);
+void audio_driver_set_freq(uint32_t freq);
 
 void audio_enqueue_data(const uint16_t *data, uint32_t len);
 uint32_t audio_dequeue_data(uint16_t *buffer);

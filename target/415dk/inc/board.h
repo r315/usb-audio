@@ -68,7 +68,8 @@ extern "C" {
 typedef struct{
     uint32_t freq;
     uint8_t bitw;
-    uint8_t mode;
+    uint8_t mode;       // Master/slave
+    uint8_t protocol;
     uint16_t dma_buf_tx_size;
     uint16_t *dma_buf_tx;
     uint16_t dma_buf_rx_size;
@@ -99,6 +100,8 @@ void connect_usb(void);
 void bus_i2s_reset(void);
 int bus_i2s_init(i2s_config_t *cfg);
 void bus_i2s_mclk(uint32_t freq, uint8_t type, uint32_t enable);
+void bus_i2s_cfg_format(uint8_t format);
+void bus_i2s_cfg_protocol(uint8_t protocol);
 
 #ifdef __cplusplus
 }
