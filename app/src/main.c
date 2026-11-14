@@ -71,18 +71,31 @@ static const cdc_list_t codecs [] = {
     {"tas2563", &tas2563, TAS2563_I2C_ADDR3}
 };
 
-#if ENABLE_CLI
+const uint16_t tone500[] = {
+0x0000, 0x18f8, 0x30fb, 0x471c, 0x5a81, 0x6a6c, 0x7640, 0x7d89,
+0x7fff, 0x7d89, 0x7640, 0x6a6c, 0x5a81, 0x471c, 0x30fb, 0x18f8,
+0xffff, 0xe707, 0xcf04, 0xb8e3, 0xa57e, 0x9593, 0x89bf, 0x8276,
+0x8001, 0x8276, 0x89bf, 0x9593, 0xa57e, 0xb8e3, 0xcf04, 0xe707,
+};
 
+const uint16_t tone400[] = {
+0x0001, 0x075C, 0x0E7A, 0x1518, 0x1AFF, 0x1FFB, 0x23E0, 0x268A,
+0x27E6, 0x27E7, 0x268B, 0x23DF, 0x1FFC, 0x1AFD, 0x151B, 0x0E77,
+0x0760, 0xFFFD, 0xF8A5, 0xF187, 0xEAE5, 0xE504, 0xE003, 0xDC21,
+0xD977, 0xD817, 0xD81A, 0xD977, 0xDC1D, 0xE00A, 0xE4FC, 0xEAEB,
+0xF185, 0xF8A3
+};
+
+#if ENABLE_CLI
 static const stdinout_t uart_ops = {
     .available = serial_available,
     .read = serial_read,
     .write = serial_write
 };
 
-
 static int codecCmd(int argc, char **argv)
 {
-    if( !strcmp("help", argv[1]) || argc < 2){
+    if(!strcmp("help", argv[1]) || argc < 2){
         printf("\tvol\n");
         printf("\trr <reg>\n");
         printf("\twr <reg> <val>\n");
@@ -230,76 +243,80 @@ static int hidCmd(int argc, char **argv)
 
 static int audioCmd(int argc, char **argv)
 {
-    if(!strcmp("mclk", argv[0])){
+    if(argc < 2){
+      printf("Usage: aud [option]\n");
+      printf(" mclk <0 | 1>, Enable mclk output\n");
+      printf(" sr <freq>, Set sample rate\n");
+      printf(" fmt <protocol> <data>, Config audio format\n");
+      printf("      protocol: philips, msb, lsb, pcm, pcml\n");
+      printf("      data: d16 | d16s32 | d24 | d32\n");
+      return CLI_OK;
+    }
+
+    if(CLI_IS_PARM_1("mclk")){
         uint32_t val;
-        if(CLI_Ha2i(argv[1], &val)){
+        if(CLI_Ha2i(argv[2], &val)){
             bus_i2s_mclk(AUDIO_DEFAULT_MCLK_FREQ, AUDIO_DEFAULT_MCLK_SRC, val & 1);
         }
     }
-
-    if(!strcmp("freq", argv[0])){
+    // TODO: sample rate should be independent of
+    // usb setting
+    if(CLI_IS_PARM_1("sr")){
         int32_t val;
-        if(CLI_Ia2i(argv[1], &val)){
+        if(CLI_Ia2i(argv[2], &val)){
             audio_driver_set_freq(val);
         }
     }
 
-    if(!strcmp("disable", argv[0])){
-        audio_deinit();
-        disconnect_usb();
-    }
+    //if(!strcmp("disable", argv[0])){
+    //    audio_deinit();
+    //    disconnect_usb();
+    //}
 
-    if(!strcmp("fmt", argv[0])){
-        if(argc == 1){
-            printf("usage: fmt <protocol | format>\n"
-                   "  protocol = philips | msb | lsb | pcm | pcml\n"
-                   "  format = data16 | data16slot32 | data24 | data32\n"
-            );
-            return CLI_OK;
-        }
-
+    if(CLI_IS_PARM_1("fmt")){
+        argv += 2; // skip "aud fmt"
         while(*argv++){
-            if(!strcmp("philips", *argv)){
+            if(CLI_IS_PARM_0("philips")){
                 bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_PHILLIPS);
                 continue;
             }
 
-            if(!strcmp("msb", *argv)){
+            if(CLI_IS_PARM_0("msb")){
                 bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_MSB);
                 continue;
             }
 
-            if(!strcmp("lsb", *argv)){
+            if(CLI_IS_PARM_0("lsb")){
                 bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_LSB);
                 continue;
             }
 
-            if(!strcmp("pcm", *argv)){
+            if(CLI_IS_PARM_0("pcm")){
                 bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_PCM_SHORT);
                 continue;
             }
 
-            if(!strcmp("pcml", *argv)){
+            if(CLI_IS_PARM_0("pcml")){
                 bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_PCM_LONG);
                 continue;
             }
 
-            if(!strcmp("data16", *argv)){
+            if(CLI_IS_PARM_0("d16")){
                 bus_i2s_cfg_format(AUDIO_BITW_16);
                 continue;
             }
 
-            if(!strcmp("data16slot32", *argv)){
+            if(CLI_IS_PARM_0("d16s32")){
                 bus_i2s_cfg_format(AUDIO_BITW_16_32);
                 continue;
             }
 
-            if(!strcmp("data24", *argv)){
+            if(CLI_IS_PARM_0("d24")){
                 bus_i2s_cfg_format(AUDIO_BITW_24);
                 continue;
             }
 
-            if(!strcmp("data32", *argv)){
+            if(CLI_IS_PARM_0("d32")){
                 bus_i2s_cfg_format(AUDIO_BITW_32);
                 continue;
             }
@@ -369,21 +386,6 @@ static i2c_status_type readMux(uint8_t reg, uint8_t *buf, uint32_t count)
 
     return I2C_OK;
 }
-
-const uint16_t tone500[] = {
-0x0000, 0x18f8, 0x30fb, 0x471c, 0x5a81, 0x6a6c, 0x7640, 0x7d89,
-0x7fff, 0x7d89, 0x7640, 0x6a6c, 0x5a81, 0x471c, 0x30fb, 0x18f8,
-0xffff, 0xe707, 0xcf04, 0xb8e3, 0xa57e, 0x9593, 0x89bf, 0x8276,
-0x8001, 0x8276, 0x89bf, 0x9593, 0xa57e, 0xb8e3, 0xcf04, 0xe707,
-};
-
-const uint16_t tone400[] = {
-0x0001, 0x075C, 0x0E7A, 0x1518, 0x1AFF, 0x1FFB, 0x23E0, 0x268A,
-0x27E6, 0x27E7, 0x268B, 0x23DF, 0x1FFC, 0x1AFD, 0x151B, 0x0E77,
-0x0760, 0xFFFD, 0xF8A5, 0xF187, 0xEAE5, 0xE504, 0xE003, 0xDC21,
-0xD977, 0xD817, 0xD81A, 0xD977, 0xDC1D, 0xE00A, 0xE4FC, 0xEAEB,
-0xF185, 0xF8A3
-};
 
 static int muxCmd(int argc, char **argv)
 {
@@ -558,10 +560,7 @@ cli_command_t cli_cmds [] = {
     {"cdc", codecCmd},
     {"reset", resetCmd},
     {"clear", clearCmd},
-    {"mclk", audioCmd},
-    {"freq", audioCmd},
-    {"disable", audioCmd},
-    {"fmt", audioCmd},
+    {"aud", audioCmd},
 #ifdef ENABLE_AMUX
     {"mux", muxCmd},
 #endif
