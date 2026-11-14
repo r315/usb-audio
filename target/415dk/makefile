@@ -74,6 +74,7 @@ $(LIB_PATH)/usb-at/usbd_class/audio/audio_class.c \
 APP_SOURCES =\
 $(LIB_PATH)/cli-simple/cli_simple.c \
 $(APP_PATH)/src/main.c \
+$(APP_PATH)/src/util.c \
 $(APP_PATH)/src/audio.c \
 $(APP_PATH)/src/debug.c \
 $(APP_PATH)/src/audio_queue.c \

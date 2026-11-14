@@ -31,6 +31,7 @@
 #include "board.h"
 #include "debug.h"
 #include "audio_queue.h"
+#include "util.h"
 
 #ifndef ENABLE_DBG_AUDIO
 #define DBG_TAG             "AUD : "
@@ -74,43 +75,6 @@ static uint16_t mic_queue_buffer[MIC_BUFFER_SIZE];
 static uint16_t mic_dma_buffer[DMA_BUFFER_SIZE];
 #endif
 
-void wave_triangle(uint16_t *dst, uint16_t count, uint8_t nch)
-{
-    static uint16_t sample_value = 0;
-    static uint8_t sample_count_dir = 0;
-
-    for (int i = 0; i < count; i += nch){
-        if(sample_count_dir == 0 && sample_value == 0x8000){
-            sample_count_dir = 1;
-            sample_value = 0x7ffe;
-        }else if(sample_count_dir == 1 && sample_value == 0x7fff){
-            sample_count_dir = 0;
-            sample_value = 0x8001;
-        }
-
-        if(nch == 1)
-            *dst++ = sample_value;
-        else{
-            *dst++ = sample_value;
-            *dst++ = sample_value;
-        }
-        sample_value = sample_count_dir ? sample_value - 1 : sample_value + 1;
-    }
-}
-
-static void memset16(uint16_t *buffer, uint32_t set, uint32_t len)
-{
-    while(len--){
-        *buffer++ = (uint16_t)set;
-    }
-}
-
-static void memcpy16(uint16_t *dst, uint16_t *src, uint32_t len)
-{
-    while(len--){
-        *dst++ = *src++;
-    }
-}
 
 static void stream_cfg_nsamples(audio_stream_t *stream, uint32_t freq)
 {

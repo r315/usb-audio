@@ -30,9 +30,9 @@
 #include "i2c_application.h"
 #include "codec_null.h"
 #include "tas2563.h"
-//#include "max98374.h"
 #include "ak4619.h"
 #include "debug.h"
+#include "util.h"
 
 #ifdef ENABLE_AMUX
 #include "amux.h"
@@ -79,7 +79,6 @@ static const stdinout_t uart_ops = {
     .write = serial_write
 };
 
-static void dump_buf(uint8_t *buf, uint32_t count);
 
 static int codecCmd(int argc, char **argv)
 {
@@ -212,7 +211,7 @@ static int codecCmd(int argc, char **argv)
             if(!I2C_Master_Read(16, buf, 32)){
                 printf("Failed to read");
             }else{
-                dump_buf(buf, 32);
+                hexDump(buf, 32);
                 return I2C_OK;
             }
         }
@@ -355,16 +354,6 @@ static int trimCmd(int argc, char **argv)
     return CLI_OK;
 }
 
-static void dump_buf(uint8_t *buf, uint32_t count)
-{
-    for(unsigned int i = 0; i < count; i ++){
-        if( (i & 15) == 0)
-            printf("\n%02X: ", i & 0xF0);
-        printf("%02X ", buf[i]);
-    }
-    putchar('\n');
-}
-
 #ifdef ENABLE_AMUX
 static i2c_status_type readMux(uint8_t reg, uint8_t *buf, uint32_t count)
 {
@@ -427,7 +416,7 @@ static int muxCmd(int argc, char **argv)
 
     if( !strcmp("regs", argv[1])){
         if(readMux(0, regs_buf, count) == I2C_OK){
-            dump_buf(regs_buf, count);
+            hexDump(regs_buf, count);
             return CLI_OK;
         }
     }
@@ -455,7 +444,7 @@ static int muxCmd(int argc, char **argv)
             count = 1;
             CLI_Ha2i(argv[3], &count);
             if(readMux(regs_buf[0], regs_buf, count) == I2C_OK){
-                dump_buf(regs_buf, count);
+                hexDump(regs_buf, count);
                 return CLI_OK;
             }
         }
