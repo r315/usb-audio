@@ -363,7 +363,6 @@ static usb_sts_type class_setup_handler (void *udev, usb_setup_type *setup)
     }
 
     if(status == USB_NOT_SUPPORT){
-        printSetup(setup);
         usbd_ctrl_unsupport (pudev);
     }
     return status;

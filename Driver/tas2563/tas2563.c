@@ -15,7 +15,7 @@ static uint8_t tas2563_i2c_addr;
 static uint8_t tas2563_WriteReg(uint16_t, uint8_t);
 static uint8_t tas2563_ReadReg(uint16_t, uint8_t*);
 
-const audio_codec_t tas2563 = {
+const codec_drv_t tas2563 = {
     tas2563_Init,
     tas2563_Config,
     tas2563_SampleRate,

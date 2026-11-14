@@ -72,11 +72,12 @@ $(LIB_PATH)/usb-at/usbd_class/audio/audio_desc.c \
 $(LIB_PATH)/usb-at/usbd_class/audio/audio_class.c \
 
 APP_SOURCES =\
+$(LIB_PATH)/cli-simple/cli_simple.c \
 $(APP_PATH)/src/main.c \
 $(APP_PATH)/src/audio.c \
 $(APP_PATH)/src/debug.c \
 $(APP_PATH)/src/audio_queue.c \
-$(LIB_PATH)/cli-simple/cli_simple.c \
+$(APP_PATH)/src/codec_null.c \
 $(DRIVERS_PATH)/tas2563/tas2563.c \
 $(DRIVERS_PATH)/ak4619/ak4619.c \
 
@@ -154,9 +155,11 @@ ifdef SEMIHOSTING
 SPECS =--specs=rdimon.specs
 LDLIBS =-nostartfiles -lc -lrdimon
 else
-SPECS=--specs=nano.specs #--specs=nosys.specs
-#-nostdlib -lstd++ -lnosys -lm
-LIBS =-lstdc++
+SPECS +=-specs=nano.specs
+#SPECS +=-specs=nosys.specs
+LIBS +=-lstdc++
+#LIBS +=-lnosys
+#LIBS +=-nostdlib
 endif
 
 #######################################

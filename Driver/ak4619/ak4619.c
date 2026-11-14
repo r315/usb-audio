@@ -15,7 +15,7 @@ static uint8_t ak4619_i2c_addr = 0;
 static uint8_t ak4619_write_reg(uint16_t, uint8_t);
 static uint8_t ak4619_read_reg(uint16_t, uint8_t*);
 
-const audio_codec_t ak4619 = {
+const codec_drv_t ak4619 = {
     ak4619_Init,
     ak4619_Config,
     ak4619_SampleRate,

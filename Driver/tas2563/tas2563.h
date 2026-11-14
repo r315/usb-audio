@@ -2,9 +2,9 @@
 #define _tas2563_
 
 #include <stdint.h>
-#include "audio.h"
+#include "codec_driver.h"
 
-#define TAS2563_I2C_ADDR_GLOBAL         0x48   // 7-bit, 
+#define TAS2563_I2C_ADDR_GLOBAL         0x48   // 7-bit,
 #define TAS2563_I2C_ADDR0               0x4C
 #define TAS2563_I2C_ADDR1               0x4D
 #define TAS2563_I2C_ADDR2               0x4E
@@ -96,7 +96,7 @@ extern void tas2563_Mute (uint8_t DevID, uint8_t Mode);
 // DAC Global variables
 // =============================================================================
 
-extern const audio_codec_t tas2563;
+extern const codec_drv_t tas2563;
 
 // =============================================================================
 

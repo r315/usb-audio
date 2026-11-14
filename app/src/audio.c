@@ -291,7 +291,7 @@ void audio_suspend_event(void)
     DBG_AUD_INF("%s ", __func__);
 }
 
-void audio_set_codec(const audio_codec_t *codec)
+void audio_set_codec(const codec_drv_t *codec)
 {
     if(!codec){
         return;
@@ -410,7 +410,7 @@ void audio_enqueue_data(const uint16_t *data, uint32_t len)
   * @param  none
   * @retval error status
   */
-audio_status_t audio_init(const audio_codec_t *codec)
+audio_status_t audio_init(const codec_drv_t *codec)
 {
     audio_status_t res;
     i2s_config_t i2s_cfg;

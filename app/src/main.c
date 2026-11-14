@@ -28,6 +28,7 @@
 #include "audio.h"
 #include "cli_simple.h"
 #include "i2c_application.h"
+#include "codec_null.h"
 #include "tas2563.h"
 //#include "max98374.h"
 #include "ak4619.h"
@@ -48,40 +49,18 @@
 #define DBG_APP_INF(...)
 #endif
 
-typedef struct {
+typedef struct cdc_list{
     const char *name;
-    const audio_codec_t *cdc;
+    const codec_drv_t *cdc;
     uint8_t i2c_addr;
 }cdc_list_t;
 
 static uint8_t user_button_state;
-static const audio_codec_t *codec;
+static const codec_drv_t *codec;
 
 #ifdef __AUDIO_HID_CLASS_H
 ALIGNED_HEAD  uint8_t report_buf[USBD_AUHID_IN_MAXPACKET_SIZE] ALIGNED_TAIL;
 #endif
-
-static uint8_t dummy_Init (uint8_t addr){ (void)addr; return 0; }// fail init to allow scan for other
-static uint8_t dummy_Config (uint8_t DevID, uint8_t Mode) {(void)Mode; return (DevID == CDC_GET_MCLK) ? CDC_MCLK_256FS : 0;}
-static void    dummy_SampleRate (uint32_t Rate){(void)Rate;}
-static void    dummy_Enable (void) {}
-static void    dummy_Disable (void) {}
-static void    dummy_Volume (uint8_t DevID, uint8_t Volume){(void)DevID;(void)Volume;}
-static void    dummy_Mute (uint8_t DevID, uint8_t Mode) {(void)DevID;(void)Mode;}
-static uint8_t dummy_writeReg (uint16_t reg, uint8_t val) {(void)reg;(void)val;return 1;}
-static uint8_t dummy_readReg (uint16_t reg, uint8_t *val) {(void)reg;(void)val;return 1;}
-
-static const audio_codec_t dummy_codec = {
-    dummy_Init,
-    dummy_Config,
-    dummy_SampleRate,
-    dummy_Enable,
-    dummy_Disable,
-    dummy_Volume,
-    dummy_Mute,
-    dummy_writeReg,
-    dummy_readReg
-};
 
 static const cdc_list_t codecs [] = {
     {"none", &dummy_codec, 0},

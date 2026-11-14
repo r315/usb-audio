@@ -2,7 +2,7 @@
 #define _ak4619_h_
 
 #include <stdint.h>
-#include "audio.h"
+#include "codec_driver.h"
 
 #define AK4619_I2C_ADDR       0x10  // 7-bit, 0x10 + CAD pin
 #define AK4619_ALT_ADDR       AK4619_I2C_ADDR + 1
@@ -85,5 +85,5 @@ void    ak4619_Disable (void);
 void    ak4619_Volume (uint8_t DevID, uint8_t Volume);
 void    ak4619_Mute (uint8_t DevID, uint8_t Mode);
 
-extern const audio_codec_t ak4619;
+extern const codec_drv_t ak4619;
 #endif
