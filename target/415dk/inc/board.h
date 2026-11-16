@@ -102,6 +102,7 @@ int bus_i2s_init(i2s_config_t *cfg);
 void bus_i2s_mclk(uint32_t freq, uint8_t type, uint32_t enable);
 void bus_i2s_cfg_format(uint8_t format);
 void bus_i2s_cfg_protocol(uint8_t protocol);
+uint32_t bus_i2s_cfg_get(void);
 
 #ifdef __cplusplus
 }

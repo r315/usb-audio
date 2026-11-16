@@ -274,49 +274,57 @@ static int audioCmd(int argc, char **argv)
     //}
 
     if(CLI_IS_PARM_1("fmt")){
+        const char *proto[] = {"philips", "msb", "lsb", "pcm", "pcml"};
+        const char *dbits[] = {"d16", "d16s32", "d24", "d32"};
+        if(*argv[2] == '\0'){
+            uint8_t fmt = (uint8_t)bus_i2s_cfg_get();
+            printf("Proto: %s, ", (char*)proto[fmt & 15]);
+            printf("Data: %s \n", (char*)dbits[fmt>>4]);
+            return CLI_OK;
+        }
         argv += 2; // skip "aud fmt"
         while(*argv++){
-            if(CLI_IS_PARM_0("philips")){
+            if(CLI_IS_PARM_0(proto[0])){
                 bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_PHILLIPS);
                 continue;
             }
 
-            if(CLI_IS_PARM_0("msb")){
+            if(CLI_IS_PARM_0(proto[1])){
                 bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_MSB);
                 continue;
             }
 
-            if(CLI_IS_PARM_0("lsb")){
+            if(CLI_IS_PARM_0(proto[2])){
                 bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_LSB);
                 continue;
             }
 
-            if(CLI_IS_PARM_0("pcm")){
+            if(CLI_IS_PARM_0(proto[3])){
                 bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_PCM_SHORT);
                 continue;
             }
 
-            if(CLI_IS_PARM_0("pcml")){
+            if(CLI_IS_PARM_0(proto[4])){
                 bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_PCM_LONG);
                 continue;
             }
 
-            if(CLI_IS_PARM_0("d16")){
+            if(CLI_IS_PARM_0(dbits[0])){
                 bus_i2s_cfg_format(AUDIO_BITW_16);
                 continue;
             }
 
-            if(CLI_IS_PARM_0("d16s32")){
+            if(CLI_IS_PARM_0(dbits[1])){
                 bus_i2s_cfg_format(AUDIO_BITW_16_32);
                 continue;
             }
 
-            if(CLI_IS_PARM_0("d24")){
+            if(CLI_IS_PARM_0(dbits[2])){
                 bus_i2s_cfg_format(AUDIO_BITW_24);
                 continue;
             }
 
-            if(CLI_IS_PARM_0("d32")){
+            if(CLI_IS_PARM_0(dbits[3])){
                 bus_i2s_cfg_format(AUDIO_BITW_32);
                 continue;
             }

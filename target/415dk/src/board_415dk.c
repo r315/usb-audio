@@ -560,6 +560,18 @@ void bus_i2s_mclk(uint32_t freq, uint8_t type, uint32_t enable)
     tmr_counter_enable(TMR2, TRUE);
     tmr_output_enable(TMR2, TRUE);
 }
+
+uint32_t bus_i2s_cfg_get(void)
+{
+    uint8_t fmt;
+
+    fmt = SPI1->i2sctrl_bit.stdsel | (SPI1->i2sctrl_bit.pcmfssel << 2);
+
+    return fmt | (((SPI1->i2sctrl_bit.i2sdbn == 0) ?
+                SPI1->i2sctrl_bit.i2scbn:
+                SPI1->i2sctrl_bit.i2sdbn + 1) << 4);
+}
+
 /**
  * @brief
  *
