@@ -35,13 +35,21 @@ extern "C" {
 #include "audio_queue.h"
 #include "codec_driver.h"
 
-/**
-  * @}
-  */
+enum stream_state{
+    STREAM_INIT = 0,
+    STREAM_PAUSED,
+    STREAM_RESUME,
+    STREAM_FILL_FIRST,
+    STREAM_FILL_SECOND
+};
 
-/** @defgroup USB_device_audio_hid_codec_pin_definition
-  * @{
-  */
+typedef enum audio_status{
+    AUDIO_OK = 0,
+    AUDIO_ERROR_FREQ,
+    AUDIO_ERROR_BITW,
+    AUDIO_ERROR_PROTO,
+    AUDIO_ERROR_CODEC,
+}audio_status_t;
 
 typedef struct audio_stream_s
 {
@@ -51,9 +59,8 @@ typedef struct audio_stream_s
     uint16_t calc;
     uint8_t  nchannels;
     uint8_t  volume;
-    uint8_t  stage;
+    enum stream_state state;
 }audio_stream_t;
-
 
 typedef struct audio_driver_s
 {
@@ -70,14 +77,6 @@ typedef struct audio_driver_s
     const codec_drv_t *codec;
 }audio_driver_t;
 
-typedef enum audio_status_e{
-    AUDIO_OK = 0,
-    AUDIO_ERROR_FREQ,
-    AUDIO_ERROR_BITW,
-    AUDIO_ERROR_PROTO,
-    AUDIO_ERROR_CODEC,
-}audio_status_t;
-
 /**
   * @brief audio codec interface
   */
@@ -87,7 +86,7 @@ audio_status_t audio_deinit(void);
 audio_status_t audio_set_bitw(uint8_t bitw);
 void audio_set_codec(const codec_drv_t *codec);
 audio_status_t audio_set_freq(uint32_t freq);
-audio_status_t audio_set_proto(uint8_t proto);
+audio_status_t audio_set_proto(enum audio_proto proto);
 void audio_set_mic_alt_setting(uint32_t alt_seting);
 void audio_set_mic_freq(uint32_t freq);
 void audio_set_mic_mute(uint8_t mute);

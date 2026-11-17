@@ -93,9 +93,9 @@ typedef struct
   uint32_t audio_cmd_len;
 
   uint8_t g_audio_cur[64];
-  uint8_t audio_feedback[AUDIO_FEEDBACK_MAXPACKET_SIZE+1];
-   __IO uint16_t audio_feedback_state;
-   __IO uint8_t audio_spk_out_stage;
+  uint8_t feedback[AUDIO_FEEDBACK_MAXPACKET_SIZE+1];
+   __IO uint16_t feedback_state;
+   __IO uint8_t spk_out_stage;
 }usb_audio_type;
 
 extern usbd_class_handler audio_class_handler;

@@ -235,12 +235,10 @@ static uint8_t g_usbd_configuration[] =
   USB_EPT_DESC_ISO |                     /* bmAttributes: endpoint attributes */
 #if AUDIO_MODE == AUDIO_MODE_SYNC
   USB_ETP_DESC_SYNC,
-#elif AUDIO_MODE == AUDIO_MODE_ASYNC
-  USB_ETP_DESC_ASYNC,
 #elif AUDIO_MODE == AUDIO_MODE_ADAPTIVE
   USB_ETP_DESC_ADAPTIVE,
 #else
-  USB_ETP_DESC_NSYNC,
+  USB_ETP_DESC_ASYNC,
 #endif
   LBYTE(AUDIO_MIC_IN_MAXPACKET_SIZE),
   HBYTE(AUDIO_MIC_IN_MAXPACKET_SIZE),    /* wMaxPacketSize: maximum packe size this endpoint */
@@ -307,12 +305,10 @@ static uint8_t g_usbd_configuration[] =
   USB_EPT_DESC_ISO |                     /* bmAttributes: endpoint attributes */
 #if AUDIO_MODE == AUDIO_MODE_SYNC
   USB_ETP_DESC_SYNC,
-#elif AUDIO_MODE == AUDIO_MODE_ASYNC
-  USB_ETP_DESC_ASYNC,
 #elif AUDIO_MODE == AUDIO_MODE_ADAPTIVE
   USB_ETP_DESC_ADAPTIVE,
 #else
-  USB_ETP_DESC_NSYNC,
+  USB_ETP_DESC_ASYNC,
 #endif
   LBYTE(AUDIO_SPK_OUT_MAXPACKET_SIZE),
   HBYTE(AUDIO_SPK_OUT_MAXPACKET_SIZE),   /* wMaxPacketSize: maximum packe size this endpoint */

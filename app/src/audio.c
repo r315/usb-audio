@@ -53,14 +53,7 @@
 #define SPK_BUFFER_SIZE     BUFFER_MAX_SIZE
 
 #define DEFAULT_SPK_VOL     50
-
-typedef enum stream_stage_e{
-    STREAM_INIT = 0,
-    STREAM_PAUSED,
-    STREAM_RESUME,
-    STREAM_FILL_FIRST,
-    STREAM_FILL_SECOND
-}stream_stage_e;
+#define DEFAULT_MIC_VOL     50
 
 static audio_driver_t audio_driver;
 #if AUDIO_SUPPORT_SPK
@@ -278,9 +271,9 @@ void audio_set_spk_alt_setting(uint32_t alt_seting)
     if(!alt_seting){
         // Fill both buffers
         memset16(stream->dma_buffer, 0x0000, stream->nsamples << 1);
-        stream->stage = STREAM_PAUSED;
+        stream->state = STREAM_PAUSED;
     }else{
-        stream->stage = STREAM_RESUME;
+        stream->state = STREAM_RESUME;
         audio_driver.feedback_counter = 0;
     }
 }
@@ -298,26 +291,27 @@ void audio_set_mic_alt_setting(uint32_t alt_seting)
 
     if(!alt_seting){
         memset16(stream->dma_buffer, 0x0000, stream->nsamples << 1);
-        stream->stage = STREAM_PAUSED;
+        stream->state = STREAM_PAUSED;
     }else{
-        stream->stage = STREAM_RESUME;
+        stream->state = STREAM_RESUME;
     }
 }
 
 /**
   * @brief  Feedback to host for async mode
-  * @param  feedback: device output frequency
-  * @retval number of bytes of feedback
+  *
+  * @param  buf output buffer
+  * @retval feedback size in bytes
   */
-uint8_t audio_spk_feedback(uint8_t *feedback)
+uint8_t audio_get_spk_feedback(uint8_t *buf)
 {
     uint32_t feedback_cnt = (audio_driver.feedback_counter) << 1;
     float fd_fval = (float) feedback_cnt / (float)1024.0 * (float)16384/*2^14*/;
     uint32_t feedback_value = (uint32_t)fd_fval;
     audio_driver.feedback_counter = 0;
-    feedback[0] = (uint8_t)(feedback_value);
-    feedback[1] = (uint8_t)(feedback_value >> 8);
-    feedback[2] = (uint8_t)(feedback_value >> 16);
+    buf[0] = (uint8_t)(feedback_value);
+    buf[1] = (uint8_t)(feedback_value >> 8);
+    buf[2] = (uint8_t)(feedback_value >> 16);
     return 3;
 }
 
@@ -335,12 +329,10 @@ void audio_suspend_event(void)
   * @retval none
   */
 void audio_enqueue_data(const uint16_t *data, uint32_t len)
-#if AUDIO_SUPPORT_SPK
 {
+#if AUDIO_SUPPORT_SPK
     audio_stream_t *stream = &audio_driver.spk;
-
-#if AUDIO_MODE == AUDIO_MODE_SYNC
-    if (stream->stage != STREAM_PAUSED){
+    if (stream->state != STREAM_PAUSED){
         audio_queue_enqueue(&spk_queue, data, len);
     }
 #else
@@ -456,13 +448,13 @@ audio_status_t audio_init(const codec_drv_t *codec)
 #if AUDIO_SUPPORT_SPK
     audio_driver.spk.dma_buffer = spk_dma_buffer;
     audio_driver.spk.nchannels = AUDIO_SPK_CHANEL_NUM;
-    audio_driver.spk.stage = STREAM_INIT;
+    audio_driver.spk.state = STREAM_INIT;
     audio_set_spk_volume(DEFAULT_SPK_VOL);
 #endif
 #if AUDIO_SUPPORT_MIC
     audio_driver.mic.dma_buffer = mic_dma_buffer;
     audio_driver.mic.nchannels = AUDIO_MIC_CHANEL_NUM;
-    audio_driver.mic.stage = STREAM_INIT;
+    audio_driver.mic.state = STREAM_INIT;
     audio_set_mic_volume(DEFAULT_MIC_VOL);
 #endif
 
