@@ -9,7 +9,7 @@ TARGET =usb-audio
 FEATURES +=ENABLE_CLI
 FEATURES +=ENABLE_CLI_COLOR
 FEATURES +=ENABLE_DEBUG
-FEATURES +=ENABLE_AMUX
+#FEATURES +=ENABLE_AMUX
 
 #######################################
 # paths
