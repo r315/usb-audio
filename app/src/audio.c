@@ -123,9 +123,17 @@ static audio_status_t audio_init_i2s(void)
     audio_driver.codec->SampleRate(audio_driver.freq);
     audio_driver.codec->Enable();
 
-    if(audio_driver.codec->Config(CDC_CTRL_DAI_PROTO, audio_driver.protocol)) return AUDIO_ERROR_PROTO;
-    if(audio_driver.codec->Config(CDC_CTRL_DAI_BITW, audio_driver.bitw)) return AUDIO_ERROR_BITW;
-    if(audio_driver.codec->Config(CDC_CTRL_DAI_SLOTW, audio_driver.bitw == 16 ? 16 : 32)) return AUDIO_ERROR_BITW;
+    if(audio_driver.codec->Config(CDC_CTRL_DAI_PROTO, audio_driver.protocol)){
+        DBG_AUD_ERR("CDC Bad Proto");
+    }
+
+    if(audio_driver.codec->Config(CDC_CTRL_DAI_BITW, audio_driver.bitw)){
+        DBG_AUD_ERR("CDC Bad bitw");
+    }
+
+    if(audio_driver.codec->Config(CDC_CTRL_DAI_SLOTW, audio_driver.bitw == 16 ? 16 : 32)){
+        DBG_AUD_ERR("CDC Bad slotw");
+    }
 
     return (audio_status_t)bus_i2s_init(&i2s_cfg);
 #endif
@@ -461,7 +469,7 @@ audio_status_t audio_init(const codec_drv_t *codec)
     uint8_t cdc_addr = codec->Config(CDC_CTRL_ADDR_GET, 0);
 
     if(!codec->Init(cdc_addr)){
-        return AUDIO_ERROR_CODEC;
+        DBG_AUD_WRN("Codec init");
     }
 
     res = audio_init_i2s();

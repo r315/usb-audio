@@ -671,16 +671,19 @@ int main(void)
      if(pcdc->cdc){
         uint8_t res = pcdc->cdc->Init(pcdc->i2c_addr);
         if(res){
-            DBG_APP_INF("Found codec: %s", pcdc->name);
+            DBG_APP_INF("Found codec: %s (0x%x)", pcdc->name, pcdc->i2c_addr);
             if(found_idx == 0){
                 found_idx = idx; // here idx should never be zero
             }
+        }else{
+            DBG_APP_INF("No response from: %s (0x%x)", pcdc->name, pcdc->i2c_addr);
         }
      }
   }
 
   codec = codecs[found_idx].cdc;
-  DBG_APP_INF("Using codec: %s :%d", codecs[found_idx].name, audio_init(codec));
+  DBG_APP_INF("Using codec: %s", codecs[found_idx].name);
+  DBG_APP_INF("Audio Init: %d", audio_init(codec));
 
   user_button_state = 0;
 

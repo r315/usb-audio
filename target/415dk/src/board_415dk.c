@@ -13,15 +13,15 @@
 #include "audio.h"
 #include "util.h"
 
-#ifndef ENABLE_DBG_APP
+#ifdef ENABLE_DBG_BOARD
 #define DBG_TAG             "BOARD : "
 #define DBG_BOARD_PRINT       DBG_PRINT
 #define DBG_BOARD_INF(...)    DBG_INF(DBG_TAG __VA_ARGS__)
 #define DBG_BOARD_ERR(...)    DBG_ERR(DBG_TAG __VA_ARGS__)
 #else
 #define DBG_BOARD_PRINT(...)
-#define DBG_BOARD__ERR(...)
-#define DBG_BOARD__INF(...)
+#define DBG_BOARD_ERR(...)
+#define DBG_BOARD_INF(...)
 #endif
 
 static otg_core_type otg_core_struct;
