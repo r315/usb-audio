@@ -78,7 +78,7 @@
 #define AK4619_SEL_SDOUT2   3
 
 uint8_t ak4619_Init (uint8_t Addr);
-uint8_t ak4619_Config (uint8_t DevID, uint8_t Mode);
+uint32_t ak4619_Config (uint8_t DevID, uint8_t Mode);
 void    ak4619_SampleRate (uint32_t Rate);
 void    ak4619_Enable (void);
 void    ak4619_Disable (void);

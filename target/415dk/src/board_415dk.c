@@ -382,7 +382,7 @@ int bus_i2s_init(i2s_config_t *cfg)
         case AUDIO_BITW_16_32: i2s_init_struct.data_channel_format = I2S_DATA_16BIT_CHANNEL_32BIT; break;
         case AUDIO_BITW_24: i2s_init_struct.data_channel_format = I2S_DATA_24BIT_CHANNEL_32BIT; break;
         case AUDIO_BITW_32: i2s_init_struct.data_channel_format = I2S_DATA_32BIT_CHANNEL_32BIT; break;
-        default: return 1;
+        default: return AUDIO_ERROR_BITW;
     }
 
     switch(cfg->protocol){
@@ -545,7 +545,7 @@ int bus_i2s_init(i2s_config_t *cfg)
     dma_channel_enable(DMA1_CHANNEL4, TRUE);
 #endif /* AUDIO_SUPPORT_MIC */
 
-    return 0;
+    return AUDIO_OK;
 }
 
 

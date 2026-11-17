@@ -60,7 +60,7 @@ typedef struct audio_driver_s
     uint32_t freq;
     uint32_t bitw;
     uint8_t  mode;
-    uint8_t protocol;
+    enum audio_proto protocol;
     //spk part
     audio_stream_t spk;
     //mic part
@@ -83,22 +83,28 @@ typedef enum audio_status_e{
   */
 audio_status_t audio_init(const codec_drv_t *codec);
 audio_status_t audio_deinit(void);
+
+audio_status_t audio_set_bitw(uint8_t bitw);
 void audio_set_codec(const codec_drv_t *codec);
-void audio_driver_set_freq(uint32_t freq);
+audio_status_t audio_set_freq(uint32_t freq);
+audio_status_t audio_set_proto(uint8_t proto);
+void audio_set_mic_alt_setting(uint32_t alt_seting);
+void audio_set_mic_freq(uint32_t freq);
+void audio_set_mic_mute(uint8_t mute);
+void audio_set_mic_volume(uint16_t volume);
+void audio_set_spk_alt_setting(uint32_t alt_seting);
+void audio_set_spk_freq(uint32_t freq);
+void audio_set_spk_mute(uint8_t mute);
+void audio_set_spk_volume(uint16_t volume);
+
+enum audio_bitw audio_get_bitw(void);
+enum audio_proto audio_get_proto(void);
+uint8_t audio_get_mic_volume(void);
+uint8_t audio_get_spk_feedback(uint8_t *feedback);
+uint8_t audio_get_spk_volume(void);
 
 void audio_enqueue_data(const uint16_t *data, uint32_t len);
 uint32_t audio_dequeue_data(uint16_t *buffer);
-uint8_t audio_spk_feedback(uint8_t *feedback);
-void audio_spk_alt_setting(uint32_t alt_seting);
-void audio_mic_alt_setting(uint32_t alt_seting);
-void audio_set_mic_mute(uint8_t mute);
-void audio_set_spk_mute(uint8_t mute);
-void audio_set_mic_volume(uint16_t volume);
-uint8_t audio_get_mic_volume(void);
-void audio_set_spk_volume(uint16_t volume);
-uint8_t audio_get_spk_volume(void);
-void audio_set_mic_freq(uint32_t freq);
-void audio_set_spk_freq(uint32_t freq);
 void audio_suspend_event(void);
 #ifdef __cplusplus
 }

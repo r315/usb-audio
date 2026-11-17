@@ -93,7 +93,7 @@ static void stream_cfg_nsamples(audio_stream_t *stream, uint32_t freq)
  * parameters
  *
  */
-static int audio_init_i2s(void)
+static audio_status_t audio_init_i2s(void)
 {
 #if AUDIO_SUPPORT_MIC || AUDIO_SUPPORT_SPK
     i2s_config_t i2s_cfg;
@@ -136,13 +136,14 @@ static int audio_init_i2s(void)
   * @param  freq: freq
   * @retval none
   */
-void audio_driver_set_freq(uint32_t freq)
+audio_status_t audio_set_freq(uint32_t freq)
 {
     if(audio_driver.freq != freq)
     {
         audio_driver.freq = freq;
         audio_init_i2s();
     }
+    return AUDIO_OK;
 }
 
 /**
@@ -153,7 +154,7 @@ void audio_driver_set_freq(uint32_t freq)
 void audio_set_mic_freq(uint32_t freq)
 {
     DBG_AUD_INF("%s :%lu", __func__, freq);
-    audio_driver_set_freq(freq);
+    audio_set_freq(freq);
 }
 
 /**
@@ -164,7 +165,7 @@ void audio_set_mic_freq(uint32_t freq)
 void audio_set_spk_freq(uint32_t freq)
 {
     DBG_AUD_INF("%s :%lu", __func__, freq);
-    audio_driver_set_freq(freq);
+    audio_set_freq(freq);
 }
 
 /**
@@ -224,12 +225,43 @@ uint8_t audio_get_spk_volume(void)
     return audio_driver.spk.volume;
 }
 
+void audio_set_codec(const codec_drv_t *codec)
+{
+    if(!codec){
+        return;
+    }
+
+    audio_driver.codec = codec;
+}
+
+enum audio_bitw audio_get_bitw(void)
+{
+    return 0;
+}
+
+audio_status_t audio_set_bitw(uint8_t bitw)
+{
+    (void)bitw;
+    return AUDIO_OK;
+}
+
+enum audio_fmt audio_get_proto(void)
+{
+    return 0;
+}
+
+audio_status_t audio_set_proto(enum audio_fmt proto)
+{
+    (void)proto;
+    return AUDIO_OK;
+}
+
 /**
   * @brief  audio codec speaker alt setting config
   * @param  none
   * @retval none
   */
-void audio_spk_alt_setting(uint32_t alt_seting)
+void audio_set_spk_alt_setting(uint32_t alt_seting)
 {
     audio_stream_t *stream = &audio_driver.spk;
 
@@ -250,7 +282,7 @@ void audio_spk_alt_setting(uint32_t alt_seting)
   * @param  none
   * @retval none
   */
-void audio_mic_alt_setting(uint32_t alt_seting)
+void audio_set_mic_alt_setting(uint32_t alt_seting)
 {
     audio_stream_t *stream = &audio_driver.mic;
 
@@ -284,15 +316,6 @@ uint8_t audio_spk_feedback(uint8_t *feedback)
 void audio_suspend_event(void)
 {
     DBG_AUD_INF("%s ", __func__);
-}
-
-void audio_set_codec(const codec_drv_t *codec)
-{
-    if(!codec){
-        return;
-    }
-
-    audio_driver.codec = codec;
 }
 
 /**

@@ -74,8 +74,9 @@ static void class_event_inisoincom_event (usbd_core_type *pudev)
 static void class_setup_get_cur (usbd_core_type *pudev, usb_setup_type *setup)
 {
     usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
-
+    /* check Feature Unit Control (wIndex) */
     if (HBYTE (setup->wIndex) == AUDIO_SPK_FEATURE_UNIT_ID) {
+        /* Check Control Selector (wValue) */
         if (HBYTE (setup->wValue) == AUDIO_MUTE_CONTROL) {
             paudio->g_audio_cur[0] = paudio->spk.mute;
             usbd_ctrl_send (pudev, paudio->g_audio_cur, setup->wLength);
@@ -206,7 +207,7 @@ static void standard_set_interface (usbd_core_type *pudev, usb_setup_type *setup
     if (LBYTE (setup->wIndex) == AUDIO_SPK_INTERFACE_NUMBER)
     {// wValue is 1 when audio is playing
         paudio->spk.alt_setting = setup->wValue;
-        audio_spk_alt_setting (paudio->spk.alt_setting);
+        audio_set_spk_alt_setting (paudio->spk.alt_setting);
     }
     #endif
 
@@ -214,7 +215,7 @@ static void standard_set_interface (usbd_core_type *pudev, usb_setup_type *setup
     if (LBYTE (setup->wIndex) == AUDIO_MIC_INTERFACE_NUMBER)
     {
         paudio->mic.alt_setting = setup->wValue;
-        audio_mic_alt_setting (paudio->mic.alt_setting);
+        audio_set_mic_alt_setting (paudio->mic.alt_setting);
     }
     #endif
 
@@ -293,22 +294,22 @@ static usb_sts_type class_init_handler (void *udev)
  */
 static usb_sts_type class_clear_handler (void *udev)
 {
-   usb_sts_type status   = USB_OK;
-   usbd_core_type *pudev = (usbd_core_type *) udev;
+    usb_sts_type status   = USB_OK;
+    usbd_core_type *pudev = (usbd_core_type *) udev;
 
 #if AUDIO_SUPPORT_MIC
-   /* close in endpoint */
-   usbd_ept_close (pudev, USBD_AUDIO_MIC_IN_EPT);
+    /* close in endpoint */
+    usbd_ept_close (pudev, USBD_AUDIO_MIC_IN_EPT);
 #endif
 
 #if AUDIO_SUPPORT_SPK
-/* close out endpoint */
-usbd_ept_close (pudev, USBD_AUDIO_SPK_OUT_EPT);
+    /* close out endpoint */
+    usbd_ept_close (pudev, USBD_AUDIO_SPK_OUT_EPT);
 #endif
 
 #if AUDIO_SUPPORT_FEEDBACK
-   /* close in endpoint */
-   usbd_ept_close (pudev, USBD_AUDIO_FEEDBACK_EPT);
+    /* close in endpoint */
+    usbd_ept_close (pudev, USBD_AUDIO_FEEDBACK_EPT);
 #endif
 
    return status;

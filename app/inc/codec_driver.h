@@ -3,6 +3,33 @@
 
 #include <stdint.h>
 
+enum audio_proto {
+    AUDIO_FORMAT_I2S,
+    AUDIO_FORMAT_MSB,
+    AUDIO_FORMAT_PCM,
+    AUDIO_FORMAT_TDM,
+};
+
+enum audio_bitw {
+    AUDIO_BITW_16 = 16,
+    AUDIO_BITW_24 = 24,
+    AUDIO_BITW_32 = 32,
+};
+
+enum audio_sr {
+    AUDIO_SR_8K = 8000,
+    AUDIO_SR_16K = 16000,
+    AUDIO_SR_22K = 22000,
+    AUDIO_SR_24K = 24000,
+    AUDIO_SR_32K = 32000,
+    AUDIO_SR_44K = 44000,
+    AUDIO_SR_48K = 48000,
+    AUDIO_SR_88K = 88000,
+    AUDIO_SR_96K = 96000,
+    AUDIO_SR_192K = 192000,
+    AUDIO_MCLK_PLL,
+};
+
 enum cdc_ctrl {
     CDC_CTRL_DAI_PROTO = 0,
     CDC_CTRL_DAI_BITW,
@@ -25,24 +52,6 @@ enum cdc_ctrl {
 };
 
 enum cdc_cfg {
-    AUDIO_FORMAT_I2S,
-    AUDIO_FORMAT_MSB,
-    AUDIO_FORMAT_PCM,
-    AUDIO_FORMAT_TDM,
-    AUDIO_BITW_16 = 16,
-    AUDIO_BITW_24 = 24,
-    AUDIO_BITW_32 = 32,
-    AUDIO_SR_8K = 8000,
-    AUDIO_SR_16K = 16000,
-    AUDIO_SR_22K = 22000,
-    AUDIO_SR_24K = 24000,
-    AUDIO_SR_32K = 32000,
-    AUDIO_SR_44K = 44000,
-    AUDIO_SR_48K = 48000,
-    AUDIO_SR_88K = 88000,
-    AUDIO_SR_96K = 96000,
-    AUDIO_SR_192K = 192000,
-    AUDIO_MCLK_PLL,
     CDC_MCLK_32FS,
     CDC_MCLK_48FS,
     CDC_MCLK_64FS,
@@ -55,7 +64,7 @@ enum cdc_cfg {
 typedef struct codec_drv
 {
    uint8_t (*Init) (uint8_t Addr);
-   uint8_t (*Config) (uint8_t Control, uint8_t Param);
+   uint32_t (*Config) (uint8_t Control, uint8_t Param);
    void    (*SampleRate) (uint32_t Rate);
    void    (*Enable) (void);
    void    (*Disable) (void);

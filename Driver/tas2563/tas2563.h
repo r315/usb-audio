@@ -85,7 +85,7 @@
 // =============================================================================
 
 extern uint8_t tas2563_Init (uint8_t Addr);
-extern uint8_t tas2563_Config (uint8_t DevID, uint8_t Mode);
+extern uint32_t tas2563_Config (uint8_t DevID, uint8_t Mode);
 extern void tas2563_SampleRate (uint32_t Rate);
 extern void tas2563_Enable (void);
 extern void tas2563_Disable (void);

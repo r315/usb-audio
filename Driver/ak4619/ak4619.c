@@ -104,7 +104,7 @@ uint8_t ak4619_Init (uint8_t addr){
     return 1;
 }
 
-uint8_t ak4619_Config (uint8_t Control, uint8_t Param)
+uint32_t ak4619_Config (uint8_t Control, uint8_t Param)
 {
     uint8_t RegVal;
 
@@ -172,7 +172,7 @@ uint8_t ak4619_Config (uint8_t Control, uint8_t Param)
         break;
 
         case CDC_CTRL_MCLK_GET:
-            return CDC_MCLK_256FS;
+            return (uint32_t)CDC_MCLK_256FS;
 
         case CDC_CTRL_ADDR_SET:
             ak4619_set_i2c_addr(Param);

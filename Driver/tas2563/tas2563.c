@@ -153,7 +153,7 @@ void tas2563_Disable (void)
    tas2563_WriteReg(TAS2563_PWR_CTL_REG, (RegVal & 0xFC) | 2);
 }
 
-uint8_t tas2563_Config (uint8_t DevID, uint8_t Cfg)
+uint32_t tas2563_Config (uint8_t DevID, uint8_t Cfg)
 {
    switch(DevID)
    {
