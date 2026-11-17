@@ -123,11 +123,11 @@ static audio_status_t audio_init_i2s(void)
     audio_driver.codec->SampleRate(audio_driver.freq);
     audio_driver.codec->Enable();
 
-    audio_driver.codec->Config(CDC_CTRL_DAI_PROTO, audio_driver.protocol);
-    audio_driver.codec->Config(CDC_CTRL_DAI_BITW, audio_driver.bitw);
-    audio_driver.codec->Config(CDC_CTRL_DAI_SLOTW, audio_driver.bitw == 16 ? 16 : 32);
+    if(audio_driver.codec->Config(CDC_CTRL_DAI_PROTO, audio_driver.protocol)) return AUDIO_ERROR_PROTO;
+    if(audio_driver.codec->Config(CDC_CTRL_DAI_BITW, audio_driver.bitw)) return AUDIO_ERROR_BITW;
+    if(audio_driver.codec->Config(CDC_CTRL_DAI_SLOTW, audio_driver.bitw == 16 ? 16 : 32)) return AUDIO_ERROR_BITW;
 
-    return bus_i2s_init(&i2s_cfg);
+    return (audio_status_t)bus_i2s_init(&i2s_cfg);
 #endif
 }
 
@@ -236,23 +236,23 @@ void audio_set_codec(const codec_drv_t *codec)
 
 enum audio_bitw audio_get_bitw(void)
 {
-    return 0;
+    return audio_driver.bitw;
 }
 
 audio_status_t audio_set_bitw(uint8_t bitw)
 {
-    (void)bitw;
+    audio_driver.bitw = bitw;
     return AUDIO_OK;
 }
 
-enum audio_fmt audio_get_proto(void)
+enum audio_proto audio_get_proto(void)
 {
-    return 0;
+    return audio_driver.protocol;
 }
 
-audio_status_t audio_set_proto(enum audio_fmt proto)
+audio_status_t audio_set_proto(enum audio_proto proto)
 {
-    (void)proto;
+    audio_driver.protocol = proto;
     return AUDIO_OK;
 }
 

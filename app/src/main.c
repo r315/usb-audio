@@ -277,8 +277,16 @@ static int audioCmd(int argc, char **argv)
         const char *proto[] = {"i2s", "msb", "pcm"};
         const char *dbits[] = {"d16", "d16s32", "d24", "d32"};
         if(*argv[2] == '\0'){
+            uint8_t idx;
             printf("Proto: %s, ", (char*)proto[audio_get_proto()]);
-            printf("Data: %s \n", (char*)dbits[audio_get_bitw()]);
+            switch(audio_get_bitw()){
+                default:
+                case AUDIO_BITW_16: idx = 0; break;
+                case AUDIO_BITW_16_32: idx = 1; break;
+                case AUDIO_BITW_24: idx = 2; break;
+                case AUDIO_BITW_32: idx = 3; break;
+            }
+            printf("Data: %s \n", (char*)dbits[idx]);
             return CLI_OK;
         }
         argv += 1; // skip "aud"
@@ -318,6 +326,8 @@ static int audioCmd(int argc, char **argv)
                 continue;
             }
         }
+
+        audio_init(codec);
     }
 
     return CLI_OK;
