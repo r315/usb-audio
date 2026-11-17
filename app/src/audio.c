@@ -75,11 +75,60 @@ static uint16_t mic_queue_buffer[MIC_BUFFER_SIZE];
 static uint16_t mic_dma_buffer[DMA_BUFFER_SIZE];
 #endif
 
-
+/**
+ * @brief Compute the number of required samples for one millisecond
+ * of audio with n channels
+ *
+ * @param stream
+ * @param freq
+ */
 static void stream_cfg_nsamples(audio_stream_t *stream, uint32_t freq)
 {
     // Calculate the number of samples per millisecond unit
     stream->nsamples = freq / 1000 * stream->nchannels;
+}
+
+/**
+ * @brief Initialize I2S bus with audio driver
+ * parameters
+ *
+ */
+static int audio_init_i2s(void)
+{
+#if AUDIO_SUPPORT_MIC || AUDIO_SUPPORT_SPK
+    i2s_config_t i2s_cfg;
+    audio_driver.codec->Disable();
+    bus_i2s_reset();
+
+    i2s_cfg.freq = audio_driver.freq;
+    i2s_cfg.bitw = audio_driver.bitw;
+    i2s_cfg.mode = audio_driver.mode;
+    i2s_cfg.protocol = audio_driver.protocol;
+
+    // DMA buffer has to hold 2ms of audio data
+    #if AUDIO_SUPPORT_SPK
+    stream_cfg_nsamples(&audio_driver.spk, audio_driver.freq);
+    audio_queue_init(&spk_queue, spk_queue_buffer, audio_driver.spk.nsamples, SPK_BUFFER_SIZE);
+    i2s_cfg.dma_buf_tx_size = audio_driver.spk.nsamples << 1;
+    i2s_cfg.dma_buf_tx = audio_driver.spk.dma_buffer;
+    #endif
+
+    #if AUDIO_SUPPORT_MIC
+    stream_cfg_nsamples(&audio_driver.mic, audio_driver.freq);
+    audio_queue_init(&mic_queue, mic_queue_buffer, audio_driver.mic.nsamples, MIC_BUFFER_SIZE);
+    i2s_cfg.dma_buf_rx_size = audio_driver.mic.nsamples << 1;
+    i2s_cfg.dma_buf_rx = audio_driver.mic.dma_buffer;
+    #endif
+
+    audio_driver.codec->SampleRate(audio_driver.freq);
+    audio_driver.codec->Enable();
+
+    audio_driver.codec->Config(CDC_CTRL_DAI_PROTO, audio_driver.protocol);
+    audio_driver.codec->Config(CDC_CTRL_DAI_BITW, audio_driver.bitw);
+    audio_driver.codec->Config(CDC_CTRL_DAI_SLOTW, audio_driver.bitw == 16 ? 16 : 32);
+
+    return bus_i2s_init(&i2s_cfg);
+#endif
 }
 
 /**
@@ -89,28 +138,10 @@ static void stream_cfg_nsamples(audio_stream_t *stream, uint32_t freq)
   */
 void audio_driver_set_freq(uint32_t freq)
 {
-    i2s_config_t i2s_cfg;
-
     if(audio_driver.freq != freq)
     {
         audio_driver.freq = freq;
-        audio_driver.codec->Disable();
-        bus_i2s_reset();
-
-        stream_cfg_nsamples(&audio_driver.spk, audio_driver.freq);
-        stream_cfg_nsamples(&audio_driver.mic, audio_driver.freq);
-
-        i2s_cfg.freq = freq;
-        i2s_cfg.mode = audio_driver.mode;
-        i2s_cfg.bitw = audio_driver.bitw;
-        i2s_cfg.dma_buf_tx_size = audio_driver.spk.nsamples;
-        i2s_cfg.dma_buf_rx_size = audio_driver.mic.nsamples;
-        i2s_cfg.dma_buf_tx = audio_driver.spk.dma_buffer;
-        i2s_cfg.dma_buf_rx = audio_driver.mic.dma_buffer;
-        bus_i2s_init(&i2s_cfg);
-
-        audio_driver.codec->SampleRate(freq);
-        audio_driver.codec->Enable();
+        audio_init_i2s();
     }
 }
 
@@ -184,8 +215,8 @@ void audio_set_spk_volume(uint16_t volume)
 {
     DBG_AUD_INF("%s :%d", __func__, volume);
     audio_driver.spk.volume = volume;
-    audio_driver.codec->Volume(CDC_DEV_DAC1, volume);
-    audio_driver.codec->Volume(CDC_DEV_DAC2, volume);
+    audio_driver.codec->Volume(CDC_CTRL_DAC1, volume);
+    audio_driver.codec->Volume(CDC_CTRL_DAC2, volume);
 }
 
 uint8_t audio_get_spk_volume(void)
@@ -370,73 +401,54 @@ void audio_enqueue_data(const uint16_t *data, uint32_t len)
 }
 
 /**
-  * @brief  audio codec init
-  * @param  none
+  * @brief  audio driver init
+  * @param  codec Audio codec driver connected to i2s interface
   * @retval error status
   */
 audio_status_t audio_init(const codec_drv_t *codec)
 {
     audio_status_t res;
-    i2s_config_t i2s_cfg;
 
     if(!codec){
         return AUDIO_ERROR_CODEC;
     }
-
+    // Load default format on first call
     if(audio_driver.codec == NULL){
         audio_driver.freq = AUDIO_DEFAULT_FREQ;
         audio_driver.bitw = AUDIO_DEFAULT_BITW;
         audio_driver.mode = AUDIO_DEFAULT_MODE;
-        audio_driver.protocol = AUDIO_DEFAULT_FORMAT;
-        audio_driver.spk.nchannels = AUDIO_SPK_CHANEL_NUM;
-        audio_driver.mic.nchannels = AUDIO_MIC_CHANEL_NUM;
+        audio_driver.protocol = AUDIO_FORMAT_MSB;
     }
-
+    // Bind codec to driver
     audio_driver.codec = codec;
 
 #if AUDIO_SUPPORT_SPK
-    memset16(spk_queue_buffer, 0, SPK_BUFFER_SIZE);
-    memset16(spk_dma_buffer, 0, DMA_BUFFER_SIZE);
-    stream_cfg_nsamples(&audio_driver.spk, audio_driver.freq);
-    audio_queue_init(&spk_queue, spk_queue_buffer, audio_driver.spk.nsamples, SPK_BUFFER_SIZE);
     audio_driver.spk.dma_buffer = spk_dma_buffer;
     audio_driver.spk.nchannels = AUDIO_SPK_CHANEL_NUM;
     audio_driver.spk.stage = STREAM_INIT;
     audio_set_spk_volume(DEFAULT_SPK_VOL);
 #endif
 #if AUDIO_SUPPORT_MIC
-    memset16(mic_queue_buffer, 0, MIC_BUFFER_SIZE);
-    memset16(mic_dma_buffer, 0, DMA_BUFFER_SIZE);
-    stream_cfg_nsamples(&audio_driver.mic, audio_driver.freq);
-    audio_queue_init(&mic_queue, mic_queue_buffer, audio_driver.mic.nsamples, MIC_BUFFER_SIZE);
     audio_driver.mic.dma_buffer = mic_dma_buffer;
     audio_driver.mic.nchannels = AUDIO_MIC_CHANEL_NUM;
     audio_driver.mic.stage = STREAM_INIT;
+    audio_set_mic_volume(DEFAULT_MIC_VOL);
 #endif
 
-    i2s_cfg.freq = audio_driver.freq;
-    i2s_cfg.bitw = audio_driver.bitw;
-    i2s_cfg.mode = audio_driver.mode;
-    i2s_cfg.protocol = audio_driver.protocol;
-    i2s_cfg.dma_buf_tx_size = audio_driver.spk.nsamples;
-    i2s_cfg.dma_buf_rx_size = audio_driver.spk.nsamples;
-    i2s_cfg.dma_buf_tx = audio_driver.spk.dma_buffer;
-    i2s_cfg.dma_buf_rx = audio_driver.mic.dma_buffer;
+    uint8_t cdc_addr = codec->Config(CDC_CTRL_ADDR_GET, 0);
 
-    res = bus_i2s_init(&i2s_cfg);
+    if(!codec->Init(cdc_addr)){
+        return AUDIO_ERROR_CODEC;
+    }
+
+    res = audio_init_i2s();
 
     if(res != AUDIO_OK){
         DBG_AUD_ERR("Fail to configure i2s bus");
         return res;
     }
 
-    bus_i2s_mclk(AUDIO_DEFAULT_MCLK_FREQ, AUDIO_DEFAULT_MCLK_SRC, audio_driver.codec->Config(CDC_GET_MCLK, 0));
-
-    uint8_t cdc_addr = codec->Config(CDC_GET_I2C_ADDR, 0);
-
-    if(!codec->Init(cdc_addr)){
-        return AUDIO_ERROR_CODEC;
-    }
+    bus_i2s_mclk(AUDIO_DEFAULT_MCLK_FREQ, AUDIO_DEFAULT_MCLK_SRC, audio_driver.codec->Config(CDC_CTRL_MCLK_GET, 0));
 
     return AUDIO_OK;
 }
@@ -466,7 +478,8 @@ audio_status_t audio_deinit(void)
 }
 
 /**
- * @brief  Handles audio dma transmit end of transfer.
+ * @brief  Handles audio dma half transfer and end of transfer
+ * interrupts. It is invoked every one ms
  *
  * @param  none
  * @retval none
@@ -482,6 +495,7 @@ void DMA1_Channel3_IRQHandler(void)
         dma_flag_clear(DMA1_HDT3_FLAG | DMA1_FDT3_FLAG);
     }else{
         uint16_t len = audio_driver.spk.nsamples;
+        audio_driver.feedback_counter += len;
 
         if(dma_flag_get(DMA1_HDT3_FLAG) == SET)
         {

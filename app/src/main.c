@@ -112,7 +112,7 @@ static int codecCmd(int argc, char **argv)
     if( !strcmp("select", argv[1])){
         if(argc < 3){
             printf("Available codecs:\n");
-            uint8_t addr = codec->Config(CDC_GET_I2C_ADDR, 0);
+            uint8_t addr = codec->Config(CDC_CTRL_ADDR_GET, 0);
             for(uint8_t i = 0; i < sizeof(codecs)/sizeof(cdc_list_t); i++){
                 printf("\t%d [%c] %s (%X)\n", i, (codecs[i].i2c_addr == addr) ? '*' : ' ', codecs[i].name, codecs[i].i2c_addr);
             }
@@ -120,7 +120,7 @@ static int codecCmd(int argc, char **argv)
             int32_t val;
             if(CLI_Ia2i(argv[2], &val)){
                 codec = codecs[val].cdc;
-                codec->Config(CDC_SET_I2C_ADDR, codecs[val].i2c_addr);
+                codec->Config(CDC_CTRL_ADDR_SET, codecs[val].i2c_addr);
                 audio_set_codec(codec);
             }
         }
@@ -207,12 +207,12 @@ static int codecCmd(int argc, char **argv)
     }
 
     if( !strcmp("tdm", argv[1])){
-        codec->Config(CDC_DEV_DAI, CDC_CFG_DAI_TDM);
+        codec->Config(CDC_CTRL_DAI_PROTO, AUDIO_FORMAT_TDM);
         return CLI_OK;
     }
 
     if( !strcmp("i2s", argv[1])){
-        codec->Config(CDC_DEV_DAI, CDC_CFG_DAI_I2S);
+        codec->Config(CDC_CTRL_DAI_PROTO, AUDIO_FORMAT_I2S);
         return CLI_OK;
     }
 
@@ -282,7 +282,7 @@ static int audioCmd(int argc, char **argv)
             printf("Data: %s \n", (char*)dbits[fmt>>4]);
             return CLI_OK;
         }
-        argv += 2; // skip "aud fmt"
+        argv += 1; // skip "aud"
         while(*argv++){
             if(CLI_IS_PARM_0(proto[0])){
                 bus_i2s_cfg_protocol(I2S_AUDIO_PROTOCOL_PHILLIPS);

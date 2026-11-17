@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include "audio_queue.h"
+#include "util.h"
 
 /**
  * @brief Initialize the audio queue with a buffer and size.
@@ -14,6 +15,8 @@ void audio_queue_init(audio_queue_t *q, uint16_t *buffer, uint16_t element_size,
         // Handle error: invalid parameters
         return;
     }
+
+    memset16(buffer, 0, buffer_size);
 
     // Find maximum elements that can fit on buffer size.
     q->end = q->start = buffer;

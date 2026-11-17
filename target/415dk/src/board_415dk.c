@@ -10,6 +10,8 @@
 #include "audio_class.h"
 #include "audio_desc.h"
 #include "debug.h"
+#include "audio.h"
+#include "util.h"
 
 #ifndef ENABLE_DBG_APP
 #define DBG_TAG             "BOARD : "
@@ -255,6 +257,13 @@ void bus_i2s_reset(void)
 
 void bus_i2s_cfg_format(uint8_t format)
 {
+#if AUDIO_SUPPORT_SPK
+    SPI1->i2sctrl_bit.i2sen = 0;
+#endif
+#if AUDIO_SUPPORT_MIC
+    SPI2->i2sctrl_bit.i2sen = 0;
+#endif
+
     switch(format){
         case AUDIO_BITW_16:
         #if AUDIO_SUPPORT_SPK
@@ -300,29 +309,57 @@ void bus_i2s_cfg_format(uint8_t format)
         break;
         default: return;
     }
+
+#if AUDIO_SUPPORT_SPK
+    SPI1->i2sctrl_bit.i2sen = 1;
+#endif
+#if AUDIO_SUPPORT_MIC
+    SPI2->i2sctrl_bit.i2sen = 1;
+#endif
 }
 
 /**
- * @brief
+ * @brief Configures digital audio protocol.
+ * Note: PCM Protocol only supports 32bit frame (2x 16bit channels)
  * @param protocol
  */
 void bus_i2s_cfg_protocol(uint8_t protocol)
 {
     uint8_t pcmfssel = 0;
 
+#if AUDIO_SUPPORT_SPK
+    SPI1->i2sctrl_bit.i2sen = 0;
+#endif
+#if AUDIO_SUPPORT_MIC
+    SPI2->i2sctrl_bit.i2sen = 0;
+#endif
+
     if(protocol == I2S_AUDIO_PROTOCOL_PCM_LONG){
         protocol = I2S_AUDIO_PROTOCOL_PCM_SHORT;
         pcmfssel = 1;
     }
 
+    if(protocol == I2S_AUDIO_PROTOCOL_PCM_SHORT){
     #if AUDIO_SUPPORT_SPK
-    SPI1->i2sctrl_bit.stdsel = protocol;
-    SPI1->i2sctrl_bit.pcmfssel = pcmfssel;
+        SPI1->i2sctrl_bit.i2sdbn = 2;
+        SPI1->i2sctrl_bit.i2scbn = 1;
     #endif
     #if AUDIO_SUPPORT_MIC
+        SPI2->i2sctrl_bit.i2sdbn = 2;
+        SPI2->i2sctrl_bit.i2scbn = 1;
+    #endif
+    }
+
+#if AUDIO_SUPPORT_SPK
+    SPI1->i2sctrl_bit.stdsel = protocol;
+    SPI1->i2sctrl_bit.pcmfssel = pcmfssel;
+    SPI1->i2sctrl_bit.i2sen = 1;
+#endif
+#if AUDIO_SUPPORT_MIC
     SPI2->i2sctrl_bit.stdsel = protocol;
     SPI1->i2sctrl_bit.pcmfssel = pcmfssel;
-    #endif
+    SPI2->i2sctrl_bit.i2sen = 1;
+#endif
 }
 
 /**
@@ -336,12 +373,31 @@ int bus_i2s_init(i2s_config_t *cfg)
     dma_init_type dma_init_struct;
     i2s_init_type i2s_init_struct;
 
+    if(cfg->protocol > AUDIO_FORMAT_PCM){
+        return AUDIO_ERROR_PROTO;
+    }
+
     switch(cfg->bitw){
         case AUDIO_BITW_16: i2s_init_struct.data_channel_format = I2S_DATA_16BIT_CHANNEL_16BIT; break;
         case AUDIO_BITW_16_32: i2s_init_struct.data_channel_format = I2S_DATA_16BIT_CHANNEL_32BIT; break;
         case AUDIO_BITW_24: i2s_init_struct.data_channel_format = I2S_DATA_24BIT_CHANNEL_32BIT; break;
         case AUDIO_BITW_32: i2s_init_struct.data_channel_format = I2S_DATA_32BIT_CHANNEL_32BIT; break;
         default: return 1;
+    }
+
+    switch(cfg->protocol){
+        case AUDIO_FORMAT_I2S:
+            i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PHILLIPS;
+            break;
+        case AUDIO_FORMAT_MSB:
+            i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_MSB;
+            break;
+        case AUDIO_FORMAT_PCM:
+            i2s_init_struct.audio_protocol = I2S_AUDIO_PROTOCOL_PCM_SHORT;
+            i2s_init_struct.data_channel_format = I2S_DATA_32BIT_CHANNEL_32BIT;
+            break;
+        default:
+            return AUDIO_ERROR_PROTO;
     }
 
     crm_periph_clock_enable(CRM_DMA1_PERIPH_CLOCK, TRUE);
@@ -352,7 +408,6 @@ int bus_i2s_init(i2s_config_t *cfg)
     crm_periph_clock_enable(I2S1_GPIO_CRM_CLK, TRUE);
     /* Config TX I2S1 */
     spi_i2s_reset(SPI1);
-    i2s_init_struct.audio_protocol = cfg->protocol;
     i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)cfg->freq;
     i2s_init_struct.clock_polarity = I2S_CLOCK_POLARITY_LOW;
     i2s_init_struct.operation_mode = (cfg->mode == AUDIO_MODE_MASTER) ? I2S_MODE_MASTER_TX : I2S_MODE_SLAVE_TX;
@@ -361,10 +416,11 @@ int bus_i2s_init(i2s_config_t *cfg)
 
     /* dma config */
     dma_reset(DMA1_CHANNEL3);
+    memset16(cfg->dma_buf_tx, 0, cfg->dma_buf_tx_size);
 
     /* dma1 channel3: speaker i2s1 tx */
     dma_default_para_init(&dma_init_struct);
-    dma_init_struct.buffer_size = cfg->dma_buf_tx_size << 1;   // use double buffering
+    dma_init_struct.buffer_size = cfg->dma_buf_tx_size;
     dma_init_struct.direction = DMA_DIR_MEMORY_TO_PERIPHERAL;
     dma_init_struct.memory_base_addr = (uint32_t)cfg->dma_buf_tx;
     dma_init_struct.memory_data_width = DMA_MEMORY_DATA_WIDTH_HALFWORD;
@@ -421,7 +477,6 @@ int bus_i2s_init(i2s_config_t *cfg)
 
     /* Config RX I2S2 */
     spi_i2s_reset(SPI2);
-    i2s_init_struct.audio_protocol = cfg->protocol;
     i2s_init_struct.audio_sampling_freq = (i2s_audio_sampling_freq_type)cfg->freq;
     i2s_init_struct.clock_polarity = I2S_CLOCK_POLARITY_LOW;
     i2s_init_struct.operation_mode = (cfg->mode == AUDIO_MODE_MASTER) ? I2S_MODE_MASTER_RX : I2S_MODE_SLAVE_RX;
@@ -433,10 +488,11 @@ int bus_i2s_init(i2s_config_t *cfg)
     i2s_init(SPI2, &i2s_init_struct);
 
     dma_reset(DMA1_CHANNEL4);
+    memset16(cfg->dma_buf_rx, 0, cfg->dma_buf_rx_size);
 
     /* dma1 channel4: microphone i2s2 rx */
     dma_default_para_init(&dma_init_struct);
-    dma_init_struct.buffer_size = cfg->dma_buf_rx_size << 1;
+    dma_init_struct.buffer_size = cfg->dma_buf_rx_size;
     dma_init_struct.direction = DMA_DIR_PERIPHERAL_TO_MEMORY;
     dma_init_struct.memory_base_addr = (uint32_t)cfg->dma_buf_rx;
     dma_init_struct.memory_data_width = DMA_MEMORY_DATA_WIDTH_HALFWORD;
