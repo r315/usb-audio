@@ -74,6 +74,7 @@ typedef enum audio_status_e{
     AUDIO_OK = 0,
     AUDIO_ERROR_FREQ,
     AUDIO_ERROR_BITW,
+    AUDIO_ERROR_PROTO,
     AUDIO_ERROR_CODEC,
 }audio_status_t;
 

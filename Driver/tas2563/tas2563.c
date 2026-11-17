@@ -157,18 +157,18 @@ uint8_t tas2563_Config (uint8_t DevID, uint8_t Cfg)
 {
    switch(DevID)
    {
-      case CDC_SET_I2C_ADDR:
+      case CDC_CTRL_ADDR_SET:
         tas2563_set_i2c_addr(Cfg);
         break;
 
-      case CDC_GET_I2C_ADDR:
+      case CDC_CTRL_ADDR_GET:
         return tas2563_i2c_addr;
 
-      case CDC_GET_MCLK:
+      case CDC_CTRL_MCLK_GET:
         return 1;
 
-      case CDC_DEV_DAI:
-      case CDC_DEV_DAC1:
+      case CDC_CTRL_DAI_PROTO:
+      case CDC_CTRL_DAC1:
       break;
    }
 
@@ -231,30 +231,30 @@ void tas2563_SampleRate (uint32_t Rate)
 
     switch(Rate)
     {
-        case CDC_SR_8K:
+        case AUDIO_SR_8K:
             Rate = 0;
             break;
 
-        case CDC_SR_16K:
+        case AUDIO_SR_16K:
             Rate = 1;
             break;
 
-        case CDC_SR_22K:
-        case CDC_SR_24K:
+        case AUDIO_SR_22K:
+        case AUDIO_SR_24K:
             Rate = 2;
             break;
 
-        case CDC_SR_32K:
+        case AUDIO_SR_32K:
             Rate = 3;
             break;
 
-        case CDC_SR_44K:
-        case CDC_SR_48K:
+        case AUDIO_SR_44K:
+        case AUDIO_SR_48K:
             Rate = 4;
             break;
 
-        case CDC_SR_88K:
-        case CDC_SR_96K:
+        case AUDIO_SR_88K:
+        case AUDIO_SR_96K:
             Rate = 5;
             break;
 

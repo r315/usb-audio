@@ -92,7 +92,9 @@ uint8_t ak4619_Init (uint8_t addr){
         return 0;
     }
 
-    ak4619_Config(CDC_DEV_DAI, CDC_CFG_DAI_TDM);
+    ak4619_Config(CDC_CTRL_DAI_PROTO, AUDIO_FORMAT_I2S);
+    ak4619_Config(CDC_CTRL_DAI_SLOTW, 16);
+    ak4619_Config(CDC_CTRL_DAI_BITW, 16);
 
     // Default MCLK = 256FS
     ak4619_write_reg(AK4619_SYSCLKSET_REG, AK4619_SYSCLKSET_256FS);
@@ -102,56 +104,81 @@ uint8_t ak4619_Init (uint8_t addr){
     return 1;
 }
 
-uint8_t ak4619_Config (uint8_t DevID, uint8_t Cfg)
+uint8_t ak4619_Config (uint8_t Control, uint8_t Param)
 {
-    switch(DevID)
+    uint8_t RegVal;
+
+    switch(Control)
     {
-        case CDC_DEV_DAI:
-            switch(Cfg){
-                case CDC_CFG_DAI_SLOT_16BIT:
-                case CDC_CFG_DAI_SLOT_24BIT:
-                case CDC_CFG_DAI_SLOT_32BIT:
-                case CDC_CFG_DAI_I2S:
-                    ak4619_write_reg(AK4619_AUDFORM1_REG, AK4619_AUDFORM1_DSL16);
-                    ak4619_write_reg(AK4619_AUDFORM2_REG, AK4619_AUDFORM2_DODL16 | AK4619_AUDFORM2_DIDL16);
-                    break;
-
-                case CDC_CFG_DAI_TDM:
-                    ak4619_write_reg(AK4619_AUDFORM1_REG,
-                                    AK4619_AUDFORM1_TDM |
-                                    AK4619_AUDFORM1_DCF_TDM_MSB |
-                                    AK4619_AUDFORM1_DSL16);
-
-                    ak4619_write_reg(AK4619_AUDFORM2_REG,
-                                    AK4619_AUDFORM2_SLOT |
-                                    AK4619_AUDFORM2_DODL16 |
-                                    AK4619_AUDFORM2_DIDL16);
-                    break;
-                default: break;
+        case CDC_CTRL_DAI_PROTO:
+            if(Param == AUDIO_FORMAT_TDM){
+                ak4619_read_reg(AK4619_AUDFORM1_REG, &RegVal);
+                RegVal |= AK4619_AUDFORM1_TDM;
+                ak4619_write_reg(AK4619_AUDFORM1_REG, RegVal);
+                ak4619_read_reg(AK4619_AUDFORM2_REG, &RegVal);
+                RegVal |= AK4619_AUDFORM2_SLOT;
+                ak4619_write_reg(AK4619_AUDFORM2_REG, RegVal);
+            }else if(Param == AUDIO_FORMAT_PCM){
+                ak4619_read_reg(AK4619_AUDFORM1_REG, &RegVal);
+                RegVal &= ~(AK4619_AUDFORM1_TDM | AK4619_AUDFORM1_DCF_PCM_LONG);
+                ak4619_write_reg(AK4619_AUDFORM1_REG, RegVal | AK4619_AUDFORM1_DCF_PCM);
+                ak4619_read_reg(AK4619_AUDFORM2_REG, &RegVal);
+                RegVal |= AK4619_AUDFORM2_SLOT;
+                ak4619_write_reg(AK4619_AUDFORM2_REG, RegVal);
+            }else{
+                ak4619_read_reg(AK4619_AUDFORM1_REG, &RegVal);
+                RegVal &= ~(AK4619_AUDFORM1_TDM | AK4619_AUDFORM1_DCF_PCM_LONG);
+                if(Param == AUDIO_FORMAT_MSB) RegVal |= AK4619_AUDFORM1_DCF_MSB;
+                ak4619_write_reg(AK4619_AUDFORM1_REG, RegVal);
+                ak4619_read_reg(AK4619_AUDFORM2_REG, &RegVal);
+                RegVal &= ~AK4619_AUDFORM2_SLOT;
+                ak4619_write_reg(AK4619_AUDFORM2_REG, RegVal);
             }
             break;
 
-        case CDC_DEV_DAC1:
-        case CDC_DEV_DAC2:
-        case CDC_DEV_DAC3:
-        case CDC_DEV_DAC4:
-            switch(Cfg){
-                case AK4619_SEL_SDIN1:  ak4619_dac_mux(0, Cfg); break;
-                case AK4619_SEL_SDIN2:  ak4619_dac_mux(1, Cfg); break;
-                case AK4619_SEL_SDOUT1: ak4619_dac_mux(2, Cfg); break;
-                case AK4619_SEL_SDOUT2: ak4619_dac_mux(3, Cfg); break;
+        case CDC_CTRL_DAI_BITW:
+            ak4619_read_reg(AK4619_AUDFORM2_REG, &RegVal);
+            RegVal &= ~(AK4619_AUDFORM2_DIDL32 | 3);
+            switch(Param){
+                case 16: RegVal |= AK4619_AUDFORM2_DODL16 | AK4619_AUDFORM2_DIDL16; break;
+                case 24: RegVal |= AK4619_AUDFORM2_DODL24 | AK4619_AUDFORM2_DIDL24; break;
+                case 32: RegVal |= AK4619_AUDFORM2_DIDL32; break;
+            }
+            ak4619_write_reg(AK4619_AUDFORM2_REG, RegVal);
+            break;
+
+        case CDC_CTRL_DAI_SLOTW:
+            ak4619_read_reg(AK4619_AUDFORM1_REG, &RegVal);
+            RegVal &= ~AK4619_AUDFORM1_DSL32;
+            switch(Param){
+                case 16: RegVal |= AK4619_AUDFORM1_DSL16; break;
+                case 24: RegVal |= AK4619_AUDFORM1_DSL24; break;
+                case 32: RegVal |= AK4619_AUDFORM1_DSL32; break;
+            }
+            ak4619_write_reg(AK4619_AUDFORM1_REG, RegVal);
+            break;
+
+        case CDC_CTRL_DAC1:
+        case CDC_CTRL_DAC2:
+        case CDC_CTRL_DAC3:
+        case CDC_CTRL_DAC4:
+            switch(Param){
+                case AK4619_SEL_SDIN1:  ak4619_dac_mux(0, Param); break;
+                case AK4619_SEL_SDIN2:  ak4619_dac_mux(1, Param); break;
+                case AK4619_SEL_SDOUT1: ak4619_dac_mux(2, Param); break;
+                case AK4619_SEL_SDOUT2: ak4619_dac_mux(3, Param); break;
                 default: break;
             }
         break;
 
-        case CDC_GET_MCLK:
+        case CDC_CTRL_MCLK_GET:
             return CDC_MCLK_256FS;
 
-        case CDC_SET_I2C_ADDR:
-            ak4619_set_i2c_addr(Cfg);
+        case CDC_CTRL_ADDR_SET:
+            ak4619_set_i2c_addr(Param);
             break;
 
-        case CDC_GET_I2C_ADDR:
+        case CDC_CTRL_ADDR_GET:
             return ak4619_i2c_addr;
     }
 
@@ -233,15 +260,15 @@ void ak4619_Volume (uint8_t DevID, uint8_t Volume)
 {
     switch(DevID)
     {
-        case CDC_DEV_ADC1: ak4619_adc_gain(AK4619_ADC1LVOL_REG, Volume); break;
-        case CDC_DEV_ADC2: ak4619_adc_gain(AK4619_ADC1RVOL_REG, Volume); break;
-        case CDC_DEV_ADC3: ak4619_adc_gain(AK4619_ADC2LVOL_REG, Volume); break;
-        case CDC_DEV_ADC4: ak4619_adc_gain(AK4619_ADC2RVOL_REG, Volume); break;
+        case CDC_CTRL_ADC1: ak4619_adc_gain(AK4619_ADC1LVOL_REG, Volume); break;
+        case CDC_CTRL_ADC2: ak4619_adc_gain(AK4619_ADC1RVOL_REG, Volume); break;
+        case CDC_CTRL_ADC3: ak4619_adc_gain(AK4619_ADC2LVOL_REG, Volume); break;
+        case CDC_CTRL_ADC4: ak4619_adc_gain(AK4619_ADC2RVOL_REG, Volume); break;
 
-        case CDC_DEV_DAC1: ak4619_dac_volume(AK4619_DAC1LVOL_REG, Volume); break;
-        case CDC_DEV_DAC2: ak4619_dac_volume(AK4619_DAC1RVOL_REG, Volume); break;
-        case CDC_DEV_DAC3: ak4619_dac_volume(AK4619_DAC2LVOL_REG, Volume); break;
-        case CDC_DEV_DAC4: ak4619_dac_volume(AK4619_DAC2RVOL_REG, Volume); break;
+        case CDC_CTRL_DAC1: ak4619_dac_volume(AK4619_DAC1LVOL_REG, Volume); break;
+        case CDC_CTRL_DAC2: ak4619_dac_volume(AK4619_DAC1RVOL_REG, Volume); break;
+        case CDC_CTRL_DAC3: ak4619_dac_volume(AK4619_DAC2LVOL_REG, Volume); break;
+        case CDC_CTRL_DAC4: ak4619_dac_volume(AK4619_DAC2RVOL_REG, Volume); break;
         default : break;
     }
 }
@@ -253,8 +280,8 @@ void ak4619_Mute (uint8_t DevID, uint8_t Mute)
     ak4619_read_reg(AK4619_DACMUTFLT_REG, &regVal);
 
     switch(DevID){
-        case CDC_DEV_DAC1:
-        case CDC_DEV_DAC2:
+        case CDC_CTRL_DAC1:
+        case CDC_CTRL_DAC2:
             if(Mute){
                regVal |= AK4619_DACMUTFLT_DA1MUTE;
             }else{
@@ -262,8 +289,8 @@ void ak4619_Mute (uint8_t DevID, uint8_t Mute)
             }
             break;
 
-        case CDC_DEV_DAC3:
-        case CDC_DEV_DAC4:
+        case CDC_CTRL_DAC3:
+        case CDC_CTRL_DAC4:
             if(Mute){
                regVal |= AK4619_DACMUTFLT_DA2MUTE;
             }else{

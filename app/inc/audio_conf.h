@@ -30,6 +30,8 @@
 extern "C" {
 #endif
 
+#include "codec_driver.h"
+
 /**
  * @brief Configurations for audio and usb class
  *
@@ -42,10 +44,7 @@ extern "C" {
                                          AUDIO_SUPPORT_FREQ_48K \
                                         )
 
-#define AUDIO_BITW_16                   16
 #define AUDIO_BITW_16_32                17
-#define AUDIO_BITW_24                   24
-#define AUDIO_BITW_32                   32
 
 #define AUDIO_SUPPORT_MAX_FREQ          (AUDIO_SUPPORT_FREQ_48K ? 48 : 16)
 #define AUDIO_DEFAULT_FREQ              AT32_AUDIO_FREQ_16K
@@ -67,15 +66,8 @@ extern "C" {
 #define AUDIO_DEFAULT_MCLK_SRC          AUDIO_MCLK_SRC_I2S
 #define AUDIO_DEFAULT_MCLK_FREQ         12000000UL
 
-enum {
-    AUDIO_FORMAT_PHILIPS = 0,
-    AUDIO_FORMAT_MSB,
-    AUDIO_FORMAT_LSB,
-    AUDIO_FORMAT_PCM,
-    AUDIO_FORMAT_PCM_LONG
-};
 
-#define AUDIO_DEFAULT_FORMAT            AUDIO_FORMAT_PHILIPS
+
 
 
 /**

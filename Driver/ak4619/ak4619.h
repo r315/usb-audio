@@ -36,7 +36,7 @@
 
 #define AK4619_AUDFORM1_TDM         (1 << 7)
 #define AK4619_AUDFORM1_DCF_I2S     (0 << 4)
-#define AK4619_AUDFORM1_DCF_I2S_MSB (5 << 4)
+#define AK4619_AUDFORM1_DCF_MSB     (5 << 4)
 #define AK4619_AUDFORM1_DCF_PCM     (6 << 4)
 #define AK4619_AUDFORM1_DCF_PCM_LONG (7 << 4)
 #define AK4619_AUDFORM1_DCF_TDM_I2S (2 << 4)

@@ -2,7 +2,7 @@
 
 
 uint8_t dummy_Init (uint8_t addr){ (void)addr; return 0; }// fail init to allow scan for other
-uint8_t dummy_Config (uint8_t DevID, uint8_t Mode) {(void)Mode; return (DevID == CDC_GET_MCLK) ? CDC_MCLK_256FS : 0;}
+uint8_t dummy_Config (uint8_t DevID, uint8_t Mode) {(void)Mode; return (DevID == CDC_CTRL_MCLK_GET) ? CDC_MCLK_256FS : 0;}
 void    dummy_SampleRate (uint32_t Rate){(void)Rate;}
 void    dummy_Enable (void) {}
 void    dummy_Disable (void) {}
