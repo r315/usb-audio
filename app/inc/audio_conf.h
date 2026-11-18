@@ -37,7 +37,7 @@ extern "C" {
  *
  */
 #define AUDIO_SUPPORT_SPK               1
-#define AUDIO_SUPPORT_MIC               0
+#define AUDIO_SUPPORT_MIC               1
 #define AUDIO_SUPPORT_FREQ_16K          1
 #define AUDIO_SUPPORT_FREQ_48K          1
 #define AUDIO_SUPPORT_FREQ              (AUDIO_SUPPORT_FREQ_16K + \
@@ -50,7 +50,7 @@ extern "C" {
 #define AUDIO_DEFAULT_FREQ              AT32_AUDIO_FREQ_16K
 #define AUDIO_DEFAULT_BITW              AUDIO_BITW_16
 
-#define AUDIO_MIC_CHANEL_NUM            2
+#define AUDIO_MIC_CHANEL_NUM            1
 #define AUDIO_MIC_DEFAULT_BITW          AUDIO_DEFAULT_BITW
 
 #define AUDIO_SPK_CHANEL_NUM            2
@@ -74,18 +74,14 @@ extern "C" {
  * @brief Audio mode config
  *
  */
-#define AUDIO_MODE                      AUDIO_MODE_SYNC
+#define AUDIO_MODE                      AUDIO_MODE_ASYNC
 
-#define AUDIO_MODE_NSYNC                0
 #define AUDIO_MODE_ASYNC                1   /* Device clock master, reports its rate via feedback to host (paudio->SOF_num)*/
 #define AUDIO_MODE_ADAPTIVE             2   /* The host is master, device adapts its playback/recording clock to stay in sync with host data flow.*/
 #define AUDIO_MODE_SYNC                 3   /* Device clock is directly derived from USB SOF (Start of Frame) timing (fixed relationship).*/
 
-#if AUDIO_MODE == AUDIO_MODE_ASYNC
 #define AUDIO_SUPPORT_FEEDBACK          1
-#else
-#define AUDIO_SUPPORT_FEEDBACK          0
-#endif
+
 
 
 
