@@ -216,6 +216,12 @@ static void standard_set_interface (usbd_core_type *pudev, usb_setup_type *setup
     {
         paudio->mic.alt_setting = setup->wValue;
         audio_set_mic_alt_setting (paudio->mic.alt_setting);
+
+        if(setup->wValue){
+            uint32_t len = audio_dequeue_data (paudio->mic.data) << 1;
+            usbd_flush_tx_fifo (pudev, USBD_AUDIO_MIC_IN_EPT);
+            usbd_ept_send (pudev, USBD_AUDIO_MIC_IN_EPT, (uint8_t*)paudio->mic.data, len);
+        }
     }
     #endif
 
