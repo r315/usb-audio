@@ -1,11 +1,18 @@
 #include <stdio.h>
 #include "util.h"
 
-
+/**
+ * @brief Generates a triangle wave using all values of uin16_t
+ * Note: a full period of this wave is 128k samples
+ *
+ * @param dst
+ * @param nsamples
+ * @param nch
+ */
 void triangleWave(uint16_t *dst, uint16_t nsamples, uint8_t nch)
 {
     static uint16_t sample_value = 0;
-    uint8_t sample_count_dir = 0;
+    static uint8_t sample_count_dir = 0;
 
     for (int i = 0; i < nsamples; i += nch){
         if(sample_count_dir == 0 && sample_value == 0x8000){
