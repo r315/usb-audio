@@ -83,14 +83,15 @@ typedef struct {
   */
 typedef struct
 {
-  uint8_t enpd;
-  uint8_t interface;
-  uint8_t request_no;
   audio_channel_type spk;
   audio_channel_type mic;
 
-  uint8_t audio_cmd;
-  uint32_t audio_cmd_len;
+  uint8_t req_set;
+  uint8_t req_set_ctrl;
+  uint8_t req_set_param;
+  uint16_t req_set_len;
+
+
 
   uint8_t req_buf[64];  // Control interface buffer for send/receive data
   uint8_t feedback[AUDIO_FEEDBACK_MAXPACKET_SIZE+1];
