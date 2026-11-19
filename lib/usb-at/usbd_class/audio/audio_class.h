@@ -70,12 +70,8 @@ extern "C" {
 #define AUDIO_DESCRIPTOR_SIZE             0x09
 
 typedef struct {
-    uint16_t volume;
     uint16_t volume_limits[3]; /*min, max, resolution */
-    uint32_t freq;
-    uint32_t alt_setting;
     uint16_t data[AUDIO_SPK_OUT_MAXPACKET_SIZE >> 1]; /* different size for mic? */
-    uint8_t mute;
 }audio_channel_type;
 
 /**
