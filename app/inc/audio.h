@@ -87,14 +87,21 @@ audio_status_t audio_set_bitw(uint8_t bitw);
 void audio_set_codec(const codec_drv_t *codec);
 audio_status_t audio_set_freq(uint32_t freq);
 audio_status_t audio_set_proto(enum audio_proto proto);
-void audio_set_mic_alt_setting(uint32_t alt_seting);
+void audio_set_mic_state(uint8_t state);
 void audio_set_mic_freq(uint32_t freq);
 void audio_set_mic_mute(uint8_t mute);
 void audio_set_mic_volume(uint16_t volume);
-void audio_set_spk_alt_setting(uint32_t alt_seting);
+void audio_set_spk_state(uint8_t state);
 void audio_set_spk_freq(uint32_t freq);
 void audio_set_spk_mute(uint8_t mute);
 void audio_set_spk_volume(uint16_t volume);
+
+uint8_t audio_get_mic_state(void);
+uint8_t audio_get_mic_mute(void);
+uint8_t audio_get_mik_volume(void);
+uint8_t audio_get_spk_state(void);
+uint8_t audio_get_spk_mute(void);
+uint8_t audio_get_spk_volume(void);
 
 enum audio_bitw audio_get_bitw(void);
 enum audio_proto audio_get_proto(void);

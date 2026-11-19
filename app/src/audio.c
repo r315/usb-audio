@@ -179,7 +179,6 @@ void audio_set_mic_mute(uint8_t mute)
     DBG_AUD_INF("%s :%d", __func__, mute);
 }
 
-
 /**
   * @brief  audio codec set speaker mute
   * @param  mute: mute state
@@ -190,29 +189,22 @@ void audio_set_spk_mute(uint8_t mute)
     DBG_AUD_INF("%s :%d", __func__, mute);
 }
 
-
 /**
-  * @brief  audio codec set microphone volume
-  * @param  volume: the new volume
-  * @retval none
-  */
+ * @brief  audio codec set microphone volume
+ * @param  volume: the new volume
+ * @retval none
+ */
 void audio_set_mic_volume(uint16_t volume)
 {
     DBG_AUD_INF("%s :%d", __func__, volume);
     audio_driver.mic.volume = volume;
 }
 
-uint8_t audio_get_mic_volume(void)
-{
-    return audio_driver.mic.volume;
-}
-
-
 /**
-  * @brief  audio codec set speaker volume
-  * @param  volume: the new volume [0-100]
-  * @retval none
-  */
+ * @brief  audio codec set speaker volume
+ * @param  volume: the new volume [0-100]
+ * @retval none
+ */
 void audio_set_spk_volume(uint16_t volume)
 {
     DBG_AUD_INF("%s :%d", __func__, volume);
@@ -221,9 +213,83 @@ void audio_set_spk_volume(uint16_t volume)
     audio_driver.codec->Volume(CDC_CTRL_DAC2, volume);
 }
 
+/**
+  * @brief  audio codec microphone alt setting config
+  * @param  none
+  * @retval none
+  */
+ void audio_set_mic_state(uint8_t state)
+ {
+     audio_stream_t *stream = &audio_driver.mic;
+
+     DBG_AUD_INF("%s :%lu", __func__, state);
+
+     stream->state = state ? STREAM_RESUME : STREAM_PAUSED;
+ }
+
+/**
+ * @brief  audio codec speaker alt setting config
+ * @param  none
+ * @retval none
+ */
+void audio_set_spk_state(uint8_t state)
+{
+    audio_stream_t *stream = &audio_driver.spk;
+
+    DBG_AUD_INF("%s :%lu", __func__, state);
+
+    stream->state = state ? STREAM_RESUME : STREAM_PAUSED;
+    audio_driver.feedback_counter = 0;
+}
+
+uint8_t audio_get_mic_mute(void)
+{
+    return 0;
+}
+
+uint8_t audio_get_spk_mute(void)
+{
+    return 0;
+}
+
+uint8_t audio_get_mic_volume(void)
+{
+    return audio_driver.mic.volume;
+}
+
 uint8_t audio_get_spk_volume(void)
 {
     return audio_driver.spk.volume;
+}
+
+uint8_t audio_get_mic_state(void)
+{
+    audio_stream_t *stream = &audio_driver.mic;
+    return !!(stream->state == STREAM_RESUME);
+}
+
+uint8_t audio_get_spk_state(void)
+{
+    audio_stream_t *stream = &audio_driver.spk;
+    return !!(stream->state == STREAM_RESUME);
+}
+
+/**
+ * @brief  Feedback to host for async mode
+ *
+ * @param  buf output buffer
+ * @retval feedback size in bytes
+ */
+uint8_t audio_get_spk_feedback(uint8_t *buf)
+{
+    uint32_t feedback_cnt = (audio_driver.feedback_counter) << 1;
+    float fd_fval = (float) feedback_cnt / (float)1024.0 * (float)16384/*2^14*/;
+    uint32_t feedback_value = (uint32_t)fd_fval;
+    audio_driver.feedback_counter = 0;
+    buf[0] = (uint8_t)(feedback_value);
+    buf[1] = (uint8_t)(feedback_value >> 8);
+    buf[2] = (uint8_t)(feedback_value >> 16);
+    return 3;
 }
 
 void audio_set_codec(const codec_drv_t *codec)
@@ -235,9 +301,10 @@ void audio_set_codec(const codec_drv_t *codec)
     audio_driver.codec = codec;
 }
 
-enum audio_bitw audio_get_bitw(void)
+audio_status_t audio_set_proto(enum audio_proto proto)
 {
-    return audio_driver.bitw;
+    audio_driver.protocol = proto;
+    return AUDIO_OK;
 }
 
 audio_status_t audio_set_bitw(uint8_t bitw)
@@ -246,73 +313,14 @@ audio_status_t audio_set_bitw(uint8_t bitw)
     return AUDIO_OK;
 }
 
+enum audio_bitw audio_get_bitw(void)
+{
+    return audio_driver.bitw;
+}
+
 enum audio_proto audio_get_proto(void)
 {
     return audio_driver.protocol;
-}
-
-audio_status_t audio_set_proto(enum audio_proto proto)
-{
-    audio_driver.protocol = proto;
-    return AUDIO_OK;
-}
-
-/**
-  * @brief  audio codec speaker alt setting config
-  * @param  none
-  * @retval none
-  */
-void audio_set_spk_alt_setting(uint32_t alt_seting)
-{
-    audio_stream_t *stream = &audio_driver.spk;
-
-    DBG_AUD_INF("%s :%lu", __func__, alt_seting);
-
-    if(!alt_seting){
-        // Fill both buffers
-        memset16(stream->dma_buffer, 0x0000, stream->nsamples << 1);
-        stream->state = STREAM_PAUSED;
-    }else{
-        stream->state = STREAM_RESUME;
-        audio_driver.feedback_counter = 0;
-    }
-}
-
-/**
-  * @brief  audio codec microphone alt setting config
-  * @param  none
-  * @retval none
-  */
-void audio_set_mic_alt_setting(uint32_t alt_seting)
-{
-    audio_stream_t *stream = &audio_driver.mic;
-
-    DBG_AUD_INF("%s :%lu", __func__, alt_seting);
-
-    if(!alt_seting){
-        memset16(stream->dma_buffer, 0x0000, stream->nsamples << 1);
-        stream->state = STREAM_PAUSED;
-    }else{
-        stream->state = STREAM_RESUME;
-    }
-}
-
-/**
-  * @brief  Feedback to host for async mode
-  *
-  * @param  buf output buffer
-  * @retval feedback size in bytes
-  */
-uint8_t audio_get_spk_feedback(uint8_t *buf)
-{
-    uint32_t feedback_cnt = (audio_driver.feedback_counter) << 1;
-    float fd_fval = (float) feedback_cnt / (float)1024.0 * (float)16384/*2^14*/;
-    uint32_t feedback_value = (uint32_t)fd_fval;
-    audio_driver.feedback_counter = 0;
-    buf[0] = (uint8_t)(feedback_value);
-    buf[1] = (uint8_t)(feedback_value >> 8);
-    buf[2] = (uint8_t)(feedback_value >> 16);
-    return 3;
 }
 
 void audio_suspend_event(void)
