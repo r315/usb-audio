@@ -29,168 +29,127 @@
 static usb_audio_type audio_struct;
 
 /**
- * @brief  usb audio in iso incom event
- * @param  udev: usb device core handler type
- * @retval none
- */
-static void class_event_inisoincom_event (usbd_core_type *pudev)
-{
-    UNUSED(pudev);
-#if 0
-  usbd_core_type *pudev = (usbd_core_type *)udev;
-  usb_audio_type *paudio = (usb_audio_type *)pudev->class_handler->pdata;
-  uint32_t fnsof = OTG_DEVICE(pudev->usb_reg)->dsts_bit.soffn;
-  uint32_t epctl_fb = USB_INEPT(pudev->usb_reg, (USBD_AUDIO_FEEDBACK_EPT&0x7F))->diepctl_bit.dpid;
-  uint32_t epctl_in = USB_INEPT(pudev->usb_reg, (USBD_AUDIO_MIC_IN_EPT&0x7F))->diepctl_bit.dpid;
-  uint32_t len = 0;
-
-  if((fnsof & 0x1) == epctl_fb)
-  {
-    USB_INEPT(pudev->usb_reg, (USBD_AUDIO_FEEDBACK_EPT&0x7F))->diepctl_bit.eptdis = 1;
-    USB_INEPT(pudev->usb_reg, (USBD_AUDIO_FEEDBACK_EPT&0x7F))->diepctl_bit.snak = 1;
-    usb_flush_tx_fifo(pudev->usb_reg, USBD_AUDIO_FEEDBACK_EPT&0x7F);
-
-    usbd_ept_send(pudev, USBD_AUDIO_FEEDBACK_EPT, paudio->audio_feed_back, 3);
-  }
-
-  if((fnsof & 0x1) == epctl_in)
-  {
-    USB_INEPT(pudev->usb_reg, (USBD_AUDIO_MIC_IN_EPT&0x7F))->diepctl_bit.eptdis = 1;
-    USB_INEPT(pudev->usb_reg, (USBD_AUDIO_MIC_IN_EPT&0x7F))->diepctl_bit.snak = 1;
-    usb_flush_tx_fifo(pudev->usb_reg, USBD_AUDIO_MIC_IN_EPT&0x7F);
-
-    len = audio_dequeue_data(paudio->audio_mic_data);
-    usbd_ept_send(pudev, USBD_AUDIO_MIC_IN_EPT, paudio->audio_mic_data, len);
-  }
-#endif
-}
-
-/**
- * @brief  Get current control attribute
- * @param  udev: usb device core handler type
- * @param  setup: setup class
- * @retval none
- */
-static void class_setup_get_cur (usbd_core_type *pudev, usb_setup_type *setup)
-{
-    usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
-    /* check Feature Unit Control (wIndex) */
-    if (HBYTE (setup->wIndex) == AUDIO_SPK_FEATURE_UNIT_ID) {
-        /* Check Control Selector (wValue) */
-        if (HBYTE (setup->wValue) == AUDIO_MUTE_CONTROL) {
-            paudio->g_audio_cur[0] = paudio->spk.mute;
-            usbd_ctrl_send (pudev, paudio->g_audio_cur, setup->wLength);
-        } else {
-            *((uint16_t *) paudio->g_audio_cur) = paudio->spk.volume;
-            usbd_ctrl_send (pudev, paudio->g_audio_cur, setup->wLength);
-        }
-    } else {
-        if (HBYTE (setup->wValue) == AUDIO_MUTE_CONTROL){
-            paudio->g_audio_cur[0] = paudio->mic.mute;
-            usbd_ctrl_send (pudev, paudio->g_audio_cur, setup->wLength);
-        } else {
-            *((uint16_t *) paudio->g_audio_cur) = paudio->mic.volume;
-            usbd_ctrl_send (pudev, paudio->g_audio_cur, setup->wLength);
-        }
-    }
-}
-
-/**
  * @brief  Set current control attribute
- * See Audio device class, 5.2.1.1 Set Request
+ * 5.2.2.1.1 Set Terminal Control Request
+ *
  * @param  udev: usb device core handler type
  * @param  setup: setup struct
  * @retval none
  */
-static void class_setup_set_cur (usbd_core_type *pudev, usb_setup_type *setup)
+static usb_sts_type audio_class_req_set_cur (usbd_core_type *pudev, usb_setup_type *setup, usb_audio_type *paudio)
 {
-   usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
-
     if (setup->wLength == 0){
-        return;
+        return USB_ERROR;
     }
 
-    usbd_ctrl_recv (pudev, paudio->g_audio_cur, setup->wLength);
+    // Prepare to receive request data
+    usbd_ctrl_recv (pudev, paudio->req_buf, setup->wLength);
 
     paudio->audio_cmd = AUDIO_REQ_SET_CUR;
     paudio->audio_cmd_len = setup->wLength;
 
+    // Save which control is to be set
     switch (setup->bmRequestType & AUDIO_REQ_CONTROL_MASK){
         case AUDIO_REQ_CONTROL_INTERFACE:
             paudio->interface = HBYTE(setup->wIndex);
             paudio->request_no = HBYTE(setup->wValue);
             break;
         case AUDIO_REQ_CONTROL_ENDPOINT:
-            paudio->enpd       = setup->wIndex;
+            paudio->enpd = setup->wIndex;
             paudio->request_no = AUDIO_FREQ_SET_CONTROL;
             break;
         default:
-            break;
+            return USB_NOT_SUPPORT;
     }
+
+    // Control is set on ept0_rx when data is received
+    return USB_OK;
 }
 
 /**
- * @brief  Get control attribute minimum value
- * @param  udev: usb device core handler type
- * @param  setup: setup struct
- * @retval none
+ * @brief Handle class specific request
+ * See Audio device class, 5 Requests
+ * @param pudev
+ * @param setup
+ * @return
  */
-static void class_setup_get_min (usbd_core_type *pudev, usb_setup_type *setup)
+static usb_sts_type audio_class_request(usbd_core_type *pudev, usb_setup_type *setup)
 {
-   usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
-   if (HBYTE (setup->wIndex) == AUDIO_SPK_FEATURE_UNIT_ID)
-   {
-      *((uint16_t *) paudio->g_audio_cur) = paudio->spk.volume_limits[0];
-      usbd_ctrl_send (pudev, paudio->g_audio_cur, setup->wLength);
-   }
-   else
-   {
-      *((uint16_t *) paudio->g_audio_cur) = paudio->mic.volume_limits[0];
-      usbd_ctrl_send (pudev, paudio->g_audio_cur, setup->wLength);
-   }
+    usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
+
+    /* Fast path to SET_CUR (bRequest) */
+    if (setup->bRequest == AUDIO_REQ_SET_CUR){
+        return audio_class_req_set_cur (pudev, setup, paudio);
+    }
+
+    /* Check Terminal ID and Interface (wIndex) */
+    switch(HBYTE (setup->wIndex)){
+        /* Speaker Terminal ID */
+        case AUDIO_SPK_FEATURE_UNIT_ID:
+            /* Decode GET_CUR/MIN/MAX/RES (bRequest) */
+            switch(setup->bRequest){
+                case AUDIO_REQ_GET_CUR:
+                    /* Check Control Selector (wValue) */
+                    if (HBYTE (setup->wValue) == AUDIO_MUTE_CONTROL) {
+                        paudio->req_buf[0] = paudio->spk.mute;
+                    } else {
+                        *((uint16_t *) paudio->req_buf) = paudio->spk.volume;
+                    }
+                break;
+
+                case AUDIO_REQ_GET_MIN:
+                    *((uint16_t *) paudio->req_buf) = paudio->spk.volume_limits[0];
+                break;
+
+                case AUDIO_REQ_GET_MAX:
+                    *((uint16_t *) paudio->req_buf) = paudio->spk.volume_limits[1];
+                break;
+
+                case AUDIO_REQ_GET_RES:
+                    *((uint16_t *) paudio->req_buf) = paudio->spk.volume_limits[2];
+                break;
+
+                default:
+                    return USB_NOT_SUPPORT;
+            }
+        break;
+        /* Mic Terminal ID */
+        case AUDIO_MIC_FEATURE_UNIT_ID:
+            /* Decode GET_CUR/MIN/MAX/RES (bRequest) */
+            switch(setup->bRequest){
+                case AUDIO_REQ_GET_CUR:
+                    if (HBYTE (setup->wValue) == AUDIO_MUTE_CONTROL){
+                        paudio->req_buf[0] = paudio->mic.mute;
+                    } else {
+                        *((uint16_t *) paudio->req_buf) = paudio->mic.volume;
+                    }
+                break;
+
+                case AUDIO_REQ_GET_MIN:
+                    *((uint16_t *) paudio->req_buf) = paudio->mic.volume_limits[0];
+                break;
+
+                case AUDIO_REQ_GET_MAX:
+                    *((uint16_t *) paudio->req_buf) = paudio->mic.volume_limits[1];
+                break;
+
+                case AUDIO_REQ_GET_RES:
+                    *((uint16_t *) paudio->req_buf) = paudio->mic.volume_limits[2];
+                break;
+
+                default:
+                    return USB_NOT_SUPPORT;
+            }
+        break;
+        default:
+            return USB_NOT_SUPPORT;
+    }
+
+    usbd_ctrl_send (pudev, paudio->req_buf, setup->wLength);
+
+    return USB_OK;
 }
 
-/**
- * @brief  Get control attribute maximum value
- * @param  udev: usb device core handler type
- * @param  setup: setup class
- * @retval none
- */
-static void class_setup_get_max (usbd_core_type *pudev, usb_setup_type *setup)
-{
-   usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
-   if (HBYTE (setup->wIndex) == AUDIO_SPK_FEATURE_UNIT_ID)
-   {
-      *((uint16_t *) paudio->g_audio_cur) = paudio->spk.volume_limits[1];
-      usbd_ctrl_send (pudev, paudio->g_audio_cur, setup->wLength);
-   }
-   else
-   {
-      *((uint16_t *) paudio->g_audio_cur) = paudio->mic.volume_limits[1];
-      usbd_ctrl_send (pudev, paudio->g_audio_cur, setup->wLength);
-   }
-}
-
-/**
- * @brief  Get control attribute resolution
- * @param  udev: usb device core handler type
- * @param  setup: setup struct
- * @retval none
- */
-static void class_setup_get_res (usbd_core_type *pudev, usb_setup_type *setup)
-{
-   usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
-   if (HBYTE (setup->wIndex) == AUDIO_SPK_FEATURE_UNIT_ID)
-   {
-      *((uint16_t *) paudio->g_audio_cur) = paudio->spk.volume_limits[2];
-      usbd_ctrl_send (pudev, paudio->g_audio_cur, setup->wLength);
-   }
-   else
-   {
-      *((uint16_t *) paudio->g_audio_cur) = paudio->mic.volume_limits[2];
-      usbd_ctrl_send (pudev, paudio->g_audio_cur, setup->wLength);
-   }
-}
 
 /**
  * @brief  Standard request set interface
@@ -199,7 +158,7 @@ static void class_setup_get_res (usbd_core_type *pudev, usb_setup_type *setup)
  * @param  setup: setup class
  * @retval none
  */
-static void standard_set_interface (usbd_core_type *pudev, usb_setup_type *setup)
+static void audio_std_req_set_interface (usbd_core_type *pudev, usb_setup_type *setup)
 {
    usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
 
@@ -234,7 +193,7 @@ static void standard_set_interface (usbd_core_type *pudev, usb_setup_type *setup
  * @param  setup: setup class
  * @retval none
  */
-static void standard_get_interface (usbd_core_type *pudev, usb_setup_type *setup)
+static void audio_std_req_get_interface (usbd_core_type *pudev, usb_setup_type *setup)
 {
     usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
 
@@ -266,6 +225,12 @@ static usb_sts_type class_init_handler (void *udev)
    paudio->spk.volume_limits[1] = 0x1400; // MAX
    paudio->spk.volume_limits[2] = 0x003C; // RES 0.5dB step
    paudio->spk.volume = 60;
+
+   paudio->mic.volume_limits[0] = 0x0000; // MIN
+   paudio->mic.volume_limits[1] = 0x1400; // MAX
+   paudio->mic.volume_limits[2] = 0x003C; // RES 0.5dB step
+   paudio->mic.volume = 60;
+
 
 #if AUDIO_SUPPORT_MIC
    /* open microphone in endpoint */
@@ -335,15 +300,7 @@ static usb_sts_type class_setup_handler (void *udev, usb_setup_type *setup)
 
    switch (setup->bmRequestType & USB_REQ_TYPE_RESERVED){
         case USB_REQ_TYPE_CLASS:
-            /* Class Request */
-            switch (setup->bRequest){
-                case AUDIO_REQ_GET_CUR: class_setup_get_cur (pudev, setup); break;
-                case AUDIO_REQ_SET_CUR: class_setup_set_cur (pudev, setup); break;
-                case AUDIO_REQ_GET_MIN: class_setup_get_min (pudev, setup); break;
-                case AUDIO_REQ_GET_MAX: class_setup_get_max (pudev, setup); break;
-                case AUDIO_REQ_GET_RES: class_setup_get_res (pudev, setup); break;
-                default: status = USB_NOT_SUPPORT; break;
-            }
+            status = audio_class_request(pudev, setup);
             break;
         case USB_REQ_TYPE_STANDARD:
             /* Standard Request */
@@ -358,8 +315,8 @@ static usb_sts_type class_setup_handler (void *udev, usb_setup_type *setup)
                         usbd_ctrl_send (pudev, config->descriptor + 18, len);
                     }
                     break;
-                case USB_STD_REQ_GET_INTERFACE: standard_get_interface (pudev, setup); break;
-                case USB_STD_REQ_SET_INTERFACE: standard_set_interface (pudev, setup); break;
+                case USB_STD_REQ_GET_INTERFACE: audio_std_req_get_interface (pudev, setup); break;
+                case USB_STD_REQ_SET_INTERFACE: audio_std_req_set_interface (pudev, setup); break;
                 case USB_STD_REQ_CLEAR_FEATURE: break;
                 case USB_STD_REQ_SET_FEATURE: break;
                 default: status = USB_NOT_SUPPORT; break;
@@ -412,14 +369,14 @@ static usb_sts_type class_ept0_rx_handler (void *udev)
         switch (paudio->request_no){
             case AUDIO_VOLUME_CONTROL:
                 if (paudio->interface == AUDIO_SPK_FEATURE_UNIT_ID) {
-                    paudio->spk.volume = (uint16_t) (paudio->g_audio_cur[0] |
-                                                        (paudio->g_audio_cur[1] << 8));
+                    paudio->spk.volume = (uint16_t) (paudio->req_buf[0] |
+                                                        (paudio->req_buf[1] << 8));
                     /* set volume */
                     audio_set_spk_volume (paudio->spk.volume * 100 /
                                             paudio->spk.volume_limits[1]);
                 } else {
-                    paudio->mic.volume = (uint16_t) (paudio->g_audio_cur[0] |
-                                                        (paudio->g_audio_cur[1] << 8));
+                    paudio->mic.volume = (uint16_t) (paudio->req_buf[0] |
+                                                        (paudio->req_buf[1] << 8));
 
                     audio_set_mic_volume (paudio->mic.volume * 256 /
                                             paudio->mic.volume_limits[1]);
@@ -427,23 +384,23 @@ static usb_sts_type class_ept0_rx_handler (void *udev)
                 break;
             case AUDIO_MUTE_CONTROL:
                 if (paudio->interface == AUDIO_SPK_FEATURE_UNIT_ID) {
-                    paudio->spk.mute = paudio->g_audio_cur[0];
+                    paudio->spk.mute = paudio->req_buf[0];
                     audio_set_spk_mute (paudio->spk.mute);
                 } else {
-                    paudio->mic.mute = paudio->g_audio_cur[0];
+                    paudio->mic.mute = paudio->req_buf[0];
                     audio_set_mic_mute (paudio->mic.mute);
                 }
                 break;
             case AUDIO_FREQ_SET_CONTROL:
                 if (paudio->enpd == USBD_AUDIO_MIC_IN_EPT) {
                     paudio->mic.freq =
-                        (paudio->g_audio_cur[0] | (paudio->g_audio_cur[1] << 8) |
-                            (paudio->g_audio_cur[2] << 16));
+                        (paudio->req_buf[0] | (paudio->req_buf[1] << 8) |
+                            (paudio->req_buf[2] << 16));
                     audio_set_mic_freq (paudio->mic.freq);
                 } else {
                     paudio->spk.freq =
-                        (paudio->g_audio_cur[0] | (paudio->g_audio_cur[1] << 8) |
-                            (paudio->g_audio_cur[2] << 16));
+                        (paudio->req_buf[0] | (paudio->req_buf[1] << 8) |
+                            (paudio->req_buf[2] << 16));
                     audio_set_spk_freq (paudio->spk.freq);
                 }
                 break;
@@ -552,7 +509,6 @@ static usb_sts_type class_sof_handler (void *udev)
       }
    }
 #endif
-   /* ...user code... */
 
    return status;
 }
@@ -568,30 +524,20 @@ static usb_sts_type class_event_handler (void *udev, usbd_event_type event)
    usb_sts_type status    = USB_OK;
    usbd_core_type *pudev  = (usbd_core_type *) udev;
    usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
+
    switch (event)
    {
       case USBD_RESET_EVENT:
-
-         /* ...user code... */
-
          break;
       case USBD_SUSPEND_EVENT:
          paudio->spk.alt_setting = 0;
          paudio->mic.alt_setting = 0;
-         // audio_spk_alt_setting(paudio->spk_alt_setting);
-         // audio_mic_alt_setting(paudio->spk_alt_setting);
          audio_suspend_event ();
-         /* ...user code... */
-
          break;
       case USBD_WAKEUP_EVENT:
-         /* ...user code... */
-
          break;
       case USBD_INISOINCOM_EVENT:
-         class_event_inisoincom_event (udev);
          break;
-
       default:
          break;
    }

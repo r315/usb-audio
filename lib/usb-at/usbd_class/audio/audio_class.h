@@ -92,7 +92,7 @@ typedef struct
   uint8_t audio_cmd;
   uint32_t audio_cmd_len;
 
-  uint8_t g_audio_cur[64];
+  uint8_t req_buf[64];  // Control interface buffer for send/receive data
   uint8_t feedback[AUDIO_FEEDBACK_MAXPACKET_SIZE+1];
    __IO uint16_t feedback_state;
    __IO uint8_t spk_out_stage;
