@@ -395,7 +395,7 @@ audio_status_t audio_init(const codec_drv_t *codec)
 #endif
 #if AUDIO_SUPPORT_MIC
     audio_driver.mic.dma_buffer = mic_dma_buffer;
-    audio_driver.mic.nchannels = AUDIO_MIC_CHANEL_NUM;
+    audio_driver.mic.nchannels = AUDIO_MIC_CHR;
     audio_driver.mic.state = STREAM_INIT;
     audio_set_mic_volume(DEFAULT_MIC_VOL);
 #endif

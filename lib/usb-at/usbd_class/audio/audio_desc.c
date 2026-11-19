@@ -68,7 +68,7 @@ static uint8_t g_usbd_configuration[] =
   USB_CONFIG_STRING,                     /* iConfiguration: */
   0xC0,                                  /* bmAttributes: self powered */
   0x32,                                  /* MaxPower 100 mA: this current is used for detecting vbus */
- // -------------- Interface(0) Descriptor ---------------
+ // -------------- Audio Control Interface(0) Descriptor ---------------
   USB_DEVICE_IF_DESC_LEN,                /* bLength: interface descriptor size */
   USB_DESCIPTOR_TYPE_INTERFACE,          /* bDescriptorType: interface descriptor type */
   0x00,                                  /* bInterfaceNumber: number of interface */
@@ -124,18 +124,21 @@ static uint8_t g_usbd_configuration[] =
   AUDIO_MIC_FEATURE_UNIT_ID,             /* bSourceID: from feature unit terminal */
   0x00,                                  /* iTerminal: unused */
   // -------------- AC Feature Unit Descriptor ----------------------
+  #if AUDIO_MIC_CHR == 2
   AUDIO_CS_AC_FEATURE_UNIT_LEN,          /* bLength: descriptor size */
+  #else
+  0x0B,
+  #endif
   AUDIO_CS_INTERFACE,                    /* bDescriptorType: configuration */
   AUDIO_AC_FEATURE_UNIT,                 /* bDescriptorSubtype: feature unit type*/
   AUDIO_MIC_FEATURE_UNIT_ID,             /* bUnitID: id of this feature unit */
   AUDIO_MIC_INPUT_TERMINAL_ID,           /* bSourceID: from input terminal */
   0x02,                                  /* bControlSize: 2 byte */
-  0x03,                                  /* bmaControls0: mute & volume*/
-  0x00,
-  0x00,                                  /* bmaControls1 */
-  0x00,
-  0x00,                                  /* bmaControls2 */
-  0x00,
+  0x03, 0x00,                            /* bmaControls0: mute & volume*/
+  0x00, 0x00,                            /* bmaControls1 */
+  #if AUDIO_MIC_CHR == 2
+  0x00, 0x00,                            /* bmaControls2 */
+  #endif
   0x00,                                  /* iFeature: unused */
 #endif
 
@@ -185,7 +188,7 @@ static uint8_t g_usbd_configuration[] =
 #endif
 
 #if (AUDIO_SUPPORT_MIC == 1)
-  // -------------- Interface(2) Descriptor ----------------------
+  // -------------- Audio Stream Interface(2) Descriptor ----------------------
   0x09,                                  /* bLength: descriptor size */
   USB_DESCIPTOR_TYPE_INTERFACE,          /* bDescriptorType: interface descriptor type */
   AUDIO_MIC_INTERFACE_NUMBER,            /* bInterfaceNumber: index of this interface */
@@ -195,7 +198,7 @@ static uint8_t g_usbd_configuration[] =
   AUDIO_SUBCLASS_AUDIOSTREAMING,         /* bInterfaceSubclass: audio streaming */
   0x00,                                  /* bInterfaceProtocol: unused */
   0x00,                                  /* iInterface: unused */
-  // -------------- Interface(2) Descriptor ----------------------
+  // -------------- Alternate Audio Interface(2) Descriptor ----------------------
   0x09,                                  /* bLength: descriptor size */
   USB_DESCIPTOR_TYPE_INTERFACE,          /* bDescriptorType: interface descriptor type */
   AUDIO_MIC_INTERFACE_NUMBER,            /* bInterfaceNumber: index of this interface */
@@ -205,7 +208,7 @@ static uint8_t g_usbd_configuration[] =
   AUDIO_SUBCLASS_AUDIOSTREAMING,         /* bInterfaceSubclass: audio streaming */
   0x00,                                  /* bInterfaceProtocol: unused */
   0x00,                                  /* iInterface: unused */
-  // -------------- Audio Steaming Interface Descriptor ----------------------
+  // -------------- Audio Stream Audio Class Descriptor ----------------------
   0x07,                                  /* bLength: configuration descriptor size */
   AUDIO_CS_INTERFACE,                    /* bDescriptorType: interface descriptor type */
   AUDIO_AS_GENERAL,                      /* bDescriptorSubtype: general sub type*/
@@ -213,7 +216,7 @@ static uint8_t g_usbd_configuration[] =
   0x01,                                  /* bDelay: interface delay */
   0x01,                                  /* wFormatTag: pcm format*/
   0x00,                                  /* wFormatTag: pcm format*/
-  // -------------- Audio Streaming Format Type Descriptor ----------------------
+  // -------------- Format Type Audio Descriptor ----------------------
   0x08 + AUDIO_MIC_FREQ_SIZE * 3,        /* bLength: descriptor size */
   AUDIO_CS_INTERFACE,                    /* bDescriptorType: interface descriptor type */
   AUDIO_AS_FORMAT_TYPE,                  /* bDescriptorSubtype: format subtype */
@@ -228,7 +231,7 @@ static uint8_t g_usbd_configuration[] =
 #if (AUDIO_SUPPORT_FREQ_48K == 1)
   SAMPLE_FREQ(AT32_AUDIO_FREQ_48K),      /* tSamFreq: 48000hz */
 #endif
-  // -------------- Endpoint Descriptor ----------------------
+  // -------------- Isochronous Endpoint Descriptor ----------------------
   AUDIO_CS_AS_AD_EP_LEN,                 /* bLength: size of endpoint descriptor in bytes */
   USB_DESCIPTOR_TYPE_ENDPOINT,           /* bDescriptorType: endpoint descriptor type */
   USBD_AUDIO_MIC_IN_EPT,                 /* bEndpointAddress: the address of endpoint on usb device described by this descriptor */
@@ -245,7 +248,7 @@ static uint8_t g_usbd_configuration[] =
   AUDIO_BINTERVAL_TIME,                  /* bInterval: interval for polling endpoint for data transfers */
   0x00,                                  /* bRefresh: unused */
   0x00,                                  /* bSynchAddress: unused */
-  // -------------- Audio Data Endpoint Descriptor ----------------------
+  // -------------- Isochronous Endpoint Audio Class Descriptor ----------------------
   USB_DEVICE_EPT_LEN,                    /* bLength: size of endpoint descriptor in bytes */
   AUDIO_CS_ENDPOINT,                     /* bDescriptorType: cs endpoint descriptor type */
   0x01,                                  /* bDescriptorSubtype: general subtype */

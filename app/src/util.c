@@ -27,7 +27,7 @@ void triangleWave(uint16_t *dst, uint16_t nsamples, uint8_t nch)
             *dst++ = sample_value;
         else{
             *dst++ = sample_value;
-            *dst++ = sample_value;
+            *dst++ = 0xFFFF - sample_value;
         }
         sample_value = sample_count_dir ? sample_value - 1 : sample_value + 1;
     }

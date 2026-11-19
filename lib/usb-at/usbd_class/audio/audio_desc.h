@@ -178,7 +178,11 @@ extern "C" {
 #define USBD_CONFIGURATION_DESC_LEN       116
 #else
 #define AUDIO_MIC_INTERFACE_NUMBER       0x01
+#if AUDIO_MIC_CHANEL_NUM == 2
 #define USBD_CONFIGURATION_DESC_LEN       116
+#else
+#define USBD_CONFIGURATION_DESC_LEN       114
+#endif
 #endif
 
 /**
