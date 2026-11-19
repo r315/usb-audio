@@ -87,6 +87,10 @@ audio_status_t audio_set_bitw(uint8_t bitw);
 void audio_set_codec(const codec_drv_t *codec);
 audio_status_t audio_set_freq(uint32_t freq);
 audio_status_t audio_set_proto(enum audio_proto proto);
+
+enum audio_bitw audio_get_bitw(void);
+enum audio_proto audio_get_proto(void);
+
 void audio_set_mic_state(uint8_t state);
 void audio_set_mic_freq(uint32_t freq);
 void audio_set_mic_mute(uint8_t mute);
@@ -98,20 +102,16 @@ void audio_set_spk_volume(uint16_t volume);
 
 uint8_t audio_get_mic_state(void);
 uint8_t audio_get_mic_mute(void);
-uint8_t audio_get_mik_volume(void);
+uint16_t audio_get_mic_volume(void);
 uint8_t audio_get_spk_state(void);
 uint8_t audio_get_spk_mute(void);
-uint8_t audio_get_spk_volume(void);
-
-enum audio_bitw audio_get_bitw(void);
-enum audio_proto audio_get_proto(void);
-uint8_t audio_get_mic_volume(void);
+uint16_t audio_get_spk_volume(void);
 uint8_t audio_get_spk_feedback(uint8_t *feedback);
-uint8_t audio_get_spk_volume(void);
 
 void audio_enqueue_data(const uint16_t *data, uint32_t len);
 uint32_t audio_dequeue_data(uint16_t *buffer);
 void audio_suspend_event(void);
+
 #ifdef __cplusplus
 }
 #endif

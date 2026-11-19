@@ -198,6 +198,7 @@ void audio_set_mic_volume(uint16_t volume)
 {
     DBG_AUD_INF("%s :%d", __func__, volume);
     audio_driver.mic.volume = volume;
+    //audio_driver.codec->Volume(CDC_CTRL_ADC1, volume);
 }
 
 /**
@@ -252,12 +253,12 @@ uint8_t audio_get_spk_mute(void)
     return 0;
 }
 
-uint8_t audio_get_mic_volume(void)
+uint16_t audio_get_mic_volume(void)
 {
     return audio_driver.mic.volume;
 }
 
-uint8_t audio_get_spk_volume(void)
+uint16_t audio_get_spk_volume(void)
 {
     return audio_driver.spk.volume;
 }
@@ -399,13 +400,11 @@ audio_status_t audio_init(const codec_drv_t *codec)
     audio_driver.spk.dma_buffer = spk_dma_buffer;
     audio_driver.spk.nchannels = AUDIO_SPK_CHANEL_NUM;
     audio_driver.spk.state = STREAM_INIT;
-    audio_set_spk_volume(DEFAULT_SPK_VOL);
 #endif
 #if AUDIO_SUPPORT_MIC
     audio_driver.mic.dma_buffer = mic_dma_buffer;
     audio_driver.mic.nchannels = AUDIO_MIC_CHR;
     audio_driver.mic.state = STREAM_INIT;
-    audio_set_mic_volume(DEFAULT_MIC_VOL);
 #endif
 
     uint8_t cdc_addr = codec->Config(CDC_CTRL_ADDR_GET, 0);

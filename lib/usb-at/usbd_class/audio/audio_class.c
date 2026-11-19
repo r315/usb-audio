@@ -26,6 +26,15 @@
 #include "usbd_core.h"
 #include "audio.h"
 
+//#define VOL_MIN     0xDB00 // -37dB
+//#define VOL_MAX     0x0000 // 0dB
+//#define VOL_RES     0x0100 // 1dB
+
+#define VOL_MIN     0x0000 // 0dB
+#define VOL_MAX     0x1400 // +20db
+#define VOL_RES     0x0080 // RES 0.5dB step
+
+
 static usb_audio_type audio_struct;
 
 /**
@@ -91,22 +100,22 @@ static usb_sts_type audio_class_request(usbd_core_type *pudev, usb_setup_type *s
                 case AUDIO_REQ_GET_CUR:
                     /* Check Control Selector (wValue) */
                     if (HBYTE (setup->wValue) == AUDIO_MUTE_CONTROL) {
-                        paudio->req_buf[0] = audio_get_spk_mute();
+                        paudio->req_buf[0] = audio_get_spk_mute() * VOL_MAX / 100;
                     } else {
-                        *((uint16_t *) paudio->req_buf) = audio_get_spk_volume();
+                        *((uint16_t *) paudio->req_buf) = audio_get_spk_volume() * VOL_MAX / 100;
                     }
                 break;
 
                 case AUDIO_REQ_GET_MIN:
-                    *((uint16_t *) paudio->req_buf) = paudio->spk.volume_limits[0];
+                    *((uint16_t *) paudio->req_buf) = VOL_MIN;
                 break;
 
                 case AUDIO_REQ_GET_MAX:
-                    *((uint16_t *) paudio->req_buf) = paudio->spk.volume_limits[1];
+                    *((uint16_t *) paudio->req_buf) = VOL_MAX;
                 break;
 
                 case AUDIO_REQ_GET_RES:
-                    *((uint16_t *) paudio->req_buf) = paudio->spk.volume_limits[2];
+                    *((uint16_t *) paudio->req_buf) = VOL_RES;
                 break;
 
                 default:
@@ -119,22 +128,22 @@ static usb_sts_type audio_class_request(usbd_core_type *pudev, usb_setup_type *s
             switch(setup->bRequest){
                 case AUDIO_REQ_GET_CUR:
                     if (HBYTE (setup->wValue) == AUDIO_MUTE_CONTROL){
-                        paudio->req_buf[0] = audio_get_mic_mute();
+                        paudio->req_buf[0] = audio_get_mic_mute() * VOL_MAX / 100;
                     } else {
-                        *((uint16_t *) paudio->req_buf) = audio_get_mic_volume();
+                        *((uint16_t *) paudio->req_buf) = audio_get_mic_volume() * VOL_MAX / 100;
                     }
                 break;
 
                 case AUDIO_REQ_GET_MIN:
-                    *((uint16_t *) paudio->req_buf) = paudio->mic.volume_limits[0];
+                    *((uint16_t *) paudio->req_buf) = VOL_MIN;
                 break;
 
                 case AUDIO_REQ_GET_MAX:
-                    *((uint16_t *) paudio->req_buf) = paudio->mic.volume_limits[1];
+                    *((uint16_t *) paudio->req_buf) = VOL_MAX;
                 break;
 
                 case AUDIO_REQ_GET_RES:
-                    *((uint16_t *) paudio->req_buf) = paudio->mic.volume_limits[2];
+                    *((uint16_t *) paudio->req_buf) = VOL_RES;
                 break;
 
                 default:
@@ -175,9 +184,9 @@ static void audio_std_req_set_interface (usbd_core_type *pudev, usb_setup_type *
         audio_set_mic_state (setup->wValue);
 
         if(setup->wValue){
-            uint32_t len = audio_dequeue_data (paudio->mic.data) << 1;
+            uint32_t len = audio_dequeue_data (paudio->mic.buf) << 1;
             usbd_flush_tx_fifo (pudev, USBD_AUDIO_MIC_IN_EPT);
-            usbd_ept_send (pudev, USBD_AUDIO_MIC_IN_EPT, (uint8_t*)paudio->mic.data, len);
+            usbd_ept_send (pudev, USBD_AUDIO_MIC_IN_EPT, (uint8_t*)paudio->mic.buf, len);
         }
     }
     #endif
@@ -221,14 +230,6 @@ static usb_sts_type class_init_handler (void *udev)
    usbd_core_type *pudev  = (usbd_core_type *) udev;
    usb_audio_type *paudio = (usb_audio_type *) pudev->class_handler->pdata;
 
-   paudio->spk.volume_limits[0] = 0x0000; // MIN
-   paudio->spk.volume_limits[1] = 0x1400; // MAX
-   paudio->spk.volume_limits[2] = 0x003C; // RES 0.5dB step
-
-   paudio->mic.volume_limits[0] = 0x0000; // MIN
-   paudio->mic.volume_limits[1] = 0x1400; // MAX
-   paudio->mic.volume_limits[2] = 0x003C; // RES 0.5dB step
-
 #if AUDIO_SUPPORT_MIC
    /* open microphone in endpoint */
    usbd_ept_open (pudev, USBD_AUDIO_MIC_IN_EPT, EPT_ISO_TYPE,
@@ -249,7 +250,7 @@ static usb_sts_type class_init_handler (void *udev)
 
 #if AUDIO_SUPPORT_SPK
    /* start receive speaker out data */
-   usbd_ept_recv (pudev, USBD_AUDIO_SPK_OUT_EPT, (uint8_t*)paudio->spk.data,
+   usbd_ept_recv (pudev, USBD_AUDIO_SPK_OUT_EPT, (uint8_t*)paudio->spk.buf,
                   AUDIO_SPK_OUT_MAXPACKET_SIZE);
 #endif
    return status;
@@ -369,11 +370,9 @@ static usb_sts_type class_ept0_rx_handler (void *udev)
                 uint16_t volume = (uint16_t) (paudio->req_buf[0] |
                                              (paudio->req_buf[1] << 8));
                 if (paudio->req_set_param == AUDIO_SPK_FEATURE_UNIT_ID) {
-                    audio_set_spk_volume (volume * 100 /
-                                            paudio->spk.volume_limits[1]);
+                    audio_set_spk_volume (volume * 100 / VOL_MAX);
                 } else {
-                    audio_set_mic_volume (volume * 100 /
-                                            paudio->mic.volume_limits[1]);
+                    audio_set_mic_volume (volume * 100 / VOL_MAX);
                 }
             }
             break;
@@ -424,9 +423,9 @@ static usb_sts_type class_in_handler (void *udev, uint8_t ept_num)
 
    if ((ept_num & 0x7F) == (USBD_AUDIO_MIC_IN_EPT & 0x7F))
    {
-      len = audio_dequeue_data (paudio->mic.data) << 1;
+      len = audio_dequeue_data (paudio->mic.buf) << 1;
       usbd_flush_tx_fifo (udev, USBD_AUDIO_MIC_IN_EPT);
-      usbd_ept_send (udev, USBD_AUDIO_MIC_IN_EPT, (uint8_t*)paudio->mic.data, len);
+      usbd_ept_send (udev, USBD_AUDIO_MIC_IN_EPT, (uint8_t*)paudio->mic.buf, len);
    }
    else if ((ept_num & 0x7F) == (USBD_AUDIO_FEEDBACK_EPT & 0x7F))
    {
@@ -455,9 +454,9 @@ static usb_sts_type class_out_handler (void *udev, uint8_t ept_num)
    if ((ept_num & 0x7F) == (USBD_AUDIO_SPK_OUT_EPT & 0x7F))
    {
       /* speaker data*/
-      audio_enqueue_data (paudio->spk.data, len >> 1);
+      audio_enqueue_data (paudio->spk.buf, len >> 1);
       /* get next data */
-      usbd_ept_recv (pudev, USBD_AUDIO_SPK_OUT_EPT, (uint8_t*)paudio->spk.data,
+      usbd_ept_recv (pudev, USBD_AUDIO_SPK_OUT_EPT, (uint8_t*)paudio->spk.buf,
                      AUDIO_SPK_OUT_MAXPACKET_SIZE);
       paudio->spk_out_stage = 1;
    }

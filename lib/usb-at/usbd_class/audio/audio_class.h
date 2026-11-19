@@ -70,8 +70,9 @@ extern "C" {
 #define AUDIO_DESCRIPTOR_SIZE             0x09
 
 typedef struct {
-    uint16_t volume_limits[3]; /*min, max, resolution */
-    uint16_t data[AUDIO_SPK_OUT_MAXPACKET_SIZE >> 1]; /* different size for mic? */
+    /* In a optimal implementation, data is delivered directly
+     * to dma buffer */
+    uint16_t buf[AUDIO_SPK_OUT_MAXPACKET_SIZE >> 1];
 }audio_channel_type;
 
 /**
@@ -81,13 +82,10 @@ typedef struct
 {
   audio_channel_type spk;
   audio_channel_type mic;
-
   uint8_t req_set;
   uint8_t req_set_ctrl;
   uint8_t req_set_param;
   uint16_t req_set_len;
-
-
 
   uint8_t req_buf[64];  // Control interface buffer for send/receive data
   uint8_t feedback[AUDIO_FEEDBACK_MAXPACKET_SIZE+1];
