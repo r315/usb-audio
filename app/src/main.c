@@ -692,8 +692,8 @@ int main(void)
   while(1)
   {
     #if ENABLE_CLI
-    if(CLI_ReadLine()){
-        CLI_HandleLine();
+    if(CLI_LineCheck()){
+        CLI_LineProcess();
     }
     #endif
     delay_ms(10);
